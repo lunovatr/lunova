@@ -1,7 +1,7 @@
 node_modules/
 dist/
 *build/
-_gh_pages/
+# _gh_pages/ # suncuya hugo kurmamak için build'i gönderelim.
 static/images/.DS_Store
 static/*.js
 static/*.css
