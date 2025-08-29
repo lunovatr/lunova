@@ -4,6 +4,9 @@ import svgr from "vite-plugin-svgr";
 
 // https://vite.dev/config/
 export default defineConfig({
+  server: {
+    port: 5174, // Client frontend için farklı port
+  },
   plugins: [
     react(),
     svgr({
