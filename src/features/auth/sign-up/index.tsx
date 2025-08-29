@@ -16,16 +16,16 @@ export function SignUp() {
       <Card className='gap-4'>
         <CardHeader>
           <CardTitle className='text-lg tracking-tight'>
-            Create an account
+            Hesap Oluştur
           </CardTitle>
           <CardDescription>
-            Enter your email and password to create an account. <br />
-            Already have an account?{' '}
+            Hesap oluşturmak için bilgilerinizi girin. <br />
+            Zaten hesabınız var mı?{' '}
             <Link
               to='/sign-in'
               className='hover:text-primary underline underline-offset-4'
             >
-              Sign In
+              Giriş Yap
             </Link>
           </CardDescription>
         </CardHeader>
@@ -34,21 +34,21 @@ export function SignUp() {
         </CardContent>
         <CardFooter>
           <p className='text-muted-foreground px-8 text-center text-sm'>
-            By creating an account, you agree to our{' '}
+            Hesap oluşturarak{' '}
             <a
               href='/terms'
               className='hover:text-primary underline underline-offset-4'
             >
-              Terms of Service
+              Hizmet Şartları
             </a>{' '}
-            and{' '}
+            ve{' '}
             <a
               href='/privacy'
               className='hover:text-primary underline underline-offset-4'
             >
-              Privacy Policy
+              Gizlilik Politikası
             </a>
-            .
+            'nı kabul etmiş olursunuz.
           </p>
         </CardFooter>
       </Card>

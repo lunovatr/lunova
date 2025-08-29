@@ -17,13 +17,34 @@ import { sidebarData } from './data/sidebar-data'
 import { NavGroup } from './nav-group'
 import { NavUser } from './nav-user'
 import { TeamSwitcher } from './team-switcher'
+import { useAuthGuard } from '@/hooks/use-auth-guard'
+import { Loader2 } from 'lucide-react'
 
 type AuthenticatedLayoutProps = {
   children?: React.ReactNode
 }
 
 export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
+  const { user, loading, error } = useAuthGuard()
   const defaultOpen = getCookie('sidebar_state') !== 'false'
+
+  // Loading durumunda loading spinner göster
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <p className="text-muted-foreground">Yükleniyor...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Hata durumunda veya kullanıcı yoksa boş div döndür (redirect zaten yapıldı)
+  if (error || !user) {
+    return <div />
+  }
+
   return (
     <SearchProvider>
       <SidebarProvider defaultOpen={defaultOpen}>

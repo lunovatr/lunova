@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useNavigate } from '@tanstack/react-router'
+import { toast } from 'sonner'
 import { IconFacebook, IconGithub } from '@/assets/brand-icons'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -15,22 +17,27 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/password-input'
+import api from '@/lib/api'
 
 const formSchema = z
   .object({
+    first_name: z.string().min(1, 'İsim gerekli'),
+    last_name: z.string().min(1, 'Soyisim gerekli'),
     email: z.email({
       error: (iss) =>
-        iss.input === '' ? 'Please enter your email' : undefined,
+        iss.input === '' ? 'E-posta adresinizi girin' : undefined,
     }),
+    gsm_no: z.string().min(1, 'Telefon numarası gerekli'),
+    tc_kimlik: z.string().min(1, 'TC Kimlik No gerekli'),
     password: z
       .string()
-      .min(1, 'Please enter your password')
-      .min(7, 'Password must be at least 7 characters long'),
-    confirmPassword: z.string().min(1, 'Please confirm your password'),
+      .min(1, 'Şifrenizi girin')
+      .min(7, 'Şifre en az 7 karakter olmalıdır'),
+    password2: z.string().min(1, 'Şifrenizi tekrar girin'),
   })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match.",
-    path: ['confirmPassword'],
+  .refine((data) => data.password === data.password2, {
+    message: "Şifreler eşleşmiyor.",
+    path: ['password2'],
   })
 
 export function SignUpForm({
@@ -38,24 +45,56 @@ export function SignUpForm({
   ...props
 }: React.HTMLAttributes<HTMLFormElement>) {
   const [isLoading, setIsLoading] = useState(false)
+  const [errors, setErrors] = useState<{ [key: string]: string[] }>({})
+  const navigate = useNavigate()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      first_name: '',
+      last_name: '',
       email: '',
+      gsm_no: '',
+      tc_kimlik: '',
       password: '',
-      confirmPassword: '',
+      password2: '',
     },
   })
 
-  function onSubmit(data: z.infer<typeof formSchema>) {
+  async function onSubmit(data: z.infer<typeof formSchema>) {
     setIsLoading(true)
-    // eslint-disable-next-line no-console
-    console.log(data)
+    setErrors({})
 
-    setTimeout(() => {
+    try {
+      await api.post('/api/v1/accounts/register/', {
+        ...data,
+        role: 'expert',
+      })
+      
+      // Başarılı kayıt sonrası e-posta adresini localStorage'a kaydet
+      localStorage.setItem('registered_email', data.email)
+      
+      toast.success('Kayıt başarılı! Giriş yapabilirsiniz.')
+      navigate({ to: '/sign-in' })
+    } catch (err: any) {
+      if (err.response?.data && typeof err.response.data === 'object') {
+        setErrors(err.response.data)
+        // Form hatalarını form state'ine aktar
+        Object.keys(err.response.data).forEach((key) => {
+          if (key in form.getValues()) {
+            form.setError(key as any, {
+              type: 'server',
+              message: err.response.data[key].join(', '),
+            })
+          }
+        })
+      } else {
+        toast.error('Kayıt başarısız.')
+      }
+      console.log(err)
+    } finally {
       setIsLoading(false)
-    }, 3000)
+    }
   }
 
   return (
@@ -67,12 +106,64 @@ export function SignUpForm({
       >
         <FormField
           control={form.control}
+          name='first_name'
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>İsim</FormLabel>
+              <FormControl>
+                <Input placeholder='İsim' {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name='last_name'
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Soyisim</FormLabel>
+              <FormControl>
+                <Input placeholder='Soyisim' {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
           name='email'
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>E-posta</FormLabel>
               <FormControl>
                 <Input placeholder='name@example.com' {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name='gsm_no'
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Telefon Numarası</FormLabel>
+              <FormControl>
+                <Input placeholder='Telefon Numarası' {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name='tc_kimlik'
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>TC Kimlik No</FormLabel>
+              <FormControl>
+                <Input placeholder='TC Kimlik No' {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -83,7 +174,7 @@ export function SignUpForm({
           name='password'
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Password</FormLabel>
+              <FormLabel>Şifre</FormLabel>
               <FormControl>
                 <PasswordInput placeholder='********' {...field} />
               </FormControl>
@@ -93,10 +184,10 @@ export function SignUpForm({
         />
         <FormField
           control={form.control}
-          name='confirmPassword'
+          name='password2'
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Confirm Password</FormLabel>
+              <FormLabel>Şifre (Tekrar)</FormLabel>
               <FormControl>
                 <PasswordInput placeholder='********' {...field} />
               </FormControl>
@@ -105,7 +196,7 @@ export function SignUpForm({
           )}
         />
         <Button className='mt-2' disabled={isLoading}>
-          Create Account
+          {isLoading ? 'Kayıt Olunuyor...' : 'Hesap Oluştur'}
         </Button>
 
         <div className='relative my-2'>
@@ -114,7 +205,7 @@ export function SignUpForm({
           </div>
           <div className='relative flex justify-center text-xs uppercase'>
             <span className='bg-background text-muted-foreground px-2'>
-              Or continue with
+              Veya devam et
             </span>
           </div>
         </div>
