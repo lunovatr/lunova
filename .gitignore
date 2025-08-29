@@ -1,16 +1,26 @@
-node_modules/
-dist/
-*build/
-# _gh_pages/ # suncuya hugo kurmamak için build'i gönderelim.
-static/images/.DS_Store
-static/*.js
-static/*.css
-static/*.map
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+.env
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
 .DS_Store
-classNames.json
-app.bundle.js.LICENSE.txt
-temp
-yarn-error.log
-release
-.release
-public/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
