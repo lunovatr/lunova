@@ -29,6 +29,14 @@ export function useAuthGuard() {
       // Prevent multiple simultaneous checks
       if (isChecking.current) return
       
+      // Eğer token yoksa, auth check yapma
+      if (!auth.accessToken) {
+        setUser(null)
+        setLoading(false)
+        navigate({ to: '/sign-in', replace: true })
+        return
+      }
+      
       // Check if we have valid cached data
       const now = Date.now()
       if (userCache && (now - cacheTimestamp) < CACHE_DURATION) {
@@ -62,6 +70,7 @@ export function useAuthGuard() {
         
         // Auth store'u güncelle
         auth.setUser({
+          id: userData.id,
           accountNo: userData.account_no || 'ACC001',
           email: userData.email,
           role: userData.role || ['expert'],

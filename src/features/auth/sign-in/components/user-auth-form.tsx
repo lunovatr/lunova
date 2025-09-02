@@ -73,7 +73,9 @@ export function UserAuthForm({
 
       // API'den gelen kullanıcı bilgilerini kullan
       const userData = response.data
+      
       const user = {
+        id: userData.id,
         accountNo: userData.account_no || 'ACC001',
         email: data.email,
         role: userData.role || ['expert'],
@@ -82,7 +84,7 @@ export function UserAuthForm({
 
       // Set user and access token
       auth.setUser(user)
-      auth.setAccessToken(userData.access_token || 'access-token')
+      auth.setAccessToken(userData.access)
 
       toast.success(`Hoş geldiniz, ${data.email}!`)
 
