@@ -52,10 +52,16 @@ const queryClient = new QueryClient({
     onError: (error) => {
       if (error instanceof AxiosError) {
         if (error.response?.status === 401) {
-          toast.error('Session expired!')
-          useAuthStore.getState().auth.reset()
-          const redirect = `${router.history.location.href}`
-          router.navigate({ to: '/sign-in', search: { redirect } })
+          // Sadece bir kez logout işlemi yap
+          const currentToken = useAuthStore.getState().auth.accessToken
+          if (currentToken) {
+            // React Query cache'ini temizle
+            queryClient.clear()
+            toast.error('Session expired!')
+            useAuthStore.getState().auth.reset()
+            const redirect = `${router.history.location.href}`
+            router.navigate({ to: '/sign-in', search: { redirect } })
+          }
         }
         if (error.response?.status === 500) {
           toast.error('Internal Server Error!')

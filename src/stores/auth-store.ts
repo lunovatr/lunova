@@ -8,6 +8,7 @@ interface AuthUser {
   email: string
   role: string[]
   exp: number
+  id: number
 }
 
 interface AuthState {
@@ -23,7 +24,13 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()((set) => {
   const cookieState = getCookie(ACCESS_TOKEN)
-  const initToken = cookieState ? JSON.parse(cookieState) : ''
+  let initToken = ''
+  try {
+    initToken = cookieState && cookieState !== 'undefined' && cookieState !== 'null' ? JSON.parse(cookieState) : ''
+  } catch (error) {
+    console.warn('Auth store: Invalid token in cookie, resetting')
+    initToken = ''
+  }
   return {
     auth: {
       user: null,
