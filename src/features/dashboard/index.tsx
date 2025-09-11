@@ -1,11 +1,10 @@
 // src/features/dashboard/index.tsx
 
-// Hook'umuzu import edelim
 import { useAppointments } from './use-appointments';
 import { CreateAppointmentModal } from './components/create-appointment-modal';
 import { useState } from 'react';
+import { useAuthStore } from '@/stores/auth-store';
 
-// Diğer importlar aynı kalıyor...
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -31,9 +30,9 @@ const topNav = [
 export function Dashboard() {
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // Artık user kontrolü yapmıyoruz, direkt expertId 1 kullanıyoruz
-  const expertId = 1; // Verilerinize göre expert ID 1
+  
+  const { auth } = useAuthStore();
+  const expertId = auth.user?.id || 1; // Use current user's id or fallback to 1
   const { appointments, isLoading, error } = useAppointments(expertId);
 
   return (
@@ -52,7 +51,7 @@ export function Dashboard() {
         <div className='mb-2 flex items-center justify-between space-y-2'>
           <h1 className='text-2xl font-bold tracking-tight'>Dashboard</h1>
           <div className='flex items-center space-x-2'>
-            <Button onClick={() => setIsModalOpen(true)}>Randevu Oluştur</Button>
+            {/* <Button onClick={() => setIsModalOpen(true)}>Randevu Oluştur</Button> */}
           </div>
         </div>
         

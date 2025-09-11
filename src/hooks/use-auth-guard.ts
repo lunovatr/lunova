@@ -75,6 +75,7 @@ export function useAuthGuard() {
           email: userData.email,
           role: userData.role || ['expert'],
           exp: Date.now() + 24 * 60 * 60 * 1000,
+          username: userData.username,
         })
         
       } catch (err: any) {
