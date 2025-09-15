@@ -9,6 +9,7 @@ interface AuthUser {
   role: string[]
   exp: number
   id: number
+  username?: string
 }
 
 interface AuthState {
