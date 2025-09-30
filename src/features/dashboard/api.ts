@@ -23,8 +23,8 @@ export interface Appointment {
 }
 
 // API endpoint'ini bir değişkene atamak daha temiz bir yöntemdir.
-const API_URL = 'http://localhost:8000/api/v1/appointments/'
-const USER_APPOINTMENTS_URL = 'http://localhost:8000/api/v1/appointments/user/'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+const USER_APPOINTMENTS_URL = API_BASE_URL + '/api/v1/appointments/user/'
 
 // Kullanıcının randevularını getir (expert ID'sini almak için)
 export const getUserAppointments = async (): Promise<Appointment[]> => {
