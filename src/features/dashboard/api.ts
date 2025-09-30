@@ -23,7 +23,6 @@ export interface Appointment {
 }
 
 // API endpoint'ini bir değişkene atamak daha temiz bir yöntemdir.
-const API_URL = 'http://localhost:8000/api/v1/appointments/'
 const USER_APPOINTMENTS_URL = 'http://localhost:8000/api/v1/appointments/user/'
 
 // Kullanıcının randevularını getir (expert ID'sini almak için)

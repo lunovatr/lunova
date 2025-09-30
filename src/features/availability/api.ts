@@ -4,7 +4,7 @@ import {
   WeeklyAvailability, 
   AvailabilityException, 
   BulkWeeklyAvailability, 
-  CalendarAvailability 
+  // CalendarAvailability 
 } from './types'
 
 // Base URL configuration - can be easily swapped between local and production
@@ -504,7 +504,7 @@ export const deleteAvailabilityException = async (id: number): Promise<void> => 
 // POST /appointments/availability/exceptions/bulk/
 export const createBulkAvailabilityExceptions = async (exceptions: Omit<AvailabilityException, 'id'>[]): Promise<AvailabilityException[]> => {
   console.log(`API: Creating bulk availability exceptions to ${EXCEPTIONS_URL}bulk/`)
-  
+  console.log(exceptions); // build hatası almamak için.
   try {
     // TODO: This endpoint is not yet completed on the backend
     // When implemented, uncomment the following code:

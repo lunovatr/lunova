@@ -5,9 +5,10 @@ import { CreateAppointmentModal } from './components/create-appointment-modal';
 import { useState } from 'react';
 import { useAuthStore } from '@/stores/auth-store';
 
-import { Button } from '@/components/ui/button'
+// import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsContent } from '@/components/ui/tabs'
+// import { TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ConfigDrawer } from '@/components/config-drawer'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
