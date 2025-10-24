@@ -7,10 +7,6 @@ import Checkbox from "../form/input/Checkbox";
 import Alert from "../ui/alert/Alert";
 import api from "../../lib/api";
 
-  // DEBUG: Eğer true ise gerçek API isteği atılmadan sahte başarılı kayıt senaryosu çalıştırılır.
-  // Test bittikten sonra bunu false yapın.
-  const USE_FAKE_SIGNUP = true;
-
 
 export default function SignUpForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -61,19 +57,6 @@ export default function SignUpForm() {
     const newErrors: Record<string,string> = {};
     setGeneralError(null);
     setSuccessMessage(null);
-
-    // Eğer debug modu açıksa, gerçek API çağrısı yerine sahte başarılı kayıt akışı çalıştır.
-    if (USE_FAKE_SIGNUP) {
-      // Simüle edilmiş başarılı kayıt davranışı
-      setSuccessMessage('Kayıt başarılı! 4 saniye içinde giriş sayfasına yönlendirileceksiniz. (Sahte)');
-      localStorage.setItem('registered_email', formData.email);
-      localStorage.setItem('registered_success', 'true');
-      setTimeout(() => {
-        navigate('/signin');
-      }, 4000);
-      return;
-    }
-
 
     if (!formData.first_name) newErrors.first_name = 'Ad zorunludur';
     if (!formData.last_name) newErrors.last_name = 'Soyad zorunludur';
