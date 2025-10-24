@@ -4,11 +4,14 @@ import { ChevronLeftIcon, EyeCloseIcon, EyeIcon } from "../../icons";
 import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import Checkbox from "../form/input/Checkbox";
+import api from "../../lib/api";
+
 
 export default function SignUpForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [showPassword2, setShowPassword2] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
+  const [isTurkishCitizen, setIsTurkishCitizen] = useState(true);
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     first_name: "",
@@ -44,7 +47,7 @@ export default function SignUpForm() {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
     if (!formData.first_name || !formData.last_name) {
@@ -77,14 +80,27 @@ export default function SignUpForm() {
       return;
     }
     
-    if (!formData.id_number) {
-      alert("TC Kimlik numarası zorunludur");
-      return;
-    }
-    
-    if (formData.id_number.length !== 11) {
-      alert("TC Kimlik numarası 11 haneli olmalıdır");
-      return;
+    // TC vatandaşı kontrolü
+    if (isTurkishCitizen) {
+      if (!formData.id_number) {
+        alert("TC Kimlik numarası zorunludur");
+        return;
+      }
+      
+      if (formData.id_number.length !== 11) {
+        alert("TC Kimlik numarası 11 haneli olmalıdır");
+        return;
+      }
+    } else {
+      if (!formData.national_id) {
+        alert("Pasaport/Kimlik numarası zorunludur");
+        return;
+      }
+      
+      if (!formData.country) {
+        alert("Ülke seçimi zorunludur");
+        return;
+      }
     }
     
     if (!formData.birth_date) {
@@ -114,50 +130,45 @@ export default function SignUpForm() {
       password: formData.password,
       password2: formData.password2,
       phone_number: formData.phone_number,
-      id_number: formData.id_number,
-      country: "TR",
-      national_id: "",
       birth_date: formData.birth_date,
       gender_id: parseInt(formData.gender_id),
       support_goal: formData.support_goal,
-      received_service_before: formData.received_service_before
+      received_service_before: formData.received_service_before,
+      country: isTurkishCitizen ? "TR" : formData.country,
+      ...(isTurkishCitizen 
+        ? { id_number: formData.id_number } 
+        : { national_id: formData.national_id }
+      )
     };
 
     console.log("Gönderilecek veri:", submitData);
 
-    fetch('http://127.0.0.1:8000/api/v1/accounts/register/client/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(submitData),
-    })
-    .then(response => {
-      if (!response.ok) {
-        return response.json().then(err => {
-          console.error('API Hatası:', err);
-          let errorMessage = 'Kayıt hatası:\n';
-          Object.keys(err).forEach(key => {
-            errorMessage += `${key}: ${err[key]}\n`;
-          });
-          throw new Error(errorMessage);
-        });
-      }
-      return response.json();
-    })
-    .then(data => {
-      console.log('Kayıt başarılı:', data);
+    try {
+      const response = await api.post('/api/v1/accounts/register/client/', submitData);
+      
+      console.log('Kayıt başarılı:', response.data);
       alert('Kayıt başarılı! Giriş sayfasına yönlendiriliyorsunuz...');
       
-     
       localStorage.setItem('registered_email', formData.email);
       
       navigate('/signin');
-    })
-    .catch(error => {
+    } catch (error: unknown) {
       console.error('Hata detayı:', error);
-      alert(error.message);
-    });
+      
+      type AxiosErrorLike = { response?: { data?: Record<string, unknown> } };
+      const axiosError = error as AxiosErrorLike;
+      
+      if (axiosError.response?.data) {
+        let errorMessage = 'Kayıt hatası:\n';
+        const data = axiosError.response.data as Record<string, unknown>;
+        Object.keys(data).forEach(key => {
+          errorMessage += `${key}: ${JSON.stringify(data[key])}\n`;
+        });
+        alert(errorMessage);
+      } else {
+        alert('Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin.');
+      }
+    }
   };
 
   return (
@@ -247,21 +258,92 @@ export default function SignUpForm() {
                   <p className="mt-1 text-xs text-gray-500">Format: 05321234567 (11 rakam)</p>
                 </div>
 
-                <div>
-                  <Label>
-                    TC Kimlik No<span className="text-error-500">*</span>
-                  </Label>
-                  <input
-                    type="text"
-                    name="id_number"
-                    placeholder="12345678901"
-                    value={formData.id_number}
-                    onChange={handleChange}
-                    maxLength={11}
-                    className="w-full px-4 py-3 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white/90 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                {/* TC Vatandaşlığı Checkbox */}
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    className="w-5 h-5"
+                    checked={!isTurkishCitizen}
+                    onChange={(checked) => {
+                      setIsTurkishCitizen(!checked);
+                      // Checkbox durumu değiştiğinde ilgili alanları temizle
+                      if (checked) {
+                        setFormData(prev => ({...prev, id_number: "", country: "", national_id: ""}));
+                      } else {
+                        setFormData(prev => ({...prev, id_number: "", country: "TR", national_id: ""}));
+                      }
+                    }}
                   />
-                  <p className="mt-1 text-xs text-gray-500">11 haneli olmalıdır</p>
+                  <p className="inline-block text-sm font-normal text-gray-500 dark:text-gray-400">
+                    TC vatandaşı değilim
+                  </p>
                 </div>
+
+                {/* Koşullu Alan: TC Kimlik No veya Pasaport/Kimlik No */}
+                {isTurkishCitizen ? (
+                  <div>
+                    <Label>
+                      TC Kimlik No<span className="text-error-500">*</span>
+                    </Label>
+                    <input
+                      type="text"
+                      name="id_number"
+                      placeholder="12345678901"
+                      value={formData.id_number}
+                      onChange={handleChange}
+                      maxLength={11}
+                      className="w-full px-4 py-3 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white/90 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">11 haneli olmalıdır</p>
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <Label>
+                        Pasaport/Kimlik No<span className="text-error-500">*</span>
+                      </Label>
+                      <Input
+                        type="text"
+                        name="national_id"
+                        placeholder="Pasaport veya kimlik numaranızı girin"
+                        value={formData.national_id}
+                        onChange={handleChange}
+                      />
+                    </div>
+                    <div>
+                      <Label>
+                        Ülke<span className="text-error-500">*</span>
+                      </Label>
+                      <select
+                        name="country"
+                        aria-label="Ülke"
+                        value={formData.country}
+                        onChange={handleSelectChange}
+                        className="w-full px-4 py-3 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white/90 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      >
+                        <option value="">Ülke seçin</option>
+                        <option value="US">Amerika Birleşik Devletleri</option>
+                        <option value="GB">Birleşik Krallık</option>
+                        <option value="DE">Almanya</option>
+                        <option value="FR">Fransa</option>
+                        <option value="IT">İtalya</option>
+                        <option value="ES">İspanya</option>
+                        <option value="NL">Hollanda</option>
+                        <option value="BE">Belçika</option>
+                        <option value="SE">İsveç</option>
+                        <option value="NO">Norveç</option>
+                        <option value="DK">Danimarka</option>
+                        <option value="FI">Finlandiya</option>
+                        <option value="GR">Yunanistan</option>
+                        <option value="SY">Suriye</option>
+                        <option value="IQ">Irak</option>
+                        <option value="AF">Afganistan</option>
+                        <option value="PK">Pakistan</option>
+                        <option value="SA">Suudi Arabistan</option>
+                        <option value="AE">Birleşik Arap Emirlikleri</option>
+                      </select>
+                    </div>
+                  </>
+                )}
 
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                   <div className="sm:col-span-1">
@@ -276,19 +358,21 @@ export default function SignUpForm() {
                     />
                   </div>
                   <div className="sm:col-span-1">
-                    <Label>
+                    <Label >
                       Cinsiyet<span className="text-error-500">*</span>
                     </Label>
                     <select
                       name="gender_id"
+                      aria-label="Cinsiyet"
                       value={formData.gender_id}
                       onChange={handleSelectChange}
                       className="w-full px-4 py-3 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white/90 focus:outline-none focus:ring-2 focus:ring-brand-500"
                     >
                       <option value="">Cinsiyet seçin</option>
-                      <option value="1">Erkek</option>
-                      <option value="2">Kadın</option>
+                      <option value="1">Kadın</option>
+                      <option value="2">Erkek</option>
                       <option value="3">Diğer</option>
+                      <option value="4">Belirtmek istemiyorum</option>
                     </select>
                   </div>
                 </div>

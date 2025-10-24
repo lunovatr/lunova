@@ -1,10 +1,47 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { Link } from "react-router";
 
 export default function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false);
+  const [user, setUser] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchUserData();
+  }, []);
+
+  async function fetchUserData() {
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/v1/accounts/me/", {
+        method: "GET",
+        credentials: "include", // HTTP-only cookie'yi dahil etmek için
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUser({
+          first_name: data.first_name || "",
+          last_name: data.last_name || "",
+          email: data.email || "",
+        });
+      } else {
+        console.error("Kullanıcı bilgileri alınamadı");
+      }
+    } catch (error) {
+      console.error("API hatası:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function toggleDropdown() {
     setIsOpen(!isOpen);
@@ -13,6 +50,10 @@ export default function UserDropdown() {
   function closeDropdown() {
     setIsOpen(false);
   }
+
+  const fullName = `${user.first_name} ${user.last_name}`.trim() || "Kullanıcı";
+  const displayName = user.first_name || "Kullanıcı";
+
   return (
     <div className="relative">
       <button
@@ -23,7 +64,9 @@ export default function UserDropdown() {
           <img src="/images/user/owner.jpg" alt="User" />
         </span>
 
-        <span className="block mr-1 font-medium text-theme-sm">Musharof</span>
+        <span className="block mr-1 font-medium text-theme-sm">
+          {loading ? "Yükleniyor..." : displayName}
+        </span>
         <svg
           className={`stroke-gray-500 dark:stroke-gray-400 transition-transform duration-200 ${
             isOpen ? "rotate-180" : ""
@@ -51,10 +94,10 @@ export default function UserDropdown() {
       >
         <div>
           <span className="block font-medium text-gray-700 text-theme-sm dark:text-gray-400">
-            Musharof Chowdhury
+            {loading ? "Yükleniyor..." : fullName}
           </span>
           <span className="mt-0.5 block text-theme-xs text-gray-500 dark:text-gray-400">
-            randomuser@pimjo.com
+            {loading ? "" : user.email}
           </span>
         </div>
 
