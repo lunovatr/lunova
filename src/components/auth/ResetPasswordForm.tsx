@@ -8,20 +8,22 @@ import api from "../../lib/api";
 export default function ResetPasswordForm() {
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
+    setError(null);
     if (!email) {
-      alert("Email zorunludur");
+      setError('Email zorunludur');
       return;
     }
 
     // Email format kontrolü
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      alert("Geçerli bir email adresi girin");
+      setError('Geçerli bir email adresi girin');
       return;
     }
 
@@ -32,10 +34,9 @@ export default function ResetPasswordForm() {
         email: email
       });
 
-      console.log('Reset link gönderildi:', response.data);
-      
-      // Başarılı mesajı göster ve yönlendirme sayfasına git
-      navigate('/reset-password-sent', { state: { email: email } });
+  console.log('Reset link gönderildi:', response.data);
+  // Başarılı mesajı göster ve yönlendirme sayfasına git
+  navigate('/reset-password-sent', { state: { email: email } });
       
     } catch (error: unknown) {
       console.error('Hata detayı:', error);
@@ -43,20 +44,18 @@ export default function ResetPasswordForm() {
       const responseData = (error as { response?: { data?: unknown } })?.response?.data;
 
       if (responseData && typeof responseData === 'object') {
-        let errorMessage = 'Şifre sıfırlama hatası:\n';
-        Object.keys(responseData as Record<string, unknown>).forEach(key => {
-          const value = (responseData as Record<string, unknown>)[key];
-          if (Array.isArray(value)) {
-            errorMessage += `${key}: ${(value as unknown[]).join(', ')}\n`;
-          } else {
-            errorMessage += `${key}: ${String(value)}\n`;
-          }
+        const data = responseData as Record<string, unknown>;
+        const messages: string[] = [];
+        Object.keys(data).forEach(key => {
+          const value = data[key];
+          if (Array.isArray(value)) messages.push((value as unknown[]).join(' '));
+          else messages.push(String(value));
         });
-        alert(errorMessage);
+        setError(messages.join(' '));
       } else if (error instanceof Error) {
-        alert(error.message);
+        setError(error.message);
       } else {
-        alert('Bir hata oluştu. Lütfen tekrar deneyin.');
+        setError('Bir hata oluştu. Lütfen tekrar deneyin.');
       }
     } finally {
       setIsSubmitting(false);
@@ -87,6 +86,9 @@ export default function ResetPasswordForm() {
           <div>
             <form onSubmit={handleSubmit}>
               <div className="space-y-6">
+                  {error && (
+                    <div className="p-3 mb-3 text-sm text-red-700 bg-red-50 border border-red-100 rounded">{error}</div>
+                  )}
                 <div>
                   <Label>
                     E-posta <span className="text-error-500">*</span>

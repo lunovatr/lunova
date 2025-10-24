@@ -4,7 +4,12 @@ import { ChevronLeftIcon, EyeCloseIcon, EyeIcon } from "../../icons";
 import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import Checkbox from "../form/input/Checkbox";
+import Alert from "../ui/alert/Alert";
 import api from "../../lib/api";
+
+  // DEBUG: Eğer true ise gerçek API isteği atılmadan sahte başarılı kayıt senaryosu çalıştırılır.
+  // Test bittikten sonra bunu false yapın.
+  const USE_FAKE_SIGNUP = true;
 
 
 export default function SignUpForm() {
@@ -13,6 +18,9 @@ export default function SignUpForm() {
   const [isChecked, setIsChecked] = useState(false);
   const [isTurkishCitizen, setIsTurkishCitizen] = useState(true);
   const navigate = useNavigate();
+  const [errors, setErrors] = useState<Record<string,string>>({});
+  const [generalError, setGeneralError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -50,78 +58,50 @@ export default function SignUpForm() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    if (!formData.first_name || !formData.last_name) {
-      alert("Ad ve soyad zorunludur");
+    const newErrors: Record<string,string> = {};
+    setGeneralError(null);
+    setSuccessMessage(null);
+
+    // Eğer debug modu açıksa, gerçek API çağrısı yerine sahte başarılı kayıt akışı çalıştır.
+    if (USE_FAKE_SIGNUP) {
+      // Simüle edilmiş başarılı kayıt davranışı
+      setSuccessMessage('Kayıt başarılı! 4 saniye içinde giriş sayfasına yönlendirileceksiniz. (Sahte)');
+      localStorage.setItem('registered_email', formData.email);
+      localStorage.setItem('registered_success', 'true');
+      setTimeout(() => {
+        navigate('/signin');
+      }, 4000);
       return;
     }
-    
-    if (!formData.email) {
-      alert("Email zorunludur");
-      return;
-    }
-    
-    if (!formData.password || !formData.password2) {
-      alert("Şifre alanları zorunludur");
-      return;
-    }
-    
-    if (formData.password !== formData.password2) {
-      alert("Şifreler eşleşmiyor");
-      return;
-    }
-    
-    if (!formData.phone_number) {
-      alert("Telefon numarası zorunludur");
-      return;
-    }
-    
-    if (formData.phone_number.length !== 11 || !formData.phone_number.startsWith('0')) {
-      alert("Telefon numarası 0 ile başlamalı ve 11 haneli olmalıdır (örn: 05321234567)");
-      return;
-    }
+
+
+    if (!formData.first_name) newErrors.first_name = 'Ad zorunludur';
+    if (!formData.last_name) newErrors.last_name = 'Soyad zorunludur';
+    if (!formData.email) newErrors.email = 'Email zorunludur';
+    if (!formData.password || !formData.password2) newErrors.password = 'Şifre alanları zorunludur';
+    if (formData.password && formData.password2 && formData.password !== formData.password2) newErrors.password2 = 'Şifreler eşleşmiyor';
+    if (!formData.phone_number) newErrors.phone_number = 'Telefon numarası zorunludur';
+    if (formData.phone_number && (formData.phone_number.length !== 11 || !formData.phone_number.startsWith('0'))) newErrors.phone_number = 'Telefon numarası 0 ile başlamalı ve 11 haneli olmalıdır (örn: 05321234567)';
     
     // TC vatandaşı kontrolü
     if (isTurkishCitizen) {
-      if (!formData.id_number) {
-        alert("TC Kimlik numarası zorunludur");
-        return;
-      }
-      
-      if (formData.id_number.length !== 11) {
-        alert("TC Kimlik numarası 11 haneli olmalıdır");
-        return;
-      }
+      if (!formData.id_number) newErrors.id_number = 'TC Kimlik numarası zorunludur';
+      else if (formData.id_number.length !== 11) newErrors.id_number = 'TC Kimlik numarası 11 haneli olmalıdır';
     } else {
-      if (!formData.national_id) {
-        alert("Pasaport/Kimlik numarası zorunludur");
-        return;
-      }
-      
-      if (!formData.country) {
-        alert("Ülke seçimi zorunludur");
-        return;
-      }
+      if (!formData.national_id) newErrors.national_id = 'Pasaport/Kimlik numarası zorunludur';
+      if (!formData.country) newErrors.country = 'Ülke seçimi zorunludur';
     }
     
-    if (!formData.birth_date) {
-      alert("Doğum tarihi zorunludur");
+    if (!formData.birth_date) newErrors.birth_date = 'Doğum tarihi zorunludur';
+    if (!formData.gender_id) newErrors.gender_id = 'Cinsiyet seçimi zorunludur';
+    if (!formData.support_goal) newErrors.support_goal = 'Destek hedefi zorunludur';
+    if (!isChecked) newErrors.terms = 'Lütfen kullanım şartlarını kabul edin';
+
+    if (Object.keys(newErrors).length) {
+      setErrors(newErrors);
       return;
     }
-    
-    if (!formData.gender_id) {
-      alert("Cinsiyet seçimi zorunludur");
-      return;
-    }
-    
-    if (!formData.support_goal) {
-      alert("Destek hedefi zorunludur");
-      return;
-    }
-    
-    if (!isChecked) {
-      alert("Lütfen kullanım şartlarını kabul edin");
-      return;
-    }
+    setErrors({});
 
     const submitData = {
       first_name: formData.first_name,
@@ -147,26 +127,39 @@ export default function SignUpForm() {
       const response = await api.post('/api/v1/accounts/register/client/', submitData);
       
       console.log('Kayıt başarılı:', response.data);
-      alert('Kayıt başarılı! Giriş sayfasına yönlendiriliyorsunuz...');
-      
+      // Başarılı kayıt mesajı göster ve 4 saniye bekledikten sonra
+      // kullanıcıyı giriş sayfasına yönlendir. Ayrıca email'i ve
+      // kayıt başarı bilgisini SignIn sayfasında kullanmak için kaydet.
+      setSuccessMessage('Kayıt başarılı! 4 saniye içinde giriş sayfasına yönlendirileceksiniz.');
       localStorage.setItem('registered_email', formData.email);
-      
-      navigate('/signin');
+      localStorage.setItem('registered_success', 'true');
+      setTimeout(() => {
+        navigate('/signin');
+      }, 4000);
     } catch (error: unknown) {
       console.error('Hata detayı:', error);
       
       type AxiosErrorLike = { response?: { data?: Record<string, unknown> } };
       const axiosError = error as AxiosErrorLike;
       
-      if (axiosError.response?.data) {
-        let errorMessage = 'Kayıt hatası:\n';
+      if (axiosError.response?.data && typeof axiosError.response.data === 'object') {
         const data = axiosError.response.data as Record<string, unknown>;
+        const fieldErrors: Record<string,string> = {};
+        let general: string[] = [];
         Object.keys(data).forEach(key => {
-          errorMessage += `${key}: ${JSON.stringify(data[key])}\n`;
+          const val = data[key];
+          if (Array.isArray(val)) {
+            const msg = (val as unknown[]).map(v => String(v)).join(' ');
+            // if key corresponds to a form field, set as field error
+            fieldErrors[key] = msg;
+          } else {
+            general.push(String(val));
+          }
         });
-        alert(errorMessage);
+        setErrors(fieldErrors);
+        if (general.length) setGeneralError(general.join(' '));
       } else {
-        alert('Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin.');
+        setGeneralError('Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin.');
       }
     }
   };
@@ -202,6 +195,9 @@ export default function SignUpForm() {
           <div>
             <form onSubmit={handleSubmit}>
               <div className="space-y-5">
+                {generalError && (
+                  <div className="p-3 mb-3 text-sm text-red-700 bg-red-50 border border-red-100 rounded">{generalError}</div>
+                )}
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                   <div className="sm:col-span-1">
                     <Label>
@@ -214,6 +210,7 @@ export default function SignUpForm() {
                       value={formData.first_name}
                       onChange={handleChange}
                     />
+                    {errors.first_name && <p className="mt-1 text-sm text-red-500">{errors.first_name}</p>}
                   </div>
                   <div className="sm:col-span-1">
                     <Label>
@@ -226,6 +223,7 @@ export default function SignUpForm() {
                       value={formData.last_name}
                       onChange={handleChange}
                     />
+                    {errors.last_name && <p className="mt-1 text-sm text-red-500">{errors.last_name}</p>}
                   </div>
                 </div>
 
@@ -240,6 +238,7 @@ export default function SignUpForm() {
                     value={formData.email}
                     onChange={handleChange}
                   />
+                  {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
                 </div>
 
                 <div>
@@ -255,6 +254,7 @@ export default function SignUpForm() {
                     maxLength={11}
                     className="w-full px-4 py-3 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white/90 focus:outline-none focus:ring-2 focus:ring-brand-500"
                   />
+                  {errors.phone_number && <p className="mt-1 text-sm text-red-500">{errors.phone_number}</p>}
                   <p className="mt-1 text-xs text-gray-500">Format: 05321234567 (11 rakam)</p>
                 </div>
 
@@ -293,6 +293,7 @@ export default function SignUpForm() {
                       maxLength={11}
                       className="w-full px-4 py-3 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white/90 focus:outline-none focus:ring-2 focus:ring-brand-500"
                     />
+                    {errors.id_number && <p className="mt-1 text-sm text-red-500">{errors.id_number}</p>}
                     <p className="mt-1 text-xs text-gray-500">11 haneli olmalıdır</p>
                   </div>
                 ) : (
@@ -308,6 +309,7 @@ export default function SignUpForm() {
                         value={formData.national_id}
                         onChange={handleChange}
                       />
+                      {errors.national_id && <p className="mt-1 text-sm text-red-500">{errors.national_id}</p>}
                     </div>
                     <div>
                       <Label>
@@ -341,6 +343,7 @@ export default function SignUpForm() {
                         <option value="SA">Suudi Arabistan</option>
                         <option value="AE">Birleşik Arap Emirlikleri</option>
                       </select>
+                      {errors.country && <p className="mt-1 text-sm text-red-500">{errors.country}</p>}
                     </div>
                   </>
                 )}
@@ -356,6 +359,7 @@ export default function SignUpForm() {
                       value={formData.birth_date}
                       onChange={handleChange}
                     />
+                    {errors.birth_date && <p className="mt-1 text-sm text-red-500">{errors.birth_date}</p>}
                   </div>
                   <div className="sm:col-span-1">
                     <Label >
@@ -374,6 +378,7 @@ export default function SignUpForm() {
                       <option value="3">Diğer</option>
                       <option value="4">Belirtmek istemiyorum</option>
                     </select>
+                    {errors.gender_id && <p className="mt-1 text-sm text-red-500">{errors.gender_id}</p>}
                   </div>
                 </div>
 
@@ -388,6 +393,7 @@ export default function SignUpForm() {
                     value={formData.support_goal}
                     onChange={handleChange}
                   />
+                  {errors.support_goal && <p className="mt-1 text-sm text-red-500">{errors.support_goal}</p>}
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -424,6 +430,7 @@ export default function SignUpForm() {
                       )}
                     </span>
                   </div>
+                  {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password}</p>}
                 </div>
 
                 <div>
@@ -449,6 +456,7 @@ export default function SignUpForm() {
                       )}
                     </span>
                   </div>
+                  {errors.password2 && <p className="mt-1 text-sm text-red-500">{errors.password2}</p>}
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -467,7 +475,19 @@ export default function SignUpForm() {
                       Gizlilik Politikasını kabul ediyorum.
                     </span>
                   </p>
+                  {errors.terms && <p className="mt-1 text-sm text-red-500">{errors.terms}</p>}
                 </div>
+
+                {/* Başarılı kayıt bildirimi: SignIn ile aynı Alert bileşenini kullan */}
+                {successMessage && (
+                  <div className="mt-3">
+                    <Alert
+                      variant="success"
+                      title="Kayıt Başarılı"
+                      message={successMessage}
+                    />
+                  </div>
+                )}
 
                 <div>
                   <button 

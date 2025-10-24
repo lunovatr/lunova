@@ -1,47 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { Dropdown } from "../ui/dropdown/Dropdown";
-import { Link } from "react-router";
+
+import { useAppSelector, useAppDispatch } from '../../store/hooks';
+import { logoutThunk } from '../../store/authSlice';
 
 export default function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false);
-  const [user, setUser] = useState({
-    first_name: "",
-    last_name: "",
-    email: "",
-  });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchUserData();
-  }, []);
-
-  async function fetchUserData() {
-    try {
-      const response = await fetch("http://127.0.0.1:8000/api/v1/accounts/me/", {
-        method: "GET",
-        credentials: "include", // HTTP-only cookie'yi dahil etmek için
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUser({
-          first_name: data.first_name || "",
-          last_name: data.last_name || "",
-          email: data.email || "",
-        });
-      } else {
-        console.error("Kullanıcı bilgileri alınamadı");
-      }
-    } catch (error) {
-      console.error("API hatası:", error);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const auth = useAppSelector((s) => s.auth);
+  const dispatch = useAppDispatch();
 
   function toggleDropdown() {
     setIsOpen(!isOpen);
@@ -51,8 +18,9 @@ export default function UserDropdown() {
     setIsOpen(false);
   }
 
-  const fullName = `${user.first_name} ${user.last_name}`.trim() || "Kullanıcı";
-  const displayName = user.first_name || "Kullanıcı";
+  const user = auth.user || { first_name: '', last_name: '', email: '' };
+  const fullName = `${user.first_name} ${user.last_name}`.trim();
+  const displayName = user.first_name;
 
   return (
     <div className="relative">
@@ -65,7 +33,7 @@ export default function UserDropdown() {
         </span>
 
         <span className="block mr-1 font-medium text-theme-sm">
-          {loading ? "Yükleniyor..." : displayName}
+          {displayName}
         </span>
         <svg
           className={`stroke-gray-500 dark:stroke-gray-400 transition-transform duration-200 ${
@@ -94,10 +62,10 @@ export default function UserDropdown() {
       >
         <div>
           <span className="block font-medium text-gray-700 text-theme-sm dark:text-gray-400">
-            {loading ? "Yükleniyor..." : fullName}
+            {fullName}
           </span>
           <span className="mt-0.5 block text-theme-xs text-gray-500 dark:text-gray-400">
-            {loading ? "" : user.email}
+            {user.email}
           </span>
         </div>
 
@@ -132,7 +100,7 @@ export default function UserDropdown() {
               onItemClick={closeDropdown}
               tag="a"
               to="/profile"
-              className="flex items-center gap-3 px-3 py-2 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
+              className="flex items-center gap-3 px-3 py-2 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:group-hover:text-gray-300"
             >
               <svg
                 className="fill-gray-500 group-hover:fill-gray-700 dark:fill-gray-400 dark:group-hover:fill-gray-300"
@@ -157,7 +125,7 @@ export default function UserDropdown() {
               onItemClick={closeDropdown}
               tag="a"
               to="/profile"
-              className="flex items-center gap-3 px-3 py-2 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
+              className="flex items-center gap-3 px-3 py-2 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:group-hover:text-gray-300"
             >
               <svg
                 className="fill-gray-500 group-hover:fill-gray-700 dark:fill-gray-400 dark:group-hover:fill-gray-300"
@@ -178,8 +146,10 @@ export default function UserDropdown() {
             </DropdownItem>
           </li>
         </ul>
-        <Link
-          to="/signin"
+        <button
+          onClick={() => {
+            dispatch(logoutThunk());
+          }}
           className="flex items-center gap-3 px-3 py-2 mt-3 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
         >
           <svg
@@ -198,7 +168,7 @@ export default function UserDropdown() {
             />
           </svg>
           Sign out
-        </Link>
+        </button>
       </Dropdown>
     </div>
   );
