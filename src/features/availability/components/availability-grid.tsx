@@ -8,13 +8,15 @@ interface AvailabilityGridProps {
   setAvailability: (availability: AvailabilitySlot[]) => void
   originalAvailability: AvailabilitySlot[]
   setOriginalAvailability: (availability: AvailabilitySlot[]) => void
+  onSaveSuccess?: () => void
 }
 
-export function AvailabilityGrid({ 
-  availability, 
-  setAvailability, 
+export function AvailabilityGrid({
+  availability,
+  setAvailability,
   originalAvailability,
-  setOriginalAvailability 
+  setOriginalAvailability,
+  onSaveSuccess
 }: AvailabilityGridProps) {
   const [isSaving, setIsSaving] = useState(false)
 
@@ -161,18 +163,18 @@ export function AvailabilityGrid({
       await saveMyAvailabilityWithCookieHeader(availability, originalAvailability);
       toast.success('Müsaitlik takvimi başarıyla kaydedildi!');
       setOriginalAvailability(JSON.parse(JSON.stringify(availability)));
-      
-      // Refresh the page after successful save
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500); // Wait 1.5 seconds to show the success toast
-      
+
+      // Call the success callback to refetch data instead of page refresh
+      if (onSaveSuccess) {
+        onSaveSuccess();
+      }
+
     } catch (error) {
       console.error('Failed to save availability:', error);
       toast.error(error instanceof Error ? error.message : 'Müsaitlik takvimini kaydederken hata oluştu.');
-      setIsSaving(false); // Only reset loading state on error
+    } finally {
+      setIsSaving(false);
     }
-    // Note: Don't reset setIsSaving(false) on success since page will reload
   };
 
   const handleCancel = () => {

@@ -64,6 +64,7 @@ interface CreateAppointmentModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   existingAppointments: Appointment[]
+  onSuccess?: () => void
 }
 
 // Saat seçeneklerini component dışında bir sabit olarak tanımlamak daha verimlidir.
@@ -81,6 +82,7 @@ export function CreateAppointmentModal({
   open,
   onOpenChange,
   existingAppointments,
+  onSuccess,
 }: CreateAppointmentModalProps) {
   const [isLoading, setIsLoading] = useState(false)
 
@@ -186,7 +188,11 @@ export function CreateAppointmentModal({
         notes: '',
       })
       onOpenChange(false)
-      window.location.reload() // Randevuları yenile
+
+      // Callback ile veriyi yenile, sayfa reload etme
+      if (onSuccess) {
+        onSuccess()
+      }
     } catch (error: any) {
       console.error('Appointment creation error:', error)
       toast.error(`Randevu oluşturma hatası: ${error.message}`)

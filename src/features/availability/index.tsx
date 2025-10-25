@@ -72,14 +72,15 @@ export default function Availability() {
 
       {/* Content based on current view mode */}
       {viewMode === 'availability' ? (
-        <AvailabilityGrid 
+        <AvailabilityGrid
           availability={availability}
           setAvailability={setAvailability}
           originalAvailability={originalAvailability}
           setOriginalAvailability={setOriginalAvailability}
+          onSaveSuccess={fetchAvailability}
         />
       ) : (
-        <ExceptionsCalendar 
+        <ExceptionsCalendar
           weeklyAvailability={availability}
         />
       )}

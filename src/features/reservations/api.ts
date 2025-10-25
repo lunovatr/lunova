@@ -25,12 +25,30 @@ export interface Appointment {
 // API endpoint'ini bir değişkene atamak daha temiz bir yöntemdir.
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 const USER_APPOINTMENTS_URL = API_BASE_URL + '/api/v1/appointments/user/'
+const ACCOUNTS_ME_URL = API_BASE_URL + '/api/v1/accounts/me/'
 
-// Kullanıcının randevularını getir (expert ID'sini almak için)
-export const getUserAppointments = async (): Promise<Appointment[]> => {
-  console.log(`API: Fetching user appointments from ${USER_APPOINTMENTS_URL}`)
-
+// Helper function to get clean token (remove quotes if present)
+const getCleanToken = (): string => {
   const token = useAuthStore.getState().auth.accessToken
+  // Token JSON stringify edilmiş olabilir, tırnak işaretlerini temizle
+  return token ? token.replace(/^"(.*)"$/, '$1') : ''
+}
+
+// User interface for /api/v1/accounts/me/ response
+export interface CurrentUser {
+  id: number
+  email: string
+  first_name: string
+  last_name: string
+  role: string
+  // Diğer alanlar varsa buraya eklenebilir
+}
+
+// Current user bilgilerini getir
+export const getCurrentUser = async (): Promise<CurrentUser> => {
+  console.log(`API: Fetching current user from ${ACCOUNTS_ME_URL}`)
+
+  const token = getCleanToken()
 
   if (!token) {
     console.error('Authentication Error: No access token found.')
@@ -38,12 +56,55 @@ export const getUserAppointments = async (): Promise<Appointment[]> => {
   }
 
   try {
+    // Set cookie before request
+    document.cookie = `access_token=${token}; path=/`
+
+    const response = await fetch(ACCOUNTS_ME_URL, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': `access_token=${token}`,
+      },
+      credentials: 'include',
+    })
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error('Oturum süreniz doldu. Lütfen tekrar giriş yapın.')
+      }
+      throw new Error(`API Hatası: ${response.status} - ${response.statusText}`)
+    }
+
+    const data: CurrentUser = await response.json()
+    return data
+  } catch (error) {
+    console.error('Failed to fetch current user:', error)
+    throw error
+  }
+}
+
+// Kullanıcının randevularını getir (expert ID'sini almak için)
+export const getUserAppointments = async (): Promise<Appointment[]> => {
+  console.log(`API: Fetching user appointments from ${USER_APPOINTMENTS_URL}`)
+
+  const token = getCleanToken()
+
+  if (!token) {
+    console.error('Authentication Error: No access token found.')
+    throw new Error('Giriş yapılmamış. Lütfen giriş yapın.')
+  }
+
+  try {
+    // Set cookie before request
+    document.cookie = `access_token=${token}; path=/`
+
     const response = await fetch(USER_APPOINTMENTS_URL, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+        'Cookie': `access_token=${token}`,
       },
+      credentials: 'include',
     })
 
     if (!response.ok) {
@@ -61,14 +122,11 @@ export const getUserAppointments = async (): Promise<Appointment[]> => {
   }
 }
 
-// Expert ID'sini kullanıcının randevularından al
+// Expert ID'sini /api/v1/accounts/me/ endpoint'inden al
 export const getExpertIdFromUserAppointments = async (): Promise<number | null> => {
   try {
-    const appointments = await getUserAppointments()
-    if (appointments.length > 0) {
-      return appointments[0].expert // İlk randevudaki expert ID'si bizim ID'miz
-    }
-    return null
+    const currentUser = await getCurrentUser()
+    return currentUser.id
   } catch (error) {
     console.error('Failed to get expert ID:', error)
     return null
@@ -80,27 +138,24 @@ export const getAppointmentsByExpertId = async (
 ): Promise<Appointment[]> => {
   console.log(`API: Fetching appointments from ${USER_APPOINTMENTS_URL}`)
 
-  // 1. Adım: Access Token'ı auth store'dan al.
-  // Token cookie'de saklanıyor ve auth store üzerinden erişiliyor.
-  const token = useAuthStore.getState().auth.accessToken
+  const token = getCleanToken()
 
-  // 2. Adım: Token var mı diye kontrol et.
-  // Eğer token yoksa, kullanıcı giriş yapmamış demektir. İstek atmadan hata fırlat.
   if (!token) {
     console.error('Authentication Error: No access token found.')
     throw new Error('Giriş yapılmamış. Lütfen giriş yapın.')
   }
 
   try {
-    // 3. Adım: fetch ile API isteğini at.
+    // Set cookie before request
+    document.cookie = `access_token=${token}; path=/`
+
     const response = await fetch(USER_APPOINTMENTS_URL, {
       method: 'GET',
       headers: {
-        // 'Content-Type' header'ı GET isteklerinde genellikle gerekmez ama eklemekte fayda var.
         'Content-Type': 'application/json',
-        // En önemli kısım: Authorization header'ını Bearer token ile oluşturmak.
-        Authorization: `Bearer ${token}`,
+        'Cookie': `access_token=${token}`,
       },
+      credentials: 'include',
     })
 
     // 4. Adım: Cevabı kontrol et.
@@ -127,19 +182,23 @@ export const getAppointmentsByExpertId = async (
 
 // Randevu onaylama işlemi
 export const confirmAppointment = async (appointmentId: number): Promise<void> => {
-  const token = useAuthStore.getState().auth.accessToken
+  const token = getCleanToken()
 
   if (!token) {
     throw new Error('Giriş yapılmamış. Lütfen giriş yapın.')
   }
 
   try {
-    const response = await fetch(`http://localhost:8000/api/v1/appointments/${appointmentId}/confirm/`, {
+    // Set cookie before request
+    document.cookie = `access_token=${token}; path=/`
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/appointments/${appointmentId}/confirm/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+        'Cookie': `access_token=${token}`,
       },
+      credentials: 'include',
     })
 
     if (!response.ok) {
@@ -156,21 +215,25 @@ export const confirmAppointment = async (appointmentId: number): Promise<void> =
 
 // Randevu reddetme işlemi
 export const rejectAppointment = async (appointmentId: number): Promise<void> => {
-  const token = useAuthStore.getState().auth.accessToken
+  const token = getCleanToken()
 
   if (!token) {
     throw new Error('Giriş yapılmamış. Lütfen giriş yapın.')
   }
 
   try {
+    // Set cookie before request
+    document.cookie = `access_token=${token}; path=/`
+
     const response = await fetch(
-      `http://localhost:8000/api/v1/appointments/${appointmentId}/cancel-request/`,
+      `${API_BASE_URL}/api/v1/appointments/${appointmentId}/cancel-request/`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          'Cookie': `access_token=${token}`,
         },
+        credentials: 'include',
       },
     )
 
@@ -249,7 +312,7 @@ export const createAppointment = async (
   }
   // --- ÇAKIŞMA KONTROLÜ BİTTİ ---
 
-  const token = useAuthStore.getState().auth.accessToken
+  const token = getCleanToken()
 
   if (!token) {
     throw new Error('Giriş yapılmamış. Lütfen giriş yapın.')
@@ -258,14 +321,18 @@ export const createAppointment = async (
   try {
     console.log('Sending appointment data to API:', appointmentData)
 
+    // Set cookie before request
+    document.cookie = `access_token=${token}; path=/`
+
     const response = await fetch(
-      'http://localhost:8000/api/v1/appointments/expert/create/',
+      `${API_BASE_URL}/api/v1/appointments/expert/create/`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          'Cookie': `access_token=${token}`,
         },
+        credentials: 'include',
         body: JSON.stringify(appointmentData),
       }
     )
