@@ -90,7 +90,7 @@ export function Reservations() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <PendingAppointments appointments={appointments} />
+                    <PendingAppointments appointments={appointments} onUpdate={refetch} />
                   </CardContent>
                 </Card>
                 <Card>
