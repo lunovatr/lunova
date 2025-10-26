@@ -54,7 +54,7 @@ export default function ResetPasswordSentContent() {
           </p>
 
           <p className="mb-8 text-sm text-gray-500 dark:text-gray-400">
-            Lütfen email kutunuzu kontrol edin ve şifrenizi sıfırlamak için bağlantıya tıklayın.
+            Lütfen email kutunuzu kontrol edin ve şifrenizi sıfırlamak için bağlantıya tıklayın. Sıfırlama bağlantısı beş dakika içinde geçerlidir.
           </p>
 
           <div className="space-y-3">
