@@ -16,7 +16,7 @@ export default function ResetPasswordForm() {
   const token = searchParams.get('token');
   
   // Sayfa modu: email veya password
-  const [mode, setMode] = useState<'email' | 'password'>(uid && token ? 'password' : 'email');
+  const mode: 'email' | 'password' = uid && token ? 'password' : 'email';  
   
   // Email formu
   const [email, setEmail] = useState("");
@@ -85,8 +85,8 @@ const handleEmailSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     
     console.log('Backend response:', response.data);
     
-    if (response.data && response.data.message) {
-      const message = response.data.message;
+    if (response.data && (response.data as any).message) {  // typescript bypass
+      const message = (response.data as any).message;       // typescript bypass
       
       // ÖNEMLİ: Üç nokta kontrolü ÖNCE yapılmali!
       if (message.endsWith('...')) {
