@@ -1,13 +1,152 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { ChevronLeftIcon, EyeCloseIcon, EyeIcon } from "../../icons";
 import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import Checkbox from "../form/input/Checkbox";
+import Alert from "../ui/alert/Alert";
+import api from "../../lib/api";
+
 
 export default function SignUpForm() {
   const [showPassword, setShowPassword] = useState(false);
+  const [showPassword2, setShowPassword2] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
+  const [isTurkishCitizen, setIsTurkishCitizen] = useState(true);
+  const navigate = useNavigate();
+  const [errors, setErrors] = useState<Record<string,string>>({});
+  const [generalError, setGeneralError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    password: "",
+    password2: "",
+    phone_number: "",
+    id_number: "",
+    country: "TR",
+    national_id: "",
+    birth_date: "",
+    gender_id: "",
+    support_goal: "",
+    received_service_before: false
+  });
+
+  const handleChange = ( e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const target = e.target as HTMLInputElement;
+    const { name, value, type } = target;
+    const checked = target.checked;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value
+    }));
+  };
+
+  const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    const newErrors: Record<string,string> = {};
+    setGeneralError(null);
+    setSuccessMessage(null);
+
+    if (!formData.first_name) newErrors.first_name = 'Ad zorunludur';
+    if (!formData.last_name) newErrors.last_name = 'Soyad zorunludur';
+    if (!formData.email) newErrors.email = 'Email zorunludur';
+    if (!formData.password || !formData.password2) newErrors.password = 'Şifre alanları zorunludur';
+    if (formData.password && formData.password2 && formData.password !== formData.password2) newErrors.password2 = 'Şifreler eşleşmiyor';
+    if (!formData.phone_number) newErrors.phone_number = 'Telefon numarası zorunludur';
+    if (formData.phone_number && (formData.phone_number.length !== 11 || !formData.phone_number.startsWith('0'))) newErrors.phone_number = 'Telefon numarası 0 ile başlamalı ve 11 haneli olmalıdır (örn: 05321234567)';
+    
+    // TC vatandaşı kontrolü
+    if (isTurkishCitizen) {
+      if (!formData.id_number) newErrors.id_number = 'TC Kimlik numarası zorunludur';
+      else if (formData.id_number.length !== 11) newErrors.id_number = 'TC Kimlik numarası 11 haneli olmalıdır';
+    } else {
+      if (!formData.national_id) newErrors.national_id = 'Pasaport/Kimlik numarası zorunludur';
+      if (!formData.country) newErrors.country = 'Ülke seçimi zorunludur';
+    }
+    
+    if (!formData.birth_date) newErrors.birth_date = 'Doğum tarihi zorunludur';
+    if (!formData.gender_id) newErrors.gender_id = 'Cinsiyet seçimi zorunludur';
+    if (!formData.support_goal) newErrors.support_goal = 'Destek hedefi zorunludur';
+    if (!isChecked) newErrors.terms = 'Lütfen kullanım şartlarını kabul edin';
+
+    if (Object.keys(newErrors).length) {
+      setErrors(newErrors);
+      return;
+    }
+    setErrors({});
+
+    const submitData = {
+      first_name: formData.first_name,
+      last_name: formData.last_name,
+      email: formData.email,
+      password: formData.password,
+      password2: formData.password2,
+      phone_number: formData.phone_number,
+      birth_date: formData.birth_date,
+      gender_id: parseInt(formData.gender_id),
+      support_goal: formData.support_goal,
+      received_service_before: formData.received_service_before,
+      country: isTurkishCitizen ? "TR" : formData.country,
+      ...(isTurkishCitizen 
+        ? { id_number: formData.id_number } 
+        : { national_id: formData.national_id }
+      )
+    };
+
+    console.log("Gönderilecek veri:", submitData);
+
+    try {
+      const response = await api.post('/api/v1/accounts/register/client/', submitData);
+      
+      console.log('Kayıt başarılı:', response.data);
+      // Başarılı kayıt mesajı göster ve 4 saniye bekledikten sonra
+      // kullanıcıyı giriş sayfasına yönlendir. Ayrıca email'i ve
+      // kayıt başarı bilgisini SignIn sayfasında kullanmak için kaydet.
+      setSuccessMessage('Kayıt başarılı! 4 saniye içinde giriş sayfasına yönlendirileceksiniz.');
+      localStorage.setItem('registered_email', formData.email);
+      localStorage.setItem('registered_success', 'true');
+      setTimeout(() => {
+        navigate('/signin');
+      }, 4000);
+    } catch (error: unknown) {
+      console.error('Hata detayı:', error);
+      
+      type AxiosErrorLike = { response?: { data?: Record<string, unknown> } };
+      const axiosError = error as AxiosErrorLike;
+      
+      if (axiosError.response?.data && typeof axiosError.response.data === 'object') {
+        const data = axiosError.response.data as Record<string, unknown>;
+        const fieldErrors: Record<string,string> = {};
+        let general: string[] = [];
+        Object.keys(data).forEach(key => {
+          const val = data[key];
+          if (Array.isArray(val)) {
+            const msg = (val as unknown[]).map(v => String(v)).join(' ');
+            // if key corresponds to a form field, set as field error
+            fieldErrors[key] = msg;
+          } else {
+            general.push(String(val));
+          }
+        });
+        setErrors(fieldErrors);
+        if (general.length) setGeneralError(general.join(' '));
+      } else {
+        setGeneralError('Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin.');
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col flex-1 w-full overflow-y-auto lg:w-1/2 no-scrollbar">
       <div className="w-full max-w-md mx-auto mb-5 sm:pt-10">
@@ -16,121 +155,252 @@ export default function SignUpForm() {
           className="inline-flex items-center text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
         >
           <ChevronLeftIcon className="size-5" />
-          Back to dashboard
+          Geri Dön
         </Link>
       </div>
       <div className="flex flex-col justify-center flex-1 w-full max-w-md mx-auto">
         <div>
           <div className="mb-5 sm:mb-8">
             <h1 className="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
-              Sign Up
+              Hesap Oluştur
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Enter your email and password to sign up!
+              Hesap oluşturmak için bilgilerinizi girin.
+              Zaten hesabınız var mı? {""}
+                <Link
+                  to="/signin"
+                  className="text-brand-500 hover:text-brand-600 dark:text-brand-400"
+                >
+                  Giriş Yap
+                </Link>
             </p>
           </div>
           <div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5">
-              <button className="inline-flex items-center justify-center gap-3 py-3 text-sm font-normal text-gray-700 transition-colors bg-gray-100 rounded-lg px-7 hover:bg-gray-200 hover:text-gray-800 dark:bg-white/5 dark:text-white/90 dark:hover:bg-white/10">
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 20 20"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M18.7511 10.1944C18.7511 9.47495 18.6915 8.94995 18.5626 8.40552H10.1797V11.6527H15.1003C15.0011 12.4597 14.4654 13.675 13.2749 14.4916L13.2582 14.6003L15.9087 16.6126L16.0924 16.6305C17.7788 15.1041 18.7511 12.8583 18.7511 10.1944Z"
-                    fill="#4285F4"
-                  />
-                  <path
-                    d="M10.1788 18.75C12.5895 18.75 14.6133 17.9722 16.0915 16.6305L13.274 14.4916C12.5201 15.0068 11.5081 15.3666 10.1788 15.3666C7.81773 15.3666 5.81379 13.8402 5.09944 11.7305L4.99473 11.7392L2.23868 13.8295L2.20264 13.9277C3.67087 16.786 6.68674 18.75 10.1788 18.75Z"
-                    fill="#34A853"
-                  />
-                  <path
-                    d="M5.10014 11.7305C4.91165 11.186 4.80257 10.6027 4.80257 9.99992C4.80257 9.3971 4.91165 8.81379 5.09022 8.26935L5.08523 8.1534L2.29464 6.02954L2.20333 6.0721C1.5982 7.25823 1.25098 8.5902 1.25098 9.99992C1.25098 11.4096 1.5982 12.7415 2.20333 13.9277L5.10014 11.7305Z"
-                    fill="#FBBC05"
-                  />
-                  <path
-                    d="M10.1789 4.63331C11.8554 4.63331 12.9864 5.34303 13.6312 5.93612L16.1511 3.525C14.6035 2.11528 12.5895 1.25 10.1789 1.25C6.68676 1.25 3.67088 3.21387 2.20264 6.07218L5.08953 8.26943C5.81381 6.15972 7.81776 4.63331 10.1789 4.63331Z"
-                    fill="#EB4335"
-                  />
-                </svg>
-                Sign up with Google
-              </button>
-              <button className="inline-flex items-center justify-center gap-3 py-3 text-sm font-normal text-gray-700 transition-colors bg-gray-100 rounded-lg px-7 hover:bg-gray-200 hover:text-gray-800 dark:bg-white/5 dark:text-white/90 dark:hover:bg-white/10">
-                <svg
-                  width="21"
-                  className="fill-current"
-                  height="20"
-                  viewBox="0 0 21 20"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path d="M15.6705 1.875H18.4272L12.4047 8.75833L19.4897 18.125H13.9422L9.59717 12.4442L4.62554 18.125H1.86721L8.30887 10.7625L1.51221 1.875H7.20054L11.128 7.0675L15.6705 1.875ZM14.703 16.475H16.2305L6.37054 3.43833H4.73137L14.703 16.475Z" />
-                </svg>
-                Sign up with X
-              </button>
-            </div>
-            <div className="relative py-3 sm:py-5">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200 dark:border-gray-800"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="p-2 text-gray-400 bg-white dark:bg-gray-900 sm:px-5 sm:py-2">
-                  Or
-                </span>
-              </div>
-            </div>
-            <form>
+            <form onSubmit={handleSubmit}>
               <div className="space-y-5">
+                {generalError && (
+                  <div className="p-3 mb-3 text-sm text-red-700 bg-red-50 border border-red-100 rounded">{generalError}</div>
+                )}
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                  {/* <!-- First Name --> */}
                   <div className="sm:col-span-1">
                     <Label>
-                      First Name<span className="text-error-500">*</span>
+                      Ad<span className="text-error-500">*</span>
                     </Label>
                     <Input
                       type="text"
-                      id="fname"
-                      name="fname"
-                      placeholder="Enter your first name"
+                      name="first_name"
+                      placeholder="Adınızı girin"
+                      value={formData.first_name}
+                      onChange={handleChange}
                     />
+                    {errors.first_name && <p className="mt-1 text-sm text-red-500">{errors.first_name}</p>}
                   </div>
-                  {/* <!-- Last Name --> */}
                   <div className="sm:col-span-1">
                     <Label>
-                      Last Name<span className="text-error-500">*</span>
+                      Soyad<span className="text-error-500">*</span>
                     </Label>
                     <Input
                       type="text"
-                      id="lname"
-                      name="lname"
-                      placeholder="Enter your last name"
+                      name="last_name"
+                      placeholder="Soyadınızı girin"
+                      value={formData.last_name}
+                      onChange={handleChange}
                     />
+                    {errors.last_name && <p className="mt-1 text-sm text-red-500">{errors.last_name}</p>}
                   </div>
                 </div>
-                {/* <!-- Email --> */}
+
                 <div>
                   <Label>
-                    Email<span className="text-error-500">*</span>
+                    E-posta<span className="text-error-500">*</span>
                   </Label>
                   <Input
                     type="email"
-                    id="email"
                     name="email"
-                    placeholder="Enter your email"
+                    placeholder="E-posta adresinizi girin"
+                    value={formData.email}
+                    onChange={handleChange}
                   />
+                  {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
                 </div>
-                {/* <!-- Password --> */}
+
                 <div>
                   <Label>
-                    Password<span className="text-error-500">*</span>
+                    Telefon Numarası<span className="text-error-500">*</span>
+                  </Label>
+                  <input
+                    type="tel"
+                    name="phone_number"
+                    placeholder="05321234567"
+                    value={formData.phone_number}
+                    onChange={handleChange}
+                    maxLength={11}
+                    className="w-full px-4 py-3 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white/90 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                  {errors.phone_number && <p className="mt-1 text-sm text-red-500">{errors.phone_number}</p>}
+                  <p className="mt-1 text-xs text-gray-500">Format: 05321234567 (11 rakam)</p>
+                </div>
+
+                {/* TC Vatandaşlığı Checkbox */}
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    className="w-5 h-5"
+                    checked={!isTurkishCitizen}
+                    onChange={(checked) => {
+                      setIsTurkishCitizen(!checked);
+                      // Checkbox durumu değiştiğinde ilgili alanları temizle
+                      if (checked) {
+                        setFormData(prev => ({...prev, id_number: "", country: "", national_id: ""}));
+                      } else {
+                        setFormData(prev => ({...prev, id_number: "", country: "TR", national_id: ""}));
+                      }
+                    }}
+                  />
+                  <p className="inline-block text-sm font-normal text-gray-500 dark:text-gray-400">
+                    TC vatandaşı değilim
+                  </p>
+                </div>
+
+                {/* Koşullu Alan: TC Kimlik No veya Pasaport/Kimlik No */}
+                {isTurkishCitizen ? (
+                  <div>
+                    <Label>
+                      TC Kimlik No<span className="text-error-500">*</span>
+                    </Label>
+                    <input
+                      type="text"
+                      name="id_number"
+                      placeholder="12345678901"
+                      value={formData.id_number}
+                      onChange={handleChange}
+                      maxLength={11}
+                      className="w-full px-4 py-3 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white/90 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    />
+                    {errors.id_number && <p className="mt-1 text-sm text-red-500">{errors.id_number}</p>}
+                    <p className="mt-1 text-xs text-gray-500">11 haneli olmalıdır</p>
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <Label>
+                        Pasaport/Kimlik No<span className="text-error-500">*</span>
+                      </Label>
+                      <Input
+                        type="text"
+                        name="national_id"
+                        placeholder="Pasaport veya kimlik numaranızı girin"
+                        value={formData.national_id}
+                        onChange={handleChange}
+                      />
+                      {errors.national_id && <p className="mt-1 text-sm text-red-500">{errors.national_id}</p>}
+                    </div>
+                    <div>
+                      <Label>
+                        Ülke<span className="text-error-500">*</span>
+                      </Label>
+                      <select
+                        name="country"
+                        aria-label="Ülke"
+                        value={formData.country}
+                        onChange={handleSelectChange}
+                        className="w-full px-4 py-3 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white/90 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      >
+                        <option value="">Ülke seçin</option>
+                        <option value="US">Amerika Birleşik Devletleri</option>
+                        <option value="GB">Birleşik Krallık</option>
+                        <option value="DE">Almanya</option>
+                        <option value="FR">Fransa</option>
+                        <option value="IT">İtalya</option>
+                        <option value="ES">İspanya</option>
+                        <option value="NL">Hollanda</option>
+                        <option value="BE">Belçika</option>
+                        <option value="SE">İsveç</option>
+                        <option value="NO">Norveç</option>
+                        <option value="DK">Danimarka</option>
+                        <option value="FI">Finlandiya</option>
+                        <option value="GR">Yunanistan</option>
+                        <option value="SY">Suriye</option>
+                        <option value="IQ">Irak</option>
+                        <option value="AF">Afganistan</option>
+                        <option value="PK">Pakistan</option>
+                        <option value="SA">Suudi Arabistan</option>
+                        <option value="AE">Birleşik Arap Emirlikleri</option>
+                      </select>
+                      {errors.country && <p className="mt-1 text-sm text-red-500">{errors.country}</p>}
+                    </div>
+                  </>
+                )}
+
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <div className="sm:col-span-1">
+                    <Label>
+                      Doğum Tarihi<span className="text-error-500">*</span>
+                    </Label>
+                    <Input
+                      type="date"
+                      name="birth_date"
+                      value={formData.birth_date}
+                      onChange={handleChange}
+                    />
+                    {errors.birth_date && <p className="mt-1 text-sm text-red-500">{errors.birth_date}</p>}
+                  </div>
+                  <div className="sm:col-span-1">
+                    <Label >
+                      Cinsiyet<span className="text-error-500">*</span>
+                    </Label>
+                    <select
+                      name="gender_id"
+                      aria-label="Cinsiyet"
+                      value={formData.gender_id}
+                      onChange={handleSelectChange}
+                      className="w-full px-4 py-3 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white/90 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    >
+                      <option value="">Cinsiyet seçin</option>
+                      <option value="1">Kadın</option>
+                      <option value="2">Erkek</option>
+                      <option value="3">Diğer</option>
+                      <option value="4">Belirtmek istemiyorum</option>
+                    </select>
+                    {errors.gender_id && <p className="mt-1 text-sm text-red-500">{errors.gender_id}</p>}
+                  </div>
+                </div>
+
+                <div>
+                  <Label>
+                    Destek Hedefi<span className="text-error-500">*</span>
+                  </Label>
+                  <Input
+                    type="text"
+                    name="support_goal"
+                    placeholder="Örn: Bağımlılık tedavisi"
+                    value={formData.support_goal}
+                    onChange={handleChange}
+                  />
+                  {errors.support_goal && <p className="mt-1 text-sm text-red-500">{errors.support_goal}</p>}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    className="w-5 h-5"
+                    checked={formData.received_service_before}
+                    onChange={(checked) => setFormData(prev => ({...prev, received_service_before: checked}))}
+                  />
+                  <p className="inline-block text-sm font-normal text-gray-500 dark:text-gray-400">
+                  Daha önce herhangi bir destek hizmeti aldınız mı?
+                  </p>
+                </div>
+
+                <div>
+                  <Label>
+                    Şifre<span className="text-error-500">*</span>
                   </Label>
                   <div className="relative">
                     <Input
-                      placeholder="Enter your password"
+                      placeholder="Şifrenizi girin"
                       type={showPassword ? "text" : "password"}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
                     />
                     <span
                       onClick={() => setShowPassword(!showPassword)}
@@ -143,44 +413,76 @@ export default function SignUpForm() {
                       )}
                     </span>
                   </div>
+                  {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password}</p>}
                 </div>
-                {/* <!-- Checkbox --> */}
+
+                <div>
+                  <Label>
+                    Şifre (Tekrar)<span className="text-error-500">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      placeholder="Şifrenizi tekrar girin"
+                      type={showPassword2 ? "text" : "password"}
+                      name="password2"
+                      value={formData.password2}
+                      onChange={handleChange}
+                    />
+                    <span
+                      onClick={() => setShowPassword2(!showPassword2)}
+                      className="absolute z-30 -translate-y-1/2 cursor-pointer right-4 top-1/2"
+                    >
+                      {showPassword2 ? (
+                        <EyeIcon className="fill-gray-500 dark:fill-gray-400 size-5" />
+                      ) : (
+                        <EyeCloseIcon className="fill-gray-500 dark:fill-gray-400 size-5" />
+                      )}
+                    </span>
+                  </div>
+                  {errors.password2 && <p className="mt-1 text-sm text-red-500">{errors.password2}</p>}
+                </div>
+
                 <div className="flex items-center gap-3">
                   <Checkbox
                     className="w-5 h-5"
                     checked={isChecked}
                     onChange={setIsChecked}
                   />
-                  <p className="inline-block font-normal text-gray-500 dark:text-gray-400">
-                    By creating an account means you agree to the{" "}
+                  <p className="inline-block text-sm font-normal text-gray-500 dark:text-gray-400">
+                    Hesap oluştururken,{" "}
                     <span className="text-gray-800 dark:text-white/90">
-                      Terms and Conditions,
+                      Kullanım Şartları,
                     </span>{" "}
-                    and our{" "}
+                    ve{" "}
                     <span className="text-gray-800 dark:text-white">
-                      Privacy Policy
+                      Gizlilik Politikasını kabul ediyorum.
                     </span>
                   </p>
+                  {errors.terms && <p className="mt-1 text-sm text-red-500">{errors.terms}</p>}
                 </div>
-                {/* <!-- Button --> */}
+
+                {/* Başarılı kayıt bildirimi: SignIn ile aynı Alert bileşenini kullan */}
+                {successMessage && (
+                  <div className="mt-3">
+                    <Alert
+                      variant="success"
+                      title="Kayıt Başarılı"
+                      message={successMessage}
+                    />
+                  </div>
+                )}
+
                 <div>
-                  <button className="flex items-center justify-center w-full px-4 py-3 text-sm font-medium text-white transition rounded-lg bg-brand-500 shadow-theme-xs hover:bg-brand-600">
-                    Sign Up
+                  <button 
+                    type="submit"
+                    className="flex items-center justify-center w-full px-4 py-3 text-sm font-medium text-white transition rounded-lg bg-brand-500 shadow-theme-xs hover:bg-brand-600"
+                  >
+                    Kayıt Ol
                   </button>
                 </div>
               </div>
             </form>
-
             <div className="mt-5">
-              <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400 sm:text-start">
-                Already have an account? {""}
-                <Link
-                  to="/signin"
-                  className="text-brand-500 hover:text-brand-600 dark:text-brand-400"
-                >
-                  Sign In
-                </Link>
-              </p>
             </div>
           </div>
         </div>
