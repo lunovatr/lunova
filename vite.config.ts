@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { viteStaticCopy } from "vite-plugin-static-copy";
 import svgr from "vite-plugin-svgr";
 
 export default defineConfig({
@@ -15,6 +16,14 @@ export default defineConfig({
         namedExport: "ReactComponent",
       },
     }),
+    viteStaticCopy({
+      targets: [
+        {
+          src: 'public/_redirects', // kaynağın
+          dest: '.'                 // build klasörüne kopyala
+        }
+      ]
+    })
   ],
   build: {
     minify: 'terser', // artık terser kullanılacak
