@@ -29,7 +29,7 @@ export default defineConfig({
     minify: 'terser', // artık terser kullanılacak
     terserOptions: {
       compress: {
-        drop_console: true, // build için tüm console.log, debug, info kaldırılır
+        drop_console: false, // build için tüm console.log, debug, info kaldırılmayacak
       },
     },
   },
