@@ -8,7 +8,6 @@ import { CalendarIcon, Clock } from 'lucide-react'
 import { format, addMinutes, areIntervalsOverlapping, parse } from 'date-fns'
 import { tr } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Calendar } from '@/components/ui/calendar'
 import {
@@ -42,9 +41,9 @@ import {
 import {
   createAppointment,
   CreateAppointmentRequest,
-  getExpertIdFromUserAppointments,
   Appointment,
 } from '../api'
+import { UniqueClient } from '../use-appointments'
 
 const formSchema = z.object({
   client: z.number().min(1, 'Client ID 1 veya daha büyük olmalıdır'),
@@ -64,6 +63,8 @@ interface CreateAppointmentModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   existingAppointments: Appointment[]
+  clients: UniqueClient[]
+  expertId: number | null
   onSuccess?: () => void
 }
 
@@ -82,6 +83,8 @@ export function CreateAppointmentModal({
   open,
   onOpenChange,
   existingAppointments,
+  clients,
+  expertId,
   onSuccess,
 }: CreateAppointmentModalProps) {
   const [isLoading, setIsLoading] = useState(false)
@@ -89,7 +92,7 @@ export function CreateAppointmentModal({
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      client: 1, // 0 yerine 1 yapıyoruz
+      client: clients.length > 0 ? clients[0].id : 1,
       date: new Date(), // undefined yerine bugünün tarihini varsayılan yapalım
       time: '',
       duration: 60,
@@ -107,11 +110,12 @@ export function CreateAppointmentModal({
   const availableTimeOptions = useMemo(() => {
     if (!selectedDate) return []
 
-    // Seçilen güne ait, reddedilmemiş randevuları filtrele
+    // Seçilen güne ait, aktif randevuları filtrele (iptal edilmiş ve tamamlanmış hariç)
     const appointmentsOnSelectedDay = existingAppointments.filter(
       (app) =>
         app.date === format(selectedDate, 'yyyy-MM-dd') &&
-        app.status !== 'rejected'
+        app.status !== 'cancelled' &&
+        app.status !== 'completed'
     )
 
     // Eğer o gün hiç randevu yoksa, tüm saatler müsaittir.
@@ -158,20 +162,17 @@ export function CreateAppointmentModal({
   }, [availableTimeOptions, form])
 
   const onSubmit = async (data: z.infer<typeof formSchema>) => {
+    if (!expertId) {
+      toast.error('Expert ID bulunamadı. Lütfen sayfayı yenileyin.')
+      return
+    }
+
     setIsLoading(true)
     try {
-      // Önce expert ID'sini al
-      const expertId = await getExpertIdFromUserAppointments()
-      
-      if (!expertId) {
-        toast.error('Expert ID alınamadı. Lütfen daha sonra tekrar deneyin.')
-        return
-      }
-
       const appointmentData: CreateAppointmentRequest = {
-        expert: expertId, // Dinamik olarak alınan expert ID
         client: data.client,
-        date: format(data.date, 'yyyy-MM-dd'), // Bu format doğru: 2025-09-01
+        expert: expertId,
+        date: format(data.date, 'yyyy-MM-dd'),
         time: data.time,
         duration: data.duration,
         notes: data.notes || undefined,
@@ -181,7 +182,7 @@ export function CreateAppointmentModal({
       await createAppointment(appointmentData, existingAppointments)
       toast.success('Randevu başarıyla oluşturuldu!')
       form.reset({
-        client: 1, // Reset ederken de 1 yapıyoruz
+        client: clients.length > 0 ? clients[0].id : 1,
         date: new Date(), // undefined yerine yeni tarih
         time: '',
         duration: 60,
@@ -218,22 +219,30 @@ export function CreateAppointmentModal({
               name="client"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Client ID</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number" 
-                      min="1"
-                      placeholder="Client ID giriniz"
-                      className="[&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      {...field}
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value) || 1 // 0 yerine 1
-                        if (value >= 1) { // 0 yerine 1
-                          field.onChange(value)
-                        }
-                      }}
-                    />
-                  </FormControl>
+                  <FormLabel>Danışan</FormLabel>
+                  <Select
+                    onValueChange={(value) => field.onChange(parseInt(value))}
+                    value={field.value?.toString()}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Danışan seçiniz" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {clients.length > 0 ? (
+                        clients.map((client) => (
+                          <SelectItem key={client.id} value={client.id.toString()}>
+                            {client.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                          Henüz danışan bulunmamaktadır.
+                        </div>
+                      )}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

@@ -11,7 +11,7 @@ import {
   HoverCardTrigger,
 } from '@/components/ui/hover-card'
 
-import { Appointment, confirmAppointment, rejectAppointment } from '../api'
+import { Appointment, updateAppointmentStatus } from '../api'
 
 interface PendingAppointmentsProps {
   appointments: Appointment[]
@@ -21,7 +21,7 @@ interface PendingAppointmentsProps {
 export function PendingAppointments({ appointments, onUpdate }: PendingAppointmentsProps) {
   const handleApprove = async (appointmentId: number) => {
     try {
-      await confirmAppointment(appointmentId)
+      await updateAppointmentStatus(appointmentId, 'confirmed')
       toast.success(`Randevu onaylandı (ID: ${appointmentId})`)
       if (onUpdate) {
         onUpdate()
@@ -33,13 +33,13 @@ export function PendingAppointments({ appointments, onUpdate }: PendingAppointme
 
   const handleReject = async (appointmentId: number) => {
     try {
-      await rejectAppointment(appointmentId)
-      toast.success(`Randevu reddedildi (ID: ${appointmentId})`)
+      await updateAppointmentStatus(appointmentId, 'cancelled')
+      toast.success(`Randevu iptal edildi (ID: ${appointmentId})`)
       if (onUpdate) {
         onUpdate()
       }
     } catch (error: any) {
-      toast.error(`Reddetme hatası: ${error.message}`)
+      toast.error(`İptal hatası: ${error.message}`)
     }
   }
 
@@ -48,7 +48,7 @@ export function PendingAppointments({ appointments, onUpdate }: PendingAppointme
   }
 
   const pendingAppointments = appointments
-    .filter((app) => app.status === 'pending')
+    .filter((app) => app.status === 'pending' || app.status === 'waiting_approval')
     .slice(0, 5)
 
   if (pendingAppointments.length === 0) {

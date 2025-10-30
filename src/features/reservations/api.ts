@@ -12,7 +12,7 @@ export interface Appointment {
   client_name: string
   expert: number
   expert_name: string
-  status: 'pending' | 'confirmed' | 'rejected'
+  status: 'pending' | 'waiting_approval' | 'confirmed' | 'cancel_requested' | 'cancelled' | 'completed'
   notes?: string
   is_confirmed: boolean
   zoom_start_url: string
@@ -24,8 +24,7 @@ export interface Appointment {
 
 // API endpoint'ini bir değişkene atamak daha temiz bir yöntemdir.
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
-const USER_APPOINTMENTS_URL = API_BASE_URL + '/api/v1/appointments/user/'
-const ACCOUNTS_ME_URL = API_BASE_URL + '/api/v1/accounts/me/'
+const APPOINTMENTS_URL = API_BASE_URL + '/api/v1/appointments/'
 
 // Helper function to get clean token (remove quotes if present)
 const getCleanToken = (): string => {
@@ -34,109 +33,14 @@ const getCleanToken = (): string => {
   return token ? token.replace(/^"(.*)"$/, '$1') : ''
 }
 
-// User interface for /api/v1/accounts/me/ response
-export interface CurrentUser {
-  id: number
-  email: string
-  first_name: string
-  last_name: string
-  role: string
-  // Diğer alanlar varsa buraya eklenebilir
-}
-
-// Current user bilgilerini getir
-export const getCurrentUser = async (): Promise<CurrentUser> => {
-  console.log(`API: Fetching current user from ${ACCOUNTS_ME_URL}`)
-
-  const token = getCleanToken()
-
-  if (!token) {
-    console.error('Authentication Error: No access token found.')
-    throw new Error('Giriş yapılmamış. Lütfen giriş yapın.')
-  }
-
-  try {
-    // Set cookie before request
-    document.cookie = `access_token=${token}; path=/`
-
-    const response = await fetch(ACCOUNTS_ME_URL, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cookie': `access_token=${token}`,
-      },
-      credentials: 'include',
-    })
-
-    if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error('Oturum süreniz doldu. Lütfen tekrar giriş yapın.')
-      }
-      throw new Error(`API Hatası: ${response.status} - ${response.statusText}`)
-    }
-
-    const data: CurrentUser = await response.json()
-    return data
-  } catch (error) {
-    console.error('Failed to fetch current user:', error)
-    throw error
-  }
-}
-
-// Kullanıcının randevularını getir (expert ID'sini almak için)
-export const getUserAppointments = async (): Promise<Appointment[]> => {
-  console.log(`API: Fetching user appointments from ${USER_APPOINTMENTS_URL}`)
-
-  const token = getCleanToken()
-
-  if (!token) {
-    console.error('Authentication Error: No access token found.')
-    throw new Error('Giriş yapılmamış. Lütfen giriş yapın.')
-  }
-
-  try {
-    // Set cookie before request
-    document.cookie = `access_token=${token}; path=/`
-
-    const response = await fetch(USER_APPOINTMENTS_URL, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cookie': `access_token=${token}`,
-      },
-      credentials: 'include',
-    })
-
-    if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error('Oturum süreniz doldu. Lütfen tekrar giriş yapın.')
-      }
-      throw new Error(`API Hatası: ${response.status} - ${response.statusText}`)
-    }
-
-    const data: Appointment[] = await response.json()
-    return data
-  } catch (error) {
-    console.error('Failed to fetch user appointments:', error)
-    throw error
-  }
-}
-
-// Expert ID'sini /api/v1/accounts/me/ endpoint'inden al
-export const getExpertIdFromUserAppointments = async (): Promise<number | null> => {
-  try {
-    const currentUser = await getCurrentUser()
-    return currentUser.id
-  } catch (error) {
-    console.error('Failed to get expert ID:', error)
-    return null
-  }
-}
-
-export const getAppointmentsByExpertId = async (
-  _expertId: number
+// Randevuları tarih aralığına göre getir
+// Backend artık tarih aralığı parametresi zorunlu kıldı (max 4 ay)
+export const getAppointments = async (
+  startDate: string,
+  endDate: string
 ): Promise<Appointment[]> => {
-  console.log(`API: Fetching appointments from ${USER_APPOINTMENTS_URL}`)
+  const url = `${APPOINTMENTS_URL}?start_date=${startDate}&end_date=${endDate}`
+  console.log(`API: Fetching appointments from ${url}`)
 
   const token = getCleanToken()
 
@@ -149,7 +53,7 @@ export const getAppointmentsByExpertId = async (
     // Set cookie before request
     document.cookie = `access_token=${token}; path=/`
 
-    const response = await fetch(USER_APPOINTMENTS_URL, {
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -158,63 +62,27 @@ export const getAppointmentsByExpertId = async (
       credentials: 'include',
     })
 
-    // 4. Adım: Cevabı kontrol et.
-    // Eğer cevap başarılı değilse (örn: 401 Unauthorized, 403 Forbidden, 500 Server Error)
     if (!response.ok) {
-      // Eğer token süresi dolduysa (401), daha spesifik bir hata dönebiliriz.
       if (response.status === 401) {
-        // Burada kullanıcıyı login sayfasına yönlendirme gibi bir mantık kurulabilir.
         throw new Error('Oturum süreniz doldu. Lütfen tekrar giriş yapın.')
       }
       throw new Error(`API Hatası: ${response.status} - ${response.statusText}`)
     }
 
-    // 5. Adım: Cevap başarılıysa, JSON verisini component'in beklediği tipe dönüştür.
-    // Backend'den dönen veri ile Appointment interface'imiz uyumlu olduğu için direkt return edebiliriz.
     const data: Appointment[] = await response.json()
     return data
   } catch (error) {
     console.error('Failed to fetch appointments:', error)
-    // Hatanın hook tarafından yakalanabilmesi için tekrar fırlatıyoruz.
     throw error
   }
 }
 
-// Randevu onaylama işlemi
-export const confirmAppointment = async (appointmentId: number): Promise<void> => {
-  const token = getCleanToken()
-
-  if (!token) {
-    throw new Error('Giriş yapılmamış. Lütfen giriş yapın.')
-  }
-
-  try {
-    // Set cookie before request
-    document.cookie = `access_token=${token}; path=/`
-
-    const response = await fetch(`${API_BASE_URL}/api/v1/appointments/${appointmentId}/confirm/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cookie': `access_token=${token}`,
-      },
-      credentials: 'include',
-    })
-
-    if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error('Oturum süreniz doldu. Lütfen tekrar giriş yapın.')
-      }
-      throw new Error(`API Hatası: ${response.status} - ${response.statusText}`)
-    }
-  } catch (error) {
-    console.error('Failed to confirm appointment:', error)
-    throw error
-  }
-}
-
-// Randevu reddetme işlemi
-export const rejectAppointment = async (appointmentId: number): Promise<void> => {
+// Randevu durum güncelleme işlemi
+// Yeni unified endpoint kullanıyor: PATCH /api/v1/appointments/{id}/status/
+export const updateAppointmentStatus = async (
+  appointmentId: number,
+  status: 'pending' | 'waiting_approval' | 'confirmed' | 'cancel_requested' | 'cancelled' | 'completed'
+): Promise<void> => {
   const token = getCleanToken()
 
   if (!token) {
@@ -226,33 +94,42 @@ export const rejectAppointment = async (appointmentId: number): Promise<void> =>
     document.cookie = `access_token=${token}; path=/`
 
     const response = await fetch(
-      `${API_BASE_URL}/api/v1/appointments/${appointmentId}/cancel-request/`,
+      `${API_BASE_URL}/api/v1/appointments/${appointmentId}/status/`,
       {
-        method: 'POST',
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Cookie': `access_token=${token}`,
         },
         credentials: 'include',
-      },
+        body: JSON.stringify({ status }),
+      }
     )
 
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+
       if (response.status === 401) {
         throw new Error('Oturum süreniz doldu. Lütfen tekrar giriş yapın.')
       }
+
+      if (response.status === 400) {
+        const errorMessage = errorData.error || errorData.detail || 'Geçersiz durum geçişi.'
+        throw new Error(errorMessage)
+      }
+
       throw new Error(`API Hatası: ${response.status} - ${response.statusText}`)
     }
   } catch (error) {
-    console.error('Failed to reject appointment:', error)
+    console.error('Failed to update appointment status:', error)
     throw error
   }
 }
 
 // Randevu oluşturma için interface
 export interface CreateAppointmentRequest {
-  expert: number
   client: number
+  expert: number
   date: string // "2025-09-01"
   time: string // "13:00:00"
   duration: number
@@ -276,11 +153,8 @@ export const createAppointment = async (
   )
 
   const conflict = existingAppointments.find((existingApp) => {
-    // Sadece aynı uzman için ve 'rejected' olmayan randevuları kontrol et
-    if (
-      existingApp.expert !== appointmentData.expert ||
-      existingApp.status === 'rejected'
-    ) {
+    // 'cancelled' olmayan randevuları kontrol et (expert ID artık backend tarafından yönetiliyor)
+    if (existingApp.status === 'cancelled') {
       return false
     }
 

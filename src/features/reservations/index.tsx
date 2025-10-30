@@ -3,7 +3,6 @@
 import { useAppointments } from './use-appointments';
 import { CreateAppointmentModal } from './components/create-appointment-modal';
 import { useState } from 'react';
-import { useAuthStore } from '@/stores/auth-store';
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, } from '@/components/ui/card'
@@ -31,9 +30,8 @@ export function Reservations() {
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const { auth } = useAuthStore();
-  const expertId = auth.user?.id || 1; // Use current user's id or fallback to 1
-  const { appointments, isLoading, error, refetch } = useAppointments(expertId);
+  // Backend artık tarih aralığı ile randevuları getiriyor (mevcut tarihten 4 ay sonrasına kadar)
+  const { appointments, clients, expertId, isLoading, error, refetch } = useAppointments();
 
   return (
     <>
@@ -76,7 +74,6 @@ export function Reservations() {
                 ) : (
                   // Veri başarıyla geldiyse component'i render et
                   <ExpertDailySchedule
-                    expertId={expertId}
                     appointments={appointments}
                   />
                 )}
@@ -114,6 +111,8 @@ export function Reservations() {
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
         existingAppointments={appointments}
+        clients={clients}
+        expertId={expertId}
         onSuccess={refetch}
       />
     </>

@@ -33,7 +33,8 @@ export function PastAppointments({ appointments }: PastAppointmentsProps) {
         new Date(),
       )
       return (
-        app.status === 'rejected' ||
+        app.status === 'cancelled' ||
+        app.status === 'completed' ||
         (app.status === 'confirmed' && isPast(startTime))
       )
     })
@@ -94,13 +95,21 @@ export function PastAppointments({ appointments }: PastAppointmentsProps) {
                     </p>
                   </div>
                   <div className='flex'>
-                    {appointment.status === 'rejected' ? (
+                    {appointment.status === 'cancelled' ? (
                       <Badge
                         variant='destructive'
                         className='flex items-center gap-1.5 px-2.5 py-1'
                       >
                         <X className='h-3 w-3' />
-                        Reddedildi
+                        İptal Edildi
+                      </Badge>
+                    ) : appointment.status === 'completed' ? (
+                      <Badge
+                        variant='default'
+                        className='flex items-center gap-1.5 px-2.5 py-1'
+                      >
+                        <Check className='h-3 w-3' />
+                        Tamamlandı
                       </Badge>
                     ) : (
                       <Badge
@@ -108,7 +117,7 @@ export function PastAppointments({ appointments }: PastAppointmentsProps) {
                         className='text-muted-foreground flex items-center gap-1.5 px-2.5 py-1'
                       >
                         <Check className='h-3 w-3' />
-                        Tamamlandı
+                        Geçmiş
                       </Badge>
                     )}
                   </div>
@@ -141,8 +150,14 @@ export function PastAppointments({ appointments }: PastAppointmentsProps) {
                     <CalendarClock className='h-4 w-4 text-muted-foreground' />
                     <div className='text-sm'>
                       <span className='font-medium'>Durum:</span>{' '}
-                      <Badge variant={appointment.status === 'rejected' ? 'destructive' : 'outline'}>
-                        {appointment.status === 'rejected' ? 'Reddedildi' : 'Tamamlandı'}
+                      <Badge variant={
+                        appointment.status === 'cancelled' ? 'destructive' :
+                        appointment.status === 'completed' ? 'default' :
+                        'outline'
+                      }>
+                        {appointment.status === 'cancelled' ? 'İptal Edildi' :
+                         appointment.status === 'completed' ? 'Tamamlandı' :
+                         'Geçmiş'}
                       </Badge>
                     </div>
                   </div>

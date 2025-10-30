@@ -40,7 +40,7 @@ interface Appointment {
   client_name: string
   expert: number
   expert_name: string
-  status: 'pending' | 'confirmed' | 'rejected'
+  status: 'pending' | 'waiting_approval' | 'confirmed' | 'cancel_requested' | 'cancelled' | 'completed'
   notes?: string
   is_confirmed: boolean
   zoom_start_url: string
@@ -55,7 +55,6 @@ interface Appointment {
  * Component'in dışarıdan alacağı propları tanımlar.
  */
 interface ExpertDailyScheduleProps {
-  expertId: number
   appointments: Appointment[] // Filtrelenmemiş tüm randevu listesi
   workDayStartHour?: number // Uzmanın varsayılan mesai başlangıç saati
   workDayEndHour?: number // Uzmanın varsayılan mesai bitiş saati
@@ -68,7 +67,6 @@ interface ExpertDailyScheduleProps {
  * randevulara göre dinamik olarak ayarlar.
  */
 export const ExpertDailySchedule = ({
-  expertId: _expertId,
   appointments,
   workDayStartHour = 9,
   workDayEndHour: _workDayEndHour = 18,
@@ -264,8 +262,19 @@ export const ExpertDailySchedule = ({
                           <CalendarClock className='h-4 w-4 text-muted-foreground' />
                           <div className='text-sm'>
                             <span className='font-medium'>Durum:</span>{' '}
-                            <Badge variant={app.status === 'confirmed' ? 'default' : app.status === 'pending' ? 'secondary' : 'destructive'}>
-                              {app.status === 'confirmed' ? 'Onaylandı' : app.status === 'pending' ? 'Bekliyor' : 'Reddedildi'}
+                            <Badge variant={
+                              app.status === 'confirmed' ? 'default' :
+                              app.status === 'completed' ? 'default' :
+                              app.status === 'pending' || app.status === 'waiting_approval' ? 'secondary' :
+                              app.status === 'cancel_requested' ? 'outline' :
+                              'destructive'
+                            }>
+                              {app.status === 'confirmed' ? 'Onaylandı' :
+                               app.status === 'completed' ? 'Tamamlandı' :
+                               app.status === 'pending' ? 'Bekliyor' :
+                               app.status === 'waiting_approval' ? 'Onay Bekliyor' :
+                               app.status === 'cancel_requested' ? 'İptal Talebi' :
+                               'İptal Edildi'}
                             </Badge>
                           </div>
                         </div>
