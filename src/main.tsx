@@ -17,6 +17,7 @@ import { ThemeProvider } from './context/theme-provider'
 import { routeTree } from './routeTree.gen'
 // Styles
 import './styles/index.css'
+import { setupApiInterceptors } from '@/lib/api-setup'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -52,17 +53,29 @@ const queryClient = new QueryClient({
     onError: (error) => {
       if (error instanceof AxiosError) {
         if (error.response?.status === 401) {
-          // Sadece bir kez logout işlemi yap
-          const currentToken = useAuthStore.getState().auth.accessToken
-          if (currentToken) {
-            // React Query cache'ini temizle
-            queryClient.clear()
-            toast.error('Session expired!')
-            useAuthStore.getState().auth.reset()
-            const redirect = `${router.history.location.href}`
-            router.navigate({ to: '/sign-in', search: { redirect } })
+          const authStoreState = useAuthStore.getState();
+
+          // KRİTİK KONTROL 1: isLoggingOut bayrağını kontrol et (Sonsuz döngüyü engeller)
+          const isLoggingOut = authStoreState.isLoggingOut;
+
+          // KRİTİK KONTROL 2: Oturumun yerel olarak var olup olmadığını kontrol et
+          // Eğer `user` state'iniz doluysa, kullanıcı oturumda demektir.
+          const isUserLoggedIn = !!authStoreState.user;
+
+          // Oturumda olan bir kullanıcı 401 alırsa ve başka bir logout işlemi başlamamışsa devam et
+          if (isUserLoggedIn && !isLoggingOut) { 
+            // 1. React Query cache'ini temizle
+            queryClient.clear();
+            toast.error('Session expired!');
+            
+            // 2. Logout işlemi (Döngü korumalı olan yeni logout'u kullanıyoruz)
+            authStoreState.logout();
+
+            // 3. Giriş sayfasına yönlendir
+            const redirect = `${router.history.location.href}`;
+            router.navigate({ to: '/sign-in', search: { redirect } });
           }
-        }
+        }        
         if (error.response?.status === 500) {
           toast.error('Internal Server Error!')
           router.navigate({ to: '/500' })
@@ -89,6 +102,10 @@ declare module '@tanstack/react-router' {
     router: typeof router
   }
 }
+
+// global axios interceptor'larını ayarlar.
+// örneğin panelde gezerken oturum süresi dolarsa otomatik logout yapar.
+setupApiInterceptors()
 
 // Render the app
 const rootElement = document.getElementById('root')!

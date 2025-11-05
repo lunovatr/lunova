@@ -35,16 +35,12 @@ interface UserAuthFormProps extends React.HTMLAttributes<HTMLFormElement> {
   redirectTo?: string
 }
 
-export function UserAuthForm({
-  className,
-  redirectTo,
-  ...props
-}: UserAuthFormProps) {
+export function UserAuthForm({ className, redirectTo, ...props }: UserAuthFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
-  const { auth } = useAuthStore()
-
+  const { fetchUser } = useAuthStore() // yeni store yapısına göre
+  
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -53,6 +49,7 @@ export function UserAuthForm({
     },
   })
 
+  // Eğer localStorage’da kayıtlı e-posta varsa otomatik doldur
   useEffect(() => {
     const registeredEmail = localStorage.getItem('registered_email')
     if (registeredEmail) {
@@ -66,36 +63,23 @@ export function UserAuthForm({
     setError('')
 
     try {
-      const response = await api.post('/api/v1/accounts/login/', {
-        email: data.email,
-        password: data.password,
-      })
+      // Backend’e login isteği gönder
+      // Backend Set-Cookie ile access token’ı tarayıcıya yazar (HttpOnly)
+      await api.post('/api/v1/accounts/login/',
+        { email: data.email, password: data.password })
 
-      // API'den gelen kullanıcı bilgilerini kullan
-      const userData = response.data
-      
-      const user = {
-        id: userData.id,
-        accountNo: userData.account_no || 'ACC001',
-        email: data.email,
-        role: userData.role || ['expert'],
-        exp: Date.now() + 24 * 60 * 60 * 1000, // 24 hours from now
-      }
+      // Şimdi cookie artık tarayıcıda mevcut → kullanıcı bilgisini alalım
+      const UserData = await fetchUser()
 
-      // Set user and access token
-      auth.setUser(user)
-      auth.setAccessToken(userData.access)
+      toast.success(`${UserData!.first_name} ${UserData!.last_name} hoş geldin!`)
 
-      toast.success(`Hoş geldiniz, ${data.email}!`)
-
-      // Redirect to the stored location or default to dashboard
-      const targetPath = redirectTo || '/'
-      navigate({ to: targetPath, replace: true })
+      // Yönlendirme
+      navigate({ to: redirectTo || '/', replace: true })
     } catch (err: any) {
       const errorMessage = err.response?.data?.detail || 'Giriş başarısız.'
       setError(errorMessage)
       toast.error(errorMessage)
-      console.log(err)
+      console.error(err)
     } finally {
       setIsLoading(false)
     }

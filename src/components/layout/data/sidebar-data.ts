@@ -86,7 +86,7 @@ export const sidebarData: SidebarData = {
           icon: Users,
         },
         {
-          title: 'Availability',
+          title: 'Müsaitlik',
           url: '/availability',
           icon: CalendarCheck,
         },
