@@ -149,17 +149,13 @@ return (
           {grid[timeIndex]?.map((cell, dayIndex) => {
             let bgColor =
               isDark ? "bg-neutral-800 border-gray-700" : "bg-gray-100 border-gray-200";
-            
-            let textColor = isDark ? "text-white" : "text-black";
+
             if (cell.type === "weekly") {
               bgColor = isDark ? "bg-green-700 border-green-600" : "bg-green-400 border-green-500";
-              textColor = isDark ? "text-white" : "text-gray-800";
             } else if (cell.type === "exception_add") {
               bgColor = isDark ? "bg-emerald-800 border-emerald-700" : "bg-emerald-500 border-emerald-600";
-              textColor = isDark ? "text-white" : "text-gray-800";
             } else if (cell.type === "exception_cancel") {
               bgColor = isDark ? "bg-red-800 border-red-700" : "bg-red-500 border-red-600";
-              textColor = isDark ? "text-white" : "text-gray-800";
             }
             return (
               <div

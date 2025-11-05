@@ -74,6 +74,34 @@ export const ExpertDailySchedule = ({
   // Component'in kendi içinde seçili tarihi yönetmesi için state.
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
 
+  // Randevuları günlere göre grupla ve her günün randevu sayısını hesapla
+  const appointmentsByDate = appointments
+    .filter((app) => app.status === 'confirmed')
+    .reduce((acc, app) => {
+      const date = app.date
+      if (!acc[date]) {
+        acc[date] = 0
+      }
+      acc[date]++
+      return acc
+    }, {} as Record<string, number>)
+
+  // Randevu yoğunluğuna göre günleri kategorize et
+  const lowActivityDays: Date[] = []
+  const mediumActivityDays: Date[] = []
+  const highActivityDays: Date[] = []
+
+  Object.entries(appointmentsByDate).forEach(([dateStr, count]) => {
+    const date = parse(dateStr, 'yyyy-MM-dd', new Date())
+    if (count >= 1 && count <= 3) {
+      lowActivityDays.push(date)
+    } else if (count > 3 && count <= 6) {
+      mediumActivityDays.push(date)
+    } else if (count > 6) {
+      highActivityDays.push(date)
+    }
+  })
+
   // Gelen tüm randevuları seçili tarihe göre filtreler,
   // Date objelerine çevirir ve kronolojik olarak sıralar.
   const filteredAppointments = appointments
@@ -163,6 +191,11 @@ export const ExpertDailySchedule = ({
               selected={selectedDate}
               onSelect={(date) => date && setSelectedDate(date)}
               autoFocus // Popover açıldığında takvime otomatik odaklanır.
+              modifiers={{
+                lowActivity: lowActivityDays,
+                mediumActivity: mediumActivityDays,
+                highActivity: highActivityDays,
+              }}
             />
           </PopoverContent>
         </Popover>
