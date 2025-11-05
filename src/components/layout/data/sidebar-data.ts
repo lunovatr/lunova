@@ -22,6 +22,7 @@ import {
   Command,
   GalleryVerticalEnd,
   CalendarCheck,
+  CalendarClock,
 } from 'lucide-react'
 import { ClerkLogo } from '@/assets/clerk-logo'
 import { type SidebarData } from '../types'
@@ -59,6 +60,11 @@ export const sidebarData: SidebarData = {
           icon: LayoutDashboard,
         },
         {
+          title: 'Reservations',
+          url: '/reservations',
+          icon: CalendarClock,
+        },
+        {
           title: 'Tasks',
           url: '/tasks',
           icon: ListTodo,
@@ -80,7 +86,7 @@ export const sidebarData: SidebarData = {
           icon: Users,
         },
         {
-          title: 'Availability',
+          title: 'Müsaitlik',
           url: '/availability',
           icon: CalendarCheck,
         },

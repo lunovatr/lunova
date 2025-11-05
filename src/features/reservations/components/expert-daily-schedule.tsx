@@ -11,7 +11,7 @@ import {
   eachHourOfInterval,
 } from 'date-fns'
 import { tr } from 'date-fns/locale'
-import { Calendar as CalendarIcon, User } from 'lucide-react'
+import { Calendar as CalendarIcon, User, Video, StickyNote, Clock, CalendarClock } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
@@ -21,6 +21,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card'
 
 /**
  * @interface Appointment
@@ -35,8 +40,14 @@ interface Appointment {
   client_name: string
   expert: number
   expert_name: string
-  status: 'pending' | 'confirmed' | 'rejected'
+  status: 'pending' | 'waiting_approval' | 'confirmed' | 'cancel_requested' | 'cancelled' | 'completed'
   notes?: string
+  is_confirmed: boolean
+  zoom_start_url: string
+  zoom_join_url: string
+  zoom_meeting_id: string
+  created_at: string
+  updated_at: string
 }
 
 /**
@@ -44,7 +55,6 @@ interface Appointment {
  * Component'in dışarıdan alacağı propları tanımlar.
  */
 interface ExpertDailyScheduleProps {
-  expertId: number
   appointments: Appointment[] // Filtrelenmemiş tüm randevu listesi
   workDayStartHour?: number // Uzmanın varsayılan mesai başlangıç saati
   workDayEndHour?: number // Uzmanın varsayılan mesai bitiş saati
@@ -57,7 +67,6 @@ interface ExpertDailyScheduleProps {
  * randevulara göre dinamik olarak ayarlar.
  */
 export const ExpertDailySchedule = ({
-  expertId: _expertId,
   appointments,
   workDayStartHour = 9,
   workDayEndHour: _workDayEndHour = 18,
@@ -211,19 +220,100 @@ export const ExpertDailySchedule = ({
                     <div className='bg-primary h-2 w-2 rounded-full' />
                   </div>
                 </div>
-                <div className='bg-primary/10 border-primary/20 flex h-full items-center justify-between rounded-md border p-3'>
-                  <div className='text-primary truncate text-sm font-semibold'>
-                    {format(app.startTime, 'HH:mm')} -{' '}
-                    {format(app.endTime, 'HH:mm')}
-                  </div>
-                  <Badge
-                    variant='secondary'
-                    className='flex items-center text-xs whitespace-nowrap'
-                  >
-                    <User className='mr-1 h-3 w-3' />
-                    {app.client_name}
-                  </Badge>
-                </div>
+                <HoverCard>
+                  <HoverCardTrigger asChild>
+                    <div className='bg-primary/10 border-primary/20 flex h-full items-center justify-between rounded-md border p-3 cursor-pointer hover:bg-primary/20 transition-colors'>
+                      <div className='text-primary truncate text-sm font-semibold'>
+                        {format(app.startTime, 'HH:mm')} -{' '}
+                        {format(app.endTime, 'HH:mm')}
+                      </div>
+                      <Badge
+                        variant='secondary'
+                        className='flex items-center text-xs whitespace-nowrap'
+                      >
+                        <User className='mr-1 h-3 w-3' />
+                        {app.client_name}
+                      </Badge>
+                    </div>
+                  </HoverCardTrigger>
+                  <HoverCardContent className='w-80' side='right'>
+                    <div className='space-y-3'>
+                      <div className='space-y-1'>
+                        <h4 className='text-sm font-semibold'>Randevu Detayları</h4>
+                        <p className='text-xs text-muted-foreground'>ID: #{app.id}</p>
+                      </div>
+
+                      <div className='space-y-2'>
+                        <div className='flex items-center gap-2'>
+                          <User className='h-4 w-4 text-muted-foreground' />
+                          <div className='text-sm'>
+                            <span className='font-medium'>Danışan:</span> {app.client_name}
+                          </div>
+                        </div>
+
+                        <div className='flex items-center gap-2'>
+                          <Clock className='h-4 w-4 text-muted-foreground' />
+                          <div className='text-sm'>
+                            <span className='font-medium'>Süre:</span> {app.duration} dakika
+                          </div>
+                        </div>
+
+                        <div className='flex items-center gap-2'>
+                          <CalendarClock className='h-4 w-4 text-muted-foreground' />
+                          <div className='text-sm'>
+                            <span className='font-medium'>Durum:</span>{' '}
+                            <Badge variant={
+                              app.status === 'confirmed' ? 'default' :
+                              app.status === 'completed' ? 'default' :
+                              app.status === 'pending' || app.status === 'waiting_approval' ? 'secondary' :
+                              app.status === 'cancel_requested' ? 'outline' :
+                              'destructive'
+                            }>
+                              {app.status === 'confirmed' ? 'Onaylandı' :
+                               app.status === 'completed' ? 'Tamamlandı' :
+                               app.status === 'pending' ? 'Bekliyor' :
+                               app.status === 'waiting_approval' ? 'Onay Bekliyor' :
+                               app.status === 'cancel_requested' ? 'İptal Talebi' :
+                               'İptal Edildi'}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        {app.notes && (
+                          <div className='flex items-start gap-2'>
+                            <StickyNote className='h-4 w-4 text-muted-foreground mt-0.5' />
+                            <div className='text-sm flex-1'>
+                              <span className='font-medium'>Notlar:</span>
+                              <p className='text-muted-foreground mt-1'>{app.notes}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {app.zoom_join_url && app.zoom_join_url !== 'mock url' && (
+                          <div className='flex items-start gap-2'>
+                            <Video className='h-4 w-4 text-muted-foreground mt-0.5' />
+                            <div className='text-sm flex-1'>
+                              <span className='font-medium'>Zoom:</span>
+                              <a
+                                href={app.zoom_join_url}
+                                target='_blank'
+                                rel='noopener noreferrer'
+                                className='text-primary hover:underline block mt-1'
+                              >
+                                Toplantıya Katıl
+                              </a>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className='pt-2 border-t text-xs text-muted-foreground space-y-1'>
+                          <div>Oluşturulma: {format(new Date(app.created_at), 'dd MMM yyyy HH:mm', { locale: tr })}</div>
+                          <div>Güncellenme: {format(new Date(app.updated_at), 'dd MMM yyyy HH:mm', { locale: tr })}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </HoverCardContent>
+                </HoverCard>
               </div>
             )
           })}

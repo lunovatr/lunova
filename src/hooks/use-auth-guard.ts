@@ -11,35 +11,25 @@ interface User {
   role?: string[]
 }
 
-// Global cache for user data
 let userCache: User | null = null
-let cacheTimestamp: number = 0
-const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+let cacheTimestamp = 0
+const CACHE_DURATION = 5 * 60 * 1000 // 5 dakika
 
 export function useAuthGuard() {
   const [user, setUser] = useState<User | null>(userCache)
   const [loading, setLoading] = useState(!userCache)
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
-  const { auth } = useAuthStore()
+  const { setUser: setAuthUser } = useAuthStore()
   const isChecking = useRef(false)
 
   useEffect(() => {
     const checkAuth = async () => {
-      // Prevent multiple simultaneous checks
       if (isChecking.current) return
-      
-      // Eğer token yoksa, auth check yapma
-      if (!auth.accessToken) {
-        setUser(null)
-        setLoading(false)
-        navigate({ to: '/sign-in', replace: true })
-        return
-      }
-      
-      // Check if we have valid cached data
+
+      // Cache varsa onu kullan
       const now = Date.now()
-      if (userCache && (now - cacheTimestamp) < CACHE_DURATION) {
+      if (userCache && now - cacheTimestamp < CACHE_DURATION) {
         setUser(userCache)
         setLoading(false)
         return
@@ -49,48 +39,39 @@ export function useAuthGuard() {
         isChecking.current = true
         setLoading(true)
         setError(null)
-        
+
         // /me endpoint'ine istek at
         const response = await api.get('/api/v1/accounts/me/')
         const userData = response.data
-        
-        // Kullanıcı bilgilerini güncelle
+
         const user: User = {
           first_name: userData.first_name,
           last_name: userData.last_name,
           email: userData.email,
           role: userData.role || ['expert'],
         }
-        
-        // Cache the user data
+
+        // Cache güncelle
         userCache = user
         cacheTimestamp = now
-        
+
         setUser(user)
-        
-        // Auth store'u güncelle
-        auth.setUser({
+        setAuthUser({
           id: userData.id,
-          accountNo: userData.account_no || 'ACC001',
+          username: userData.username,
           email: userData.email,
           role: userData.role || ['expert'],
-          exp: Date.now() + 24 * 60 * 60 * 1000,
-          username: userData.username,
+          first_name: userData.first_name,
+          last_name: userData.last_name
         })
-        
       } catch (err: any) {
-        console.error('Auth check failed:', err)
+        import.meta.env.VITE_ENVIRONMENT === 'development' && 
+          console.error('Auth check failed:', err)
         setError('Authentication failed')
         setUser(null)
-        
-        // Clear cache
         userCache = null
         cacheTimestamp = 0
-        
-        // Auth store'u temizle
-        auth.reset()
-        
-        // Kullanıcıyı sign-in sayfasına yönlendir
+        setAuthUser(null)
         toast.error('Oturum süreniz dolmuş. Lütfen tekrar giriş yapın.')
         navigate({ to: '/sign-in', replace: true })
       } finally {
@@ -100,9 +81,8 @@ export function useAuthGuard() {
     }
 
     checkAuth()
-  }, [navigate, auth])
+  }, [navigate, setAuthUser])
 
-  // Function to clear cache (useful for logout)
   const clearCache = () => {
     userCache = null
     cacheTimestamp = 0
