@@ -55,8 +55,8 @@ export function Reservations() {
 
         <Tabs orientation='vertical' defaultValue='overview' className='space-y-4'>
           <TabsContent value='overview' className='space-y-4'>
-            <div className='grid grid-cols-1 gap-4 lg:grid-cols-7'>
-              <div className='col-span-1 lg:col-span-4'>
+            <div className='grid grid-cols-1 gap-4 lg:grid-cols-9'>
+              <div className='col-span-1 lg:col-span-6'>
                 {/* YÜKLENME VE HATA DURUMLARINI YÖNET */}
                 {isLoading ? (
                   // Yüklenirken bir iskelet (skeleton) göster

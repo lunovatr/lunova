@@ -9,9 +9,12 @@ import {
   startOfDay,
   isWithinInterval,
   eachHourOfInterval,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
 } from 'date-fns'
 import { tr } from 'date-fns/locale'
-import { Calendar as CalendarIcon, User, Video, StickyNote, Clock, CalendarClock } from 'lucide-react'
+import { Calendar as CalendarIcon, User, Video, StickyNote, Clock, CalendarClock, CalendarDays } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
@@ -26,6 +29,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from '@/components/ui/hover-card'
+import { useTheme } from '@/context/theme-provider'
 
 /**
  * @interface Appointment
@@ -73,6 +77,11 @@ export const ExpertDailySchedule = ({
 }: ExpertDailyScheduleProps) => {
   // Component'in kendi içinde seçili tarihi yönetmesi için state.
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  // Görünüm modu: 'daily' veya 'weekly'
+  const [viewMode, setViewMode] = useState<'daily' | 'weekly'>('daily')
+  // Theme context
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
 
   // Randevuları günlere göre grupla ve her günün randevu sayısını hesapla
   const appointmentsByDate = appointments
@@ -176,36 +185,80 @@ export const ExpertDailySchedule = ({
     <Card className='w-full'>
       <CardHeader className='flex flex-row items-center justify-between'>
         <CardTitle>
-          Program - {format(selectedDate, 'dd MMMM yyyy, EEEE', { locale: tr })}
+          Program - {viewMode === 'daily'
+            ? format(selectedDate, 'dd MMMM yyyy, EEEE', { locale: tr })
+            : `${format(startOfWeek(selectedDate, { weekStartsOn: 1 }), 'dd MMM', { locale: tr })} - ${format(endOfWeek(selectedDate, { weekStartsOn: 1 }), 'dd MMM yyyy', { locale: tr })}`
+          }
         </CardTitle>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant={'outline'} size='sm' className='ml-auto'>
-              <CalendarIcon className='mr-2 h-4 w-4' />
-              Tarih Değiştir
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className='w-auto p-0' align='end'>
-            <Calendar
-              mode='single'
-              selected={selectedDate}
-              onSelect={(date) => date && setSelectedDate(date)}
-              autoFocus // Popover açıldığında takvime otomatik odaklanır.
-              modifiers={{
-                lowActivity: lowActivityDays,
-                mediumActivity: mediumActivityDays,
-                highActivity: highActivityDays,
-              }}
-            />
-          </PopoverContent>
-        </Popover>
+        <div className='flex items-center gap-2'>
+          {/* Toggle Butonları */}
+          <div className={`p-1 flex ${isDark ? 'bg-secondary/50' : 'bg-gray-100'} rounded-lg space-x-1 shadow-sm`}>
+            <button
+              onClick={() => setViewMode('daily')}
+              className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md text-center transition-colors flex items-center justify-center ${
+                viewMode === 'daily'
+                  ? `${isDark ? 'bg-secondary text-secondary-foreground shadow-sm shadow-black/50' : 'bg-white text-gray-900 shadow-sm'}`
+                  : `${isDark ? 'text-muted-foreground hover:text-foreground' : 'text-gray-600 hover:text-gray-900'}`
+              }`}
+              style={{ minWidth: '70px' }}
+            >
+              <Clock className='mr-2 h-4 w-4' />
+              Günlük
+            </button>
+            <button
+              onClick={() => setViewMode('weekly')}
+              className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md text-center transition-colors flex items-center justify-center ${
+                viewMode === 'weekly'
+                  ? `${isDark ? 'bg-secondary text-secondary-foreground shadow-sm shadow-black/50' : 'bg-white text-gray-900 shadow-sm'}`
+                  : `${isDark ? 'text-muted-foreground hover:text-foreground' : 'text-gray-600 hover:text-gray-900'}`
+              }`}
+              style={{ minWidth: '70px' }}
+            >
+              <CalendarDays className='mr-2 h-4 w-4' />
+              Haftalık
+            </button>
+          </div>
+
+          {/* Tarih Seçici */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant={'outline'} size='sm'>
+                <CalendarIcon className='h-4 w-4' />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className='w-auto p-0' align='end'>
+              <Calendar
+                mode='single'
+                selected={selectedDate}
+                onSelect={(date) => date && setSelectedDate(date)}
+                autoFocus
+                modifiers={{
+                  lowActivity: lowActivityDays,
+                  mediumActivity: mediumActivityDays,
+                  highActivity: highActivityDays,
+                  // Haftalık modda seçili haftanın tüm günlerini highlight et
+                  ...(viewMode === 'weekly' && {
+                    selectedWeek: eachDayOfInterval({
+                      start: startOfWeek(selectedDate, { weekStartsOn: 1 }),
+                      end: endOfWeek(selectedDate, { weekStartsOn: 1 }),
+                    }),
+                  }),
+                }}
+                modifiersClassNames={{
+                  selectedWeek: 'bg-accent text-accent-foreground',
+                }}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
       </CardHeader>
       <CardContent>
-        {/* Zaman çizelgesinin ana kapsayıcısı. Yüksekliği dinamik olarak ayarlanır. */}
-        <div
-          className='relative'
-          style={{ height: `${totalWorkMinutes * PIXELS_PER_MINUTE}px` }}
-        >
+        {viewMode === 'daily' ? (
+          /* GÜNLÜK GÖRÜNÜM - Mevcut Timeline */
+          <div
+            className='relative'
+            style={{ height: `${totalWorkMinutes * PIXELS_PER_MINUTE}px` }}
+          >
           {/* Dikey zaman eksenini temsil eden çizgi. */}
           <div className='absolute top-0 left-0 h-full w-0.5 bg-gray-200 dark:bg-gray-700' />
 
@@ -350,8 +403,194 @@ export const ExpertDailySchedule = ({
               </div>
             )
           })}
-        </div>
+          </div>
+        ) : (
+          /* HAFTALIK GÖRÜNÜM - Tablo Yapısı */
+          <WeeklyScheduleView
+            appointments={appointments}
+            selectedDate={selectedDate}
+          />
+        )}
       </CardContent>
     </Card>
+  )
+}
+
+/**
+ * Haftalık randevu görünümü - Tablo formatında
+ */
+interface WeeklyScheduleViewProps {
+  appointments: Appointment[]
+  selectedDate: Date
+}
+
+const WeeklyScheduleView = ({ appointments, selectedDate }: WeeklyScheduleViewProps) => {
+  // Seçili haftanın başı ve sonu (Pazartesi-Pazar)
+  const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 })
+  const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 1 })
+  const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd })
+
+  // Saat dilimleri (08:00'dan 20:00'a kadar)
+  const timeSlots = [
+    '08:00', '09:00', '10:00', '11:00', '12:00',
+    '13:00', '14:00', '15:00', '16:00', '17:00',
+    '18:00', '19:00', '20:00',
+  ]
+
+  // Randevuları günlere göre grupla
+  const appointmentsByDay = weekDays.map((day) => {
+    const dayStr = format(day, 'yyyy-MM-dd')
+    const dayAppointments = appointments
+      .filter((app) => app.date === dayStr && app.status === 'confirmed')
+      .map((app) => {
+        const startTime = parse(
+          `${app.date} ${app.time}`,
+          'yyyy-MM-dd HH:mm:ss',
+          new Date()
+        )
+        const endTime = addMinutes(startTime, app.duration)
+        return { ...app, startTime, endTime }
+      })
+      .sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
+
+    return { day, dayStr, appointments: dayAppointments }
+  })
+
+  // Belirli bir saat diliminde ve günde randevu var mı kontrol et
+  const getAppointmentAtSlot = (dayStr: string, timeSlot: string) => {
+    const dayData = appointmentsByDay.find((d) => d.dayStr === dayStr)
+    if (!dayData) return null
+
+    const slotTime = parse(`${dayStr} ${timeSlot}:00`, 'yyyy-MM-dd HH:mm:ss', new Date())
+    const slotEndTime = addHours(slotTime, 1)
+
+    // Randevuyu sadece başladığı slot'ta göster
+    return dayData.appointments.find((app) =>
+      app.startTime >= slotTime && app.startTime < slotEndTime
+    )
+  }
+
+  return (
+    <div className='overflow-hidden'>
+      <div className='grid gap-0 text-sm' style={{ gridTemplateColumns: '3rem repeat(7, 1fr)' }}>
+        {/* Başlık Satırı */}
+        <div className='pt-2'></div> {/* Köşe boş */}
+        {weekDays.map((day) => (
+          <div key={day.toString()} className='font-bold text-center pb-2 border-b-2 border-gray-500'>
+            <div className='hidden sm:block'>{format(day, 'EEEE', { locale: tr })}</div>
+            <div className='sm:hidden'>{format(day, 'EEE', { locale: tr })}</div>
+            <div className='text-xs text-muted-foreground'>{format(day, 'dd MMM', { locale: tr })}</div>
+          </div>
+        ))}
+
+        {/* Zaman Çizelgesi ve Slotlar */}
+        {timeSlots.slice(0, -1).map((time) => (
+          <div key={time} className='contents'>
+            {/* Saat Etiketi */}
+            <div
+              className='font-bold text-right text-xs flex items-start pr-2 -mt-1'
+            >
+              {time}
+            </div>
+
+            {/* Her günün saat dilimi */}
+            {appointmentsByDay.map(({ dayStr }) => {
+              const appointment = getAppointmentAtSlot(dayStr, time)
+
+              if (appointment) {
+                return (
+                  <HoverCard key={`${dayStr}-${time}`}>
+                    <HoverCardTrigger asChild>
+                      <div
+                        className='h-8 border border-primary/20 bg-primary/10 cursor-pointer hover:bg-primary/20 transition-colors flex items-center justify-center p-1'
+                      >
+                        <span className='text-xs text-primary font-semibold truncate'>
+                          {appointment.client_name}
+                        </span>
+                      </div>
+                    </HoverCardTrigger>
+                    <HoverCardContent className='w-80' side='top'>
+                      <div className='space-y-3'>
+                        <div className='space-y-1'>
+                          <h4 className='text-sm font-semibold'>Randevu Detayları</h4>
+                          <p className='text-xs text-muted-foreground'>ID: #{appointment.id}</p>
+                        </div>
+
+                        <div className='space-y-2'>
+                          <div className='flex items-center gap-2'>
+                            <User className='h-4 w-4 text-muted-foreground' />
+                            <div className='text-sm'>
+                              <span className='font-medium'>Danışan:</span> {appointment.client_name}
+                            </div>
+                          </div>
+
+                          <div className='flex items-center gap-2'>
+                            <Clock className='h-4 w-4 text-muted-foreground' />
+                            <div className='text-sm'>
+                              <span className='font-medium'>Saat:</span> {format(appointment.startTime, 'HH:mm')} - {format(appointment.endTime, 'HH:mm')}
+                            </div>
+                          </div>
+
+                          <div className='flex items-center gap-2'>
+                            <Clock className='h-4 w-4 text-muted-foreground' />
+                            <div className='text-sm'>
+                              <span className='font-medium'>Süre:</span> {appointment.duration} dakika
+                            </div>
+                          </div>
+
+                          {appointment.notes && (
+                            <div className='flex items-start gap-2'>
+                              <StickyNote className='h-4 w-4 text-muted-foreground mt-0.5' />
+                              <div className='text-sm flex-1'>
+                                <span className='font-medium'>Notlar:</span>
+                                <p className='text-muted-foreground mt-1'>{appointment.notes}</p>
+                              </div>
+                            </div>
+                          )}
+
+                          {appointment.zoom_join_url && appointment.zoom_join_url !== 'mock url' && (
+                            <div className='flex items-start gap-2'>
+                              <Video className='h-4 w-4 text-muted-foreground mt-0.5' />
+                              <div className='text-sm flex-1'>
+                                <span className='font-medium'>Zoom:</span>
+                                <a
+                                  href={appointment.zoom_join_url}
+                                  target='_blank'
+                                  rel='noopener noreferrer'
+                                  className='text-primary hover:underline block mt-1'
+                                >
+                                  Toplantıya Katıl
+                                </a>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </HoverCardContent>
+                  </HoverCard>
+                )
+              }
+
+              return (
+                <div
+                  key={`${dayStr}-${time}`}
+                  className='h-8 border border-opacity-30 bg-gray-100 dark:bg-neutral-800 border-gray-200 dark:border-gray-700'
+                ></div>
+              )
+            })}
+          </div>
+        ))}
+
+        {/* Bitiş Saati Etiketi */}
+        <div
+          className='font-bold text-right text-xs flex items-start pr-2 -mt-1'
+        >
+          {timeSlots[timeSlots.length - 1]}
+        </div>
+        {weekDays.map((_, idx) => (
+          <div key={`end-spacer-${idx}`}></div>
+        ))}
+      </div>
+    </div>
   )
 }
