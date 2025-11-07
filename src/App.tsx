@@ -22,6 +22,7 @@ import BasicTables from "./pages/Tables/BasicTables";
 import FormElements from "./pages/Forms/FormElements";
 import Blank from "./pages/Blank";
 import Request from "./pages/Appointments/Request";
+import AppointmentsList from "./pages/Appointments/AppointmentsList";
 import AppLayout from "./layout/AppLayout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
 import Home from "./pages/Dashboard/Home";
@@ -92,6 +93,8 @@ export default function App() {
 
             {/* Tables */}
             <Route path="/basic-tables" element={<BasicTables />} />
+
+            <Route path="/appointments" element={<AppointmentsList />} />
 
             {/* Ui Elements */}
             <Route path="/alerts" element={<Alerts />} />
