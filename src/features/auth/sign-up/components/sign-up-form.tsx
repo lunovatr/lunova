@@ -31,39 +31,38 @@ const formSchema = z
   .object({
     first_name: z.string().min(1, 'İsim gerekli'),
     last_name: z.string().min(1, 'Soyisim gerekli'),
-    email: z.email({
-      error: (iss) =>
-        iss.input === '' ? 'E-posta adresinizi girin' : undefined,
-    }),
-    password: z
-      .string()
-      .min(1, 'Şifrenizi girin')
-      .min(7, 'Şifre en az 7 karakter olmalıdır'),
-    password2: z.string().min(1, 'Şifrenizi tekrar girin'),
-    phone_number: z.string().min(1, 'Telefon numarası gerekli').regex(/^[0-9]{11}$/, 'Telefon numarası 11 haneli olmalıdır'),
-    is_turkish_citizen: z.boolean(),
+    email: z.string().email('Geçerli bir e-posta girin'),
+    password: z.string().min(7, 'Şifre en az 7 karakter olmalıdır'),
+    password2: z.string(),
+    phone_number: z.string().regex(/^[0-9]{11}$/, 'Telefon numarası 11 haneli olmalıdır'),
+
+    is_turkish_citizen: z.boolean(),   // BURADA OLACAK ✔️ (ama backend’e gitmeyecek)
+
     id_number: z.string().optional(),
     national_id: z.string().optional(),
+
     country: z.string().min(1, 'Ülke seçimi gerekli'),
-    university: z.string().min(1, 'Üniversite bilgisi gerekli'),
+    university_id: z.number(),
     about: z.string().min(1, 'Hakkında bilgisi gerekli'),
-    gender_id: z.number().min(1, 'Cinsiyet seçimi gerekli'),
-    birth_date: z.date().min(new Date('1900-01-01'), 'Geçerli bir doğum tarihi girin'),
+    gender: z.string().min(1, 'Cinsiyet seçimi gerekli'),
+    birth_date: z.date(),
   })
   .refine((data) => data.password === data.password2, {
     message: "Şifreler eşleşmiyor.",
     path: ['password2'],
   })
   .refine((data) => {
-    if (!data.is_turkish_citizen) {
+    // TC vatandaşıysa → id_number zorunlu
+    if (data.country === "TR") {
       return data.id_number && data.id_number.length === 11;
-    } else {
-      return data.national_id && data.national_id.length > 0;
     }
+
+    // Değilse → national_id zorunlu
+    return data.national_id && data.national_id.length > 0;
   }, {
-    message: "TC vatandaşı iseniz TC Kimlik No, değilseniz Pasaport No gerekli",
+    message: "Kimlik bilgisi zorunludur",
     path: ['id_number'],
-  })
+  });
 
 export function SignUpForm({
   className,
@@ -85,9 +84,9 @@ export function SignUpForm({
       id_number: '',
       national_id: '',
       country: 'TR',
-      university: '',
+      university_id: 1,
       about: '',
-      gender_id: 1,
+      gender: '',
       birth_date: undefined,
     },
   })
@@ -96,13 +95,18 @@ export function SignUpForm({
     setIsLoading(true)
 
     try {
-      await api.post('/api/v1/accounts/register/expert/', {
+      const payload = {
         ...data,
-        role: 'expert',
-        // Convert date to ISO string for API
-        birth_date: data.birth_date ? data.birth_date.toISOString().split('T')[0] : undefined,
-      })
-      
+        birth_date: data.birth_date?.toISOString().split('T')[0],
+        id_number: data.country === "TR" ? data.id_number : "",
+        national_id: data.country !== "TR" ? data.national_id : "",
+      };
+
+      // is_turkish_citizen backend'e gitmesin
+      const { is_turkish_citizen, ...finalPayload } = payload;
+
+      await api.post('/api/v1/accounts/register/expert/', finalPayload);
+
       // Başarılı kayıt sonrası e-posta adresini localStorage'a kaydet
       localStorage.setItem('registered_email', data.email)
       
@@ -296,20 +300,21 @@ export function SignUpForm({
           />
           <FormField
             control={form.control}
-            name='gender_id'
+            name='gender'
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Cinsiyet</FormLabel>
-                <Select onValueChange={(value) => field.onChange(parseInt(value))} defaultValue={field.value?.toString()}>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Cinsiyet seçin" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="1">Erkek</SelectItem>
-                    <SelectItem value="2">Kadın</SelectItem>
-                    <SelectItem value="3">Diğer</SelectItem>
+                    <SelectItem value="male">Erkek</SelectItem>
+                    <SelectItem value="female">Kadın</SelectItem>
+                    <SelectItem value="other">Diğer</SelectItem>
+                    <SelectItem value="pn2s">Belirtmek İstemiyor</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -363,7 +368,7 @@ export function SignUpForm({
         <div className="space-y-3">
           <FormField
             control={form.control}
-            name='university'
+            name='university_id'
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Üniversite</FormLabel>
