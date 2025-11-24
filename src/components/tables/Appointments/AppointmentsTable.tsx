@@ -1,0 +1,158 @@
+// src/components/tables/Appointments/AppointmentsTable.tsx
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableRow,
+} from "../../ui/table";
+import Badge from "../../ui/badge/Badge";
+
+interface Appointment {
+  id: number;
+  expert: number;
+  expert_name: string;
+  client: number;
+  client_name: string;
+  date: string;
+  time: string;
+  duration: number;
+  status: string;
+  notes: string;
+}
+
+interface AppointmentsTableProps {
+  appointments: Appointment[];
+}
+
+const statusColors: Record<string, "success" | "warning" | "error" | "default"> = {
+  pending: "warning",
+  waiting_approval: "warning",
+  confirmed: "success",
+  cancel_requested: "error",
+  cancelled: "error",
+  completed: "default",
+};
+
+const statusLabels: Record<string, string> = {
+  pending: "Beklemede",
+  waiting_approval: "Onay Bekliyor",
+  confirmed: "Onaylandı",
+  cancel_requested: "İptal Talep Edildi",
+  cancelled: "İptal Edildi",
+  completed: "Tamamlandı",
+};
+
+export default function AppointmentsTable({
+  appointments,
+}: AppointmentsTableProps) {
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("tr-TR", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+  };
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
+      <div className="max-w-full overflow-x-auto">
+        <Table>
+          {/* Table Header */}
+          <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
+            <TableRow>
+              <TableCell
+                isHeader
+                className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+              >
+                Uzman
+              </TableCell>
+              <TableCell
+                isHeader
+                className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+              >
+                Tarih
+              </TableCell>
+              <TableCell
+                isHeader
+                className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+              >
+                Saat
+              </TableCell>
+              <TableCell
+                isHeader
+                className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+              >
+                Süre
+              </TableCell>
+              <TableCell
+                isHeader
+                className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+              >
+                Durum
+              </TableCell>
+              <TableCell
+                isHeader
+                className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+              >
+                Notlar
+              </TableCell>
+            </TableRow>
+          </TableHeader>
+
+          {/* Table Body */}
+          <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+            {appointments.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={6}
+                  className="px-5 py-8 text-center text-gray-500 dark:text-gray-400"
+                >
+                  Henüz randevunuz bulunmamaktadır.
+                </TableCell>
+              </TableRow>
+            ) : (
+              appointments.map((appointment) => (
+                <TableRow key={appointment.id}>
+                  <TableCell className="px-5 py-4 text-start sm:px-6">
+                    <div className="flex items-center gap-3">
+                      <div>
+                         <span className="block text-theme-sm font-medium text-gray-800 dark:text-white/90">
+                        {appointment.expert_name}
+                      </span>
+                      <span className="block text-theme-xs text-gray-500 dark:text-gray-400">
+                        User ID: {appointment.expert}
+                      </span>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-start text-theme-sm text-gray-500 dark:text-gray-400">
+                    {formatDate(appointment.date)}
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-start text-theme-sm text-gray-500 dark:text-gray-400">
+                    {appointment.time}
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-start text-theme-sm text-gray-500 dark:text-gray-400">
+                    {appointment.duration} dk
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-start text-theme-sm text-gray-500 dark:text-gray-400">
+                    <Badge
+                      size="sm"
+                      color={statusColors[appointment.status] || "default"}
+                    >
+                      {statusLabels[appointment.status] || appointment.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-theme-sm text-gray-500 dark:text-gray-400">
+                    {appointment.notes || "-"}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}

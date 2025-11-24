@@ -27,11 +27,6 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   {
-    icon: <CalenderIcon />,
-    name: "Rezervasyon Oluştur +",
-    path: "/appointments/request",
-  },
-  {
     icon: <GridIcon />,
     name: "Dashboard",
     subItems: [{ name: "Ana Panel", path: "/", pro: false }],
@@ -56,6 +51,19 @@ const navItems: NavItem[] = [
     icon: <TableIcon />,
     subItems: [{ name: "Temel Tablolar", path: "/basic-tables", pro: false }],
   },
+
+  {
+    icon: <CalenderIcon />,
+    name: "Randevu Oluştur +",
+    path: "/appointments/request",
+  },
+
+  {
+    icon: <CalenderIcon />,
+    name: "Randevularım",
+    path: "/appointments",
+  },
+
   {
     name: "Sayfalar",
     icon: <PageIcon />,
