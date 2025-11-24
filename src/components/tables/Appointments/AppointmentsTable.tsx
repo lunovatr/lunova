@@ -122,7 +122,7 @@ export default function AppointmentsTable({
                         {appointment.expert_name}
                       </span>
                       <span className="block text-theme-xs text-gray-500 dark:text-gray-400">
-                        Uzman ID: {appointment.expert}
+                        User ID: {appointment.expert}
                       </span>
                       </div>
                     </div>
