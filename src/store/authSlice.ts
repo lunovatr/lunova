@@ -1,30 +1,45 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../lib/api';
-import type { User } from '../types/auth';
+import type { User, ProfileResponse } from '../types/auth';
 
 interface AuthState {
   user: User | null;
+  userProfile: ProfileResponse | null;
   isAuthenticated: boolean;
   loading: boolean;
+  error: string | null; // Hata takibi için eklendi
 }
 
 const initialState: AuthState = {
   user: null,
+  userProfile: null,
   isAuthenticated: false,
-  // Başlangıçta uygulama açıldığında auth durumu doğrulanana kadar
-  // yönlendirmeleri engellemek için loading true olsun.
-  loading: true
+  loading: true,
+  error: null,
 };
 
+// Uygulama ilk açıldığında session kontrolü için
 export const fetchMe = createAsyncThunk<User>(
   'auth/fetchMe',
-  async () => {
+  async (_, { rejectWithValue }) => {
     try {
       const response = await api.get<User>('/api/v1/accounts/me/');
       return response.data;
-    } catch (error) {
-      console.log('Kullanıcı bilgileri alınamadı');
-      throw error;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Oturum bilgisi alınamadı');
+    }
+  }
+);
+
+// Profil sayfası için detaylı bilgi çekme
+export const fetchProfile = createAsyncThunk(
+  "auth/fetchProfile",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get<ProfileResponse>("/api/v1/accounts/profile/");
+      return response.data; // Artık dönen veri ProfileResponse tipinde
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || "Profil yüklenemedi");
     }
   }
 );
@@ -44,10 +59,15 @@ export const logoutThunk = createAsyncThunk(
 const authSlice = createSlice({
   name: 'auth',
   initialState,
-  reducers: {},
+  reducers: {
+    // Manuel hata temizleme gerekirse
+    clearError: (state) => {
+      state.error = null;
+    }
+  },
   extraReducers: (builder) => {
     builder
-      // fetchMe cases
+      // fetchMe - Auth kontrolü
       .addCase(fetchMe.pending, (state) => {
         state.loading = true;
       })
@@ -61,7 +81,21 @@ const authSlice = createSlice({
         state.user = null;
         state.isAuthenticated = false;
       })
-      // logout cases
+
+      // fetchProfile - Profil detaylarını getirme
+      .addCase(fetchProfile.pending, (state) => {
+        state.error = null;
+      })
+      .addCase(fetchProfile.fulfilled, (state, action) => {
+        const userData = action.payload;
+        state.userProfile = userData;
+        state.isAuthenticated = true;
+      })
+      .addCase(fetchProfile.rejected, (state, action) => {
+        state.error = action.payload as string;
+      })
+
+      // logout
       .addCase(logoutThunk.pending, (state) => {
         state.loading = true;
       })
@@ -72,11 +106,9 @@ const authSlice = createSlice({
       })
       .addCase(logoutThunk.rejected, (state) => {
         state.loading = false;
-        // Hata durumunda state'i değiştirme
       });
   }
 });
 
-export const {} = authSlice.actions; // No actions, using thunks instead
-
+export const { clearError } = authSlice.actions;
 export default authSlice.reducer;
