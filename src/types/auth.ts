@@ -15,28 +15,32 @@ export const getAddictionNamesByIds = (ids: number[]): string[] => {
 // Base User Interface (Django AbstractUser + custom fields)
 export interface User {
   id: number | string;
-  email: string;
+  email: string;                 // read-only
   username?: string | null;
   profile_photo?: string | null;
-  first_name?: string;
-  last_name?: string;
-  is_deleted: boolean;
+
+  first_name: string;
+  last_name: string;
+  birth_date: string | null;
+  gender: Gender | null;
+  phone_number: string | null;
   country: string;
-  national_id?: string | null;
-  birth_date?: string | null; // ISO date string from API
-  gender?: Gender | null;
-  id_number?: string | null; // TC Kimlik Numarası
-  phone_number?: string | null;
+
+  national_id?: string | null;   // read-only
+  id_number?: string | null;     // TC – read-only
   timezone: string;
-  // AbstractUser fields
+
+  is_deleted: boolean;
+
+  // AbstractUser flags (genelde admin için)
   is_staff?: boolean;
   is_superuser?: boolean;
   is_active?: boolean;
-  date_joined?: string; // ISO datetime string
-  last_login?: string | null; // ISO datetime string
-  // Profile relationships (may be included in API response)
-  client_profile?: ClientProfile;
+
+  date_joined?: string;
+  last_login?: string | null;
 }
+
 
 // Addiction Type
 export interface AddictionType {
@@ -52,7 +56,7 @@ export interface ClientProfile {
   id: number;
   user: number; // User ID
   expert?: number | null; // ExpertProfile ID
-  substances_used: AddictionType[] | number[]; // Can be full objects or just IDs
+  substances_used: AddictionType[];
   support_goal?: string | null;
   received_service_before: boolean;
   onboarding_complete: boolean;
@@ -93,16 +97,55 @@ export interface UserData {
   country: string;
 }
 
-// todo: kullanıcının profil bilgilerini çekerken daha fazla detay göndermek gerek. tüm verileri gönderelim.
-
 export interface ProfileResponse {
+  id: number;
+
+  user: User;
+
   support_goal: string | null;
   received_service_before: boolean;
-  substances_used: number[]; // ID listesi olarak geliyor
   onboarding_complete: boolean;
   is_active_in_treatment: boolean;
+
+  substances_used: AddictionType[];
+  emergency_contacts?: EmergencyContact[];
+
+  expert?: {
+    id: number;
+    full_name: string;
+    title: string | null;
+  } | null;
+
   documents: UserDocument[];
-  user_data: UserData;
+}
+
+// update modelleri
+
+export interface UserUpdateData {
+  first_name?: string;
+  last_name?: string;
+  birth_date?: string | null;
+  gender?: Gender | null;
+  phone_number?: string | null;
+  country?: string;
+}
+
+export interface EmergencyContactPayload {
+  name: string;
+  phone_number: string;
+  relationship?: string | null;
+  is_primary?: boolean;
+}
+
+export interface ProfileUpdatePayload {
+  support_goal?: string | null;
+  received_service_before?: boolean;
+  onboarding_complete?: boolean;
+  is_active_in_treatment?: boolean;
+  emergency_contacts?: EmergencyContactPayload[];
+  substances_used?: number[]; // AddictionType ID listesi
+
+  user_data?: UserUpdateData;
 }
 
 export interface AuthTokens {

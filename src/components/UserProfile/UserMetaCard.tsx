@@ -7,7 +7,8 @@ import Label from "../form/Label";
 import { useAppSelector, useAppDispatch } from "../../store/hooks";
 import api from "../../lib/api";
 import { fetchProfile } from "../../store/authSlice";
-import { ProfileResponse, Gender } from "../../types/auth";
+// import { ProfileResponse, Gender } from "../../types/auth";
+import { ProfileResponse, Gender } from "../../types/profile.types";
 
 export default function UserMetaCard() {
   const dispatch = useAppDispatch();
@@ -28,8 +29,9 @@ export default function UserMetaCard() {
       // Backend beklentisine göre user_data içindeki alanları gönderiyoruz
       const updateData = {
         user_data: {
-          gender: formData.user_data?.gender,
-          birth_date: formData.user_data?.birth_date,
+          gender: formData.user?.gender,
+          birth_date: formData.user?.birth_date,
+          // bu sayfada şimdilik sadece bunları değştirebilelim. isim soy isim değiştirilemesin.
         }
         // id_number JSON örneğinde yoktu ama gerekirse user_data altına eklenebilir
       };
@@ -43,7 +45,7 @@ export default function UserMetaCard() {
   };
 
   // İsim ve Soyisim artık user_data içinde
-  const fullName = `${storeUser?.user_data?.first_name || ''} ${storeUser?.user_data?.last_name || ''}`.trim() || "Kullanıcı";
+  const fullName = `${storeUser?.user?.first_name || ''} ${storeUser?.user?.last_name || ''}`.trim() || "Kullanıcı";
   
   // Fotoğrafı documents dizisi içinden 'profile_photo' tipine göre buluyoruz
   const profileDoc = storeUser?.documents?.find(doc => doc.type === 'profile_photo');
@@ -68,11 +70,11 @@ export default function UserMetaCard() {
               </h4>
               <div className="flex flex-col items-center gap-1 text-center xl:flex-row xl:gap-3 xl:text-left">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                   {storeUser?.user_data?.gender === 'male' ? 'Erkek' : storeUser?.user_data?.gender === 'female' ? 'Kadın' : 'Danışan'}
+                   {storeUser?.user?.gender === 'male' ? 'Erkek' : storeUser?.user?.gender === 'female' ? 'Kadın' : 'Danışan'}
                 </p>
                 <div className="hidden h-3.5 w-px bg-gray-300 dark:bg-gray-700 xl:block"></div>
                 <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-                   {storeUser?.onboarding_complete ? 'Profil Tamamlandı' : 'Profil Eksik'}
+                   {storeUser?.onboarding_complete ? 'Ön görüşme Tamamlandı' : 'Ön görüşme Tamamlanmadı'}
                 </p>
               </div>
             </div>
@@ -101,7 +103,7 @@ export default function UserMetaCard() {
                   <Label>Adı</Label>
                   <Input 
                     type="text" 
-                    value={formData.user_data?.first_name || ''} 
+                    value={formData.user?.first_name || ''} 
                     disabled 
                     className="bg-gray-50 cursor-not-allowed" 
                   />
@@ -111,7 +113,7 @@ export default function UserMetaCard() {
                   <Label>Soyadı</Label>
                   <Input 
                     type="text" 
-                    value={formData.user_data?.last_name || ''} 
+                    value={formData.user?.last_name || ''} 
                     disabled 
                     className="bg-gray-50 cursor-not-allowed" 
                   />
@@ -121,10 +123,10 @@ export default function UserMetaCard() {
                   <Label>Doğum Tarihi</Label>
                   <Input 
                     type="date" 
-                    value={formData.user_data?.birth_date || ''} 
+                    value={formData.user?.birth_date || ''} 
                     onChange={(e) => setFormData({
                       ...formData,
-                      user_data: { ...formData.user_data!, birth_date: e.target.value }
+                      user: { ...formData.user!, birth_date: e.target.value }
                     })}
                   />
                 </div>
@@ -132,10 +134,10 @@ export default function UserMetaCard() {
                 <div>
                   <Label>Cinsiyet</Label>
                   <select 
-                    value={formData.user_data?.gender || ''}
+                    value={formData.user?.gender || ''}
                     onChange={(e) => setFormData({
                       ...formData,
-                      user_data: { ...formData.user_data!, gender: e.target.value as Gender }
+                      user: { ...formData.user!, gender: e.target.value as Gender }
                     })}
                     className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white outline-none focus:border-blue-500"
                   >

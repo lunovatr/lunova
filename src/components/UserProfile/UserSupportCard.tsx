@@ -6,18 +6,20 @@ import Label from "../form/Label";
 import { useAppSelector, useAppDispatch } from "../../store/hooks";
 import api from "../../lib/api";
 import { fetchProfile } from "../../store/authSlice";
-import { ProfileResponse, ADDICTION_TYPES } from "../../types/auth";
+import { ADDICTION_TYPES } from "../../types/profile.types";
+import { ProfileUpdatePayload } from "../../types/auth";
+import { mapProfileToUpdatePayload } from "../../mappers/profileMapper";
 
 export default function UserTreatmentCard() {
   const dispatch = useAppDispatch();
   const { userProfile: storeUser } = useAppSelector((s) => s.auth);
   const { isOpen, openModal, closeModal } = useModal();
   
-  const [formData, setFormData] = useState<Partial<ProfileResponse>>({});
+  const [formData, setFormData] = useState<Partial<ProfileUpdatePayload>>({});
 
   useEffect(() => {
     if (storeUser) {
-      setFormData(storeUser);
+      setFormData(mapProfileToUpdatePayload(storeUser));
     }
   }, [storeUser, isOpen]);
 
@@ -64,6 +66,14 @@ export default function UserTreatmentCard() {
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-7 2xl:gap-x-32">
               <div className="col-span-1 lg:col-span-2">
+                <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">Atanan Uzmanınız</p>
+                <p className="text-sm font-medium text-gray-800 dark:text-white/90">
+                  {storeUser?.expert?.full_name || 'Henüz bir hedef belirtilmedi.'}
+                </p>
+              </div>
+
+
+              <div className="col-span-1 lg:col-span-2">
                 <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">Destek Hedefi</p>
                 <p className="text-sm font-medium text-gray-800 dark:text-white/90">
                   {storeUser?.support_goal || 'Henüz bir hedef belirtilmedi.'}
@@ -74,17 +84,18 @@ export default function UserTreatmentCard() {
                 <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">Bağımlılık Durumu</p>
                 <div className="flex flex-wrap gap-2">
                   {storeUser?.substances_used && storeUser.substances_used.length > 0 ? (
-                    storeUser.substances_used.map((id) => {
-                      const addiction = ADDICTION_TYPES.find(a => a.id === id);
-                      return (
-                        <span key={id} className="px-2 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-md dark:bg-blue-500/10 dark:text-blue-400">
-                          {addiction ? addiction.name : `Bilinmeyen (${id})`}
-                        </span>
-                      );
-                    })
+                    storeUser.substances_used.map((addiction) => (
+                      <span
+                        key={addiction.id}
+                        className="px-2 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-md dark:bg-blue-500/10 dark:text-blue-400"
+                      >
+                        {addiction.name}
+                      </span>
+                    ))
                   ) : (
                     <p className="text-sm text-gray-400 italic">Belirtilmedi</p>
                   )}
+
                 </div>
               </div>
 
