@@ -7,7 +7,6 @@ import Label from "../form/Label";
 import { useAppSelector, useAppDispatch } from "../../store/hooks";
 import api from "../../lib/api";
 import { fetchProfile } from "../../store/authSlice";
-// import { ProfileResponse, Gender } from "../../types/auth";
 import { ProfileResponse, Gender } from "../../types/profile.types";
 
 export default function UserMetaCard() {

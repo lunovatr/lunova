@@ -7,7 +7,7 @@ import { useAppSelector, useAppDispatch } from "../../store/hooks";
 import api from "../../lib/api";
 import { fetchProfile } from "../../store/authSlice";
 import { ADDICTION_TYPES } from "../../types/profile.types";
-import { ProfileUpdatePayload } from "../../types/auth";
+import { ProfileUpdatePayload } from "../../types/profile.payload";
 import { mapProfileToUpdatePayload } from "../../mappers/profileMapper";
 
 export default function UserTreatmentCard() {

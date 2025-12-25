@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../lib/api';
-import type { User, ProfileResponse } from '../types/auth';
+import type { User, ProfileResponse } from '../types/profile.types';
 
 interface AuthState {
   user: User | null;
