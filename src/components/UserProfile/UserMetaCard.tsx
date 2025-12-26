@@ -8,11 +8,17 @@ import { useAppSelector, useAppDispatch } from "../../store/hooks";
 import api from "../../lib/api";
 import { fetchProfile } from "../../store/authSlice";
 import { ProfileResponse, Gender } from "../../types/profile.types";
+import UploadDocumentModal from "./UploadDocumentModal";
 
 export default function UserMetaCard() {
   const dispatch = useAppDispatch();
   const { userProfile: storeUser } = useAppSelector((s) => s.auth);
   const { isOpen, openModal, closeModal } = useModal();
+  const { 
+    isOpen: isPhotoModalOpen, 
+    openModal: openPhotoModal, 
+    closeModal: closePhotoModal
+  } = useModal();
   
   // Local state'i yeni ProfileResponse tipine göre yönetiyoruz
   const [formData, setFormData] = useState<Partial<ProfileResponse>>({});
@@ -55,15 +61,22 @@ export default function UserMetaCard() {
       <div className="p-5 border border-gray-200 rounded-2xl dark:border-gray-800 lg:p-6 bg-white dark:bg-gray-900">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-col items-center w-full gap-6 xl:flex-row">
-            <div className="w-20 h-20 overflow-hidden border border-gray-200 rounded-full dark:border-gray-800 bg-gray-50">
+            {/* Profil Fotoğrafı Bölümü */}
+            <div 
+              onClick={openPhotoModal} // Tıklandığında modalı aç
+              className="relative w-20 h-20 overflow-hidden border border-gray-200 rounded-full dark:border-gray-800 bg-gray-50 cursor-pointer group"
+            >
               <img 
                 src={profilePicture} 
                 alt={fullName}
-                className="object-cover w-full h-full" 
+                className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-110" 
                 onError={(e) => { (e.target as HTMLImageElement).src = "/default-avatar.png"; }}
               />
-            </div>
-            <div className="grow">
+              {/* Üzerine gelince bir efekt eklemek istersen (opsiyonel) */}
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                <span className="text-white text-xs">Değiştir</span>
+              </div>
+            </div>            <div className="grow">
               <h4 className="mb-2 text-lg font-semibold text-center text-gray-800 dark:text-white/90 xl:text-left">
                 {fullName}
               </h4>
@@ -86,6 +99,12 @@ export default function UserMetaCard() {
           </button>
         </div>
       </div>
+
+      <UploadDocumentModal 
+        isOpen={isPhotoModalOpen} 
+        onClose={closePhotoModal}
+        isProfilePhoto={true}
+      />
 
       <Modal isOpen={isOpen} onClose={closeModal} className="max-w-[700px] m-4">
         <div className="no-scrollbar relative w-full max-w-[700px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-11">

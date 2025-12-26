@@ -6,6 +6,7 @@ import UserMetaCard from "../components/UserProfile/UserMetaCard";
 import UserInfoCard from "../components/UserProfile/UserContactCard";
 import UserSupportCard from "../components/UserProfile/UserSupportCard";
 import PageMeta from "../components/common/PageMeta";
+import UserDocumentsCard from "../components/UserProfile/UserDocumentsCard";
 
 export default function UserProfiles() {
   const dispatch = useAppDispatch();
@@ -47,6 +48,7 @@ export default function UserProfiles() {
         <div className="space-y-6">
           <UserMetaCard />
           <UserInfoCard />
+          <UserDocumentsCard />
           <UserSupportCard />
         </div>
       </div>

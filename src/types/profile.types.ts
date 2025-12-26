@@ -77,16 +77,28 @@ export interface EmergencyContact {
 // --------------------
 // Documents
 // --------------------
-export type DocumentType = 'profile_photo' | 'consent_form' | 'cv' | 'degree' | 'other';
+export type DocumentTypes = 'profile_photo' | 'consent_form' | 'cv' | 'degree' | 'other';
 
-export interface UserDocument {
+// İkili yapı (Değer - Türkçe Etiket eşleşmesi)
+export const DOCUMENT_TYPE_LABELS: Record<DocumentTypes, string> = {
+  profile_photo: 'Profil Fotoğrafı',
+  consent_form: 'Aydınlatma Metni / Onam Formu',
+  cv: 'Özgeçmiş (CV)',
+  degree: 'Diploma / Sertifika',
+  other: 'Diğer Belge',
+};
+
+export interface Document {
+  is_current: boolean; // BooleanField
   uid: string;
-  type: DocumentType;
+  type: DocumentTypes;
   filename: string;
   access_url: string;
+  uploaded_at: string;
   updated_at: string;
   verified: boolean;
   verified_at: string | null;
+  file: string | null; // hata dönüşlerinde bu var. şimdilik devam.
 }
 
 // --------------------
@@ -110,5 +122,5 @@ export interface ProfileResponse {
     title: string | null;
   } | null;
 
-  documents: UserDocument[];
+  documents: Document[];
 }

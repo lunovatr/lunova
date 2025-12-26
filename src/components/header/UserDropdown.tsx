@@ -21,7 +21,6 @@ export default function UserDropdown() {
   const user = auth.user || { first_name: '', last_name: '', email: '', profile_photo: '' };
   const fullName = `${user.first_name} ${user.last_name}`.trim();
   const displayName = user.first_name;
-  const profilePicture = user.profile_photo ?? "";
 
   return (
     <div className="relative">
@@ -30,7 +29,7 @@ export default function UserDropdown() {
         className="flex items-center text-gray-700 dropdown-toggle dark:text-gray-400"
       >
         <span className="mr-3 overflow-hidden rounded-full h-11 w-11">
-          <img src={profilePicture} alt="User" />
+          <img src={auth.user?.profile_photo || "/default-avatar.png"} alt={fullName} />
         </span>
 
         <span className="block mr-1 font-medium text-theme-sm">
