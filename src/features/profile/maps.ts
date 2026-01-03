@@ -10,9 +10,9 @@ export const UNIVERSITIES: Record<number, string> = {
   3: 'Ege Üniversitesi',
   4: 'Hacettepe Üniversitesi',
   5: 'Boğaziçi Üniversitesi',
-  6: 'ODTÜ',
-  7: 'İTÜ',
-  8: 'Marmara Üniversitesi',
+  6: 'Ondokuz Mayıs Üniversitesi',
+  // 7: 'İTÜ',
+  // 8: 'Marmara Üniversitesi',
 }
 
 // Derece Seviyeleri
@@ -20,43 +20,43 @@ export const DEGREE_LEVELS: Record<number, string> = {
   1: 'Lisans',
   2: 'Yüksek Lisans',
   3: 'Doktora',
-  4: 'Doçent',
-  5: 'Profesör',
+  4: 'Önlisans',
+  // 5: 'Profesör',
 }
 
 // Bölümler/Majör
 export const MAJORS: Record<number, string> = {
-  1: 'Klinik Psikoloji',
-  2: 'Psikoloji',
-  3: 'Psikolojik Danışmanlık ve Rehberlik',
-  4: 'Psikiyatri',
-  5: 'Çocuk ve Ergen Ruh Sağlığı',
-  6: 'Nöropsikoloji',
+  1: 'Psikoloji',
+  2: 'Psikiyatri',
+  3: 'Sosyal Hizmetler',
+  4: 'Rehberlik ve Psikolojik Danışmanlık',
+  // 5: 'Çocuk ve Ergen Ruh Sağlığı',
+  // 6: 'Nöropsikoloji',
 }
 
 // Hizmetler
 export const SERVICES: Record<number, string> = {
-  1: 'Bireysel Terapi',
-  2: 'Çift Terapisi',
-  3: 'Aile Terapisi',
-  4: 'Çocuk ve Ergen Terapisi',
-  5: 'Grup Terapisi',
-  6: 'Online Terapi',
-  7: 'Psikolojik Değerlendirme',
+  1: 'Bilişsel Terapi',
+  2: 'Bireysel Danışmanlık',
+  3: 'Çift Terapisi',
+  4: 'Grup Terapisi',
+  5: 'Grup Supervizyon',
+  // 6: 'Online Terapi',
+  // 7: 'Psikolojik Değerlendirme',
 }
 
 // Uzmanlık Alanları
 export const SPECIALIZATIONS: Record<number, string> = {
-  1: 'Anksiyete Bozuklukları',
-  2: 'Depresyon',
-  3: 'Travma ve PTSD',
-  4: 'Obsesif Kompulsif Bozukluk (OKB)',
-  5: 'Kişilik Bozuklukları',
-  6: 'Yeme Bozuklukları',
-  7: 'Bağımlılık',
-  8: 'İlişki Sorunları',
-  9: 'Yas ve Kayıp',
-  10: 'Stres Yönetimi',
+  1: 'Bağımlılık Terapisi',
+  2: 'Travma Odaklı Terapi',
+  3: 'Çift ve Aile Terapisi',
+  4: 'Cinsel Terapi',
+  // 5: 'Kişilik Bozuklukları',
+  // 6: 'Yeme Bozuklukları',
+  // 7: 'Bağımlılık',
+  // 8: 'İlişki Sorunları',
+  // 9: 'Yas ve Kayıp',
+  // 10: 'Stres Yönetimi',
 }
 
 // Yaklaşım Metodları
@@ -65,29 +65,28 @@ export const APPROACH_METHODS: Record<number, string> = {
   2: 'Psikanalitik Terapi',
   3: 'Hümanistik Terapi',
   4: 'EMDR',
-  5: 'Şema Terapi',
-  6: 'Kabul ve Kararlılık Terapisi (ACT)',
-  7: 'Diyalektik Davranış Terapisi (DBT)',
-  8: 'Gestalt Terapi',
+  // 5: 'Şema Terapi',
+  // 6: 'Kabul ve Kararlılık Terapisi (ACT)',
+  // 7: 'Diyalektik Davranış Terapisi (DBT)',
+  // 8: 'Gestalt Terapi',
 }
 
 // Hedef Gruplar
 export const TARGET_GROUPS: Record<number, string> = {
-  1: 'Çocuklar (0-12 yaş)',
-  2: 'Ergenler (13-18 yaş)',
-  3: 'Yetişkinler (19-64 yaş)',
-  4: 'Yaşlılar (65+ yaş)',
-  5: 'LGBTQ+ Bireyler',
-  6: 'Kadınlar',
-  7: 'Erkekler',
+  1: 'Ergen',
+  2: 'Yetişkin',
+  3: 'Aile',
+  4: 'Çocuk',
+  // 5: 'LGBTQ+ Bireyler',
+  // 6: 'Kadınlar',
+  // 7: 'Erkekler',
 }
 
 // Seans Tipleri
 export const SESSION_TYPES: Record<number, string> = {
-  1: 'Yüz Yüze',
-  2: 'Online (Video)',
-  3: 'Telefon',
-  4: 'Evde Ziyaret',
+  1: 'Online',
+  2: 'Yüz Yüze',
+  3: 'Karma'
 }
 
 // Dil Kodları
@@ -95,10 +94,10 @@ export const LANGUAGES: Record<string, string> = {
   tr: 'Türkçe',
   en: 'İngilizce',
   de: 'Almanca',
-  fr: 'Fransızca',
-  ar: 'Arapça',
-  ru: 'Rusça',
-  es: 'İspanyolca',
+  // fr: 'Fransızca',
+  // ar: 'Arapça',
+  // ru: 'Rusça',
+  // es: 'İspanyolca',
 }
 
 // Müsaitlik Durumları
@@ -121,7 +120,14 @@ export const GENDERS: Record<string, string> = {
   male: 'Erkek',
   female: 'Kadın',
   other: 'Diğer',
-  prefer_not_to_say: 'Belirtmek İstemiyorum',
+  pn2s: 'Belirtmek İstemiyorum',
+}
+
+export const STATUS_CONFIG = {
+  available: { label: "Müsait", variant: "default" as const }, 
+  active: { label: "Aktif", variant: "outline" as const },
+  busy: { label: "Meşgul", variant: "destructive" as const },
+  away: { label: "Tatilde", variant: "secondary" as const },
 }
 
 // Helper fonksiyonlar

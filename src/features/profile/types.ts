@@ -4,49 +4,60 @@
 
 // Document Interface
 export interface ProfileDocument {
-  uid: string
-  type: string
-  filename: string
-  access_url: string
-  updated_at: string
-  verified: boolean
-  verified_at: string | null
+  uid: string;
+  type: string;
+  original_filename: string;
+  is_primary: boolean;
+  access_url: string;
+  uploaded_at: string;
+  updated_at: string;
+  verified: boolean;
+  verified_at: string | null;
 }
 
 // User Data Interface
 export interface UserData {
-  first_name: string
-  last_name: string
-  birth_date: string
-  gender: string
-  phone_number: string
-  country: string
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  country: string;
+  birth_date: string;
+  gender: string;
+  phone_number: string;
+  timezone: string;
+  id_number: string;
 }
 
 // Expert Profile Response (GET)
 export interface ExpertProfile {
-  about: string | null
-  title: string | null
-  experience_years: number | null
-  license_number: string | null
-  institution: string | null
-  services: number[]
-  specializations: number[]
-  languages: string[]
-  approach_methods: number[]
-  target_groups: number[]
-  session_types: number[]
-  session_price: string
-  currency: string
-  appointment_duration: number
-  free_first_session: boolean
-  video_intro_url: string | null
-  availability_status: string
-  university: number | null
-  degree_level: number | null
-  major: number | null
-  documents: ProfileDocument[]
-  user_data: UserData
+  user: UserData;
+  about: string | null;
+  title: string | null;
+  experience_years: number | null;
+  license_number: string | null;
+  institution: string | null;
+  university: string | null;
+  degree_level: string | null;
+  major: string | null;
+  services: string[];
+  specializations: string[];
+  languages: string[];
+  approach_methods: string[];
+  target_groups: string[];
+  session_types: string[];
+  session_price: string;
+  currency: string;
+  appointment_duration: number;
+  free_first_session: boolean;
+  video_intro_url: string | null;
+  availability_status: string;
+  approval_status: boolean;
+  rating_average: number;
+  rating_count: number;
+  documents: ProfileDocument[];
+  created_at: string;
+  updated_at: string;
 }
 
 // Expert Profile Update Payload (PATCH)
@@ -58,7 +69,7 @@ export interface ExpertProfileUpdatePayload {
   institution?: string
   services?: number[]
   specializations?: number[]
-  languages?: string[]
+  languages?: (string | undefined)[]
   approach_methods?: number[]
   target_groups?: number[]
   session_types?: number[]

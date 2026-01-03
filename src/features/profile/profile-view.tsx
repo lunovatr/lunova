@@ -7,24 +7,17 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
+import { TopNav } from '@/components/layout/top-nav'
+import { Search } from '@/components/search'
+import { ConfigDrawer } from '@/components/config-drawer'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { getProfile, getDocumentUrl } from './api'
 import { ExpertProfile } from './types'
 import { useAuthGuard } from '@/hooks/use-auth-guard'
 import {
-  getUniversityName,
-  getDegreeLevelName,
-  getMajorName,
-  getServiceNames,
-  getSpecializationNames,
-  getApproachMethodNames,
-  getTargetGroupNames,
-  getSessionTypeNames,
-  getLanguageNames,
-  getAvailabilityStatus,
-  getCurrencySymbol,
   getGenderName,
+  STATUS_CONFIG
 } from './maps'
 
 export function ProfileView() {
@@ -59,14 +52,14 @@ export function ProfileView() {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
   }
 
-  const displayFirstName = profile?.user_data?.first_name || authUser?.first_name || ''
-  const displayLastName = profile?.user_data?.last_name || authUser?.last_name || ''
+  const displayFirstName = profile?.user?.first_name || authUser?.first_name || ''
+  const displayLastName = profile?.user?.last_name || authUser?.last_name || ''
   const displayEmail = authUser?.email || ''
 
   // Profil fotoğrafını bul
   const profilePhoto = profile?.documents?.find(doc => doc.type === 'profile_photo')
   const profilePhotoUrl = profilePhoto
-    ? getDocumentUrl(profilePhoto.uid, profilePhoto.type, profilePhoto.filename)
+    ? getDocumentUrl(profilePhoto.uid, profilePhoto.type, profilePhoto.original_filename)
     : undefined
 
   if (loading) {
@@ -77,13 +70,21 @@ export function ProfileView() {
     )
   }
 
-  const availabilityInfo = getAvailabilityStatus(profile?.availability_status || 'busy')
+  const topNav = [
+    { title: 'Overview', href: 'dashboard/overview', isActive: true, disabled: false },
+    { title: 'Customers', href: 'dashboard/customers', isActive: false, disabled: true },
+    { title: 'Products', href: 'dashboard/products', isActive: false, disabled: true },
+    { title: 'Settings', href: 'dashboard/settings', isActive: false, disabled: true },
+  ]
 
   return (
     <>
       <Header>
+        <TopNav links={topNav} />
         <div className='ms-auto flex items-center space-x-4'>
+          <Search />
           <ThemeSwitch />
+          <ConfigDrawer />
           <ProfileDropdown />
         </div>
       </Header>
@@ -134,19 +135,19 @@ export function ProfileView() {
           <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
             <div>
               <p className='text-sm font-medium text-muted-foreground'>Telefon</p>
-              <p className='text-sm'>{profile?.user_data?.phone_number || '-'}</p>
+              <p className='text-sm'>{profile?.user?.phone_number || '-'}</p>
             </div>
             <div>
               <p className='text-sm font-medium text-muted-foreground'>Doğum Tarihi</p>
-              <p className='text-sm'>{profile?.user_data?.birth_date || '-'}</p>
+              <p className='text-sm'>{profile?.user?.birth_date || '-'}</p>
             </div>
             <div>
               <p className='text-sm font-medium text-muted-foreground'>Cinsiyet</p>
-              <p className='text-sm'>{profile?.user_data?.gender ? getGenderName(profile.user_data.gender) : '-'}</p>
+              <p className='text-sm'>{profile?.user?.gender ? getGenderName(profile.user.gender) : '-'}</p>
             </div>
             <div>
               <p className='text-sm font-medium text-muted-foreground'>Ülke</p>
-              <p className='text-sm'>{profile?.user_data?.country || '-'}</p>
+              <p className='text-sm'>{profile?.user?.country || '-'}</p>
             </div>
           </div>
         </CardContent>
@@ -173,9 +174,11 @@ export function ProfileView() {
             </div>
             <div>
               <p className='text-sm font-medium text-muted-foreground'>Müsaitlik Durumu</p>
-              <Badge variant={availabilityInfo.color === 'green' ? 'default' : 'secondary'}>
-                {availabilityInfo.label}
-              </Badge>
+              {profile?.availability_status && (
+                <Badge variant={STATUS_CONFIG[profile.availability_status as keyof typeof STATUS_CONFIG]?.variant || "secondary"}>
+                  {STATUS_CONFIG[profile.availability_status as keyof typeof STATUS_CONFIG]?.label || "Bilinmiyor"}
+                </Badge>
+              )}
             </div>
           </div>
 
@@ -197,15 +200,15 @@ export function ProfileView() {
           <div className='grid grid-cols-1 gap-4 md:grid-cols-3'>
             <div>
               <p className='text-sm font-medium text-muted-foreground'>Üniversite</p>
-              <p className='text-sm'>{getUniversityName(profile?.university || null)}</p>
+              <p className='text-sm'>{profile?.university}</p>
             </div>
             <div>
               <p className='text-sm font-medium text-muted-foreground'>Derece</p>
-              <p className='text-sm'>{getDegreeLevelName(profile?.degree_level || null)}</p>
+              <p className='text-sm'>{profile?.degree_level}</p>
             </div>
             <div>
               <p className='text-sm font-medium text-muted-foreground'>Bölüm</p>
-              <p className='text-sm'>{getMajorName(profile?.major || null)}</p>
+              <p className='text-sm'>{profile?.major}</p>
             </div>
           </div>
         </CardContent>
@@ -221,7 +224,7 @@ export function ProfileView() {
             <p className='text-sm font-medium text-muted-foreground mb-2'>Hizmetler</p>
             <div className='flex flex-wrap gap-2'>
               {profile?.services && profile.services.length > 0 ? (
-                getServiceNames(profile.services).map((service, idx) => (
+                profile.services.map((service, idx) => (
                   <Badge key={idx} variant='outline'>{service}</Badge>
                 ))
               ) : (
@@ -234,7 +237,7 @@ export function ProfileView() {
             <p className='text-sm font-medium text-muted-foreground mb-2'>Uzmanlık Alanları</p>
             <div className='flex flex-wrap gap-2'>
               {profile?.specializations && profile.specializations.length > 0 ? (
-                getSpecializationNames(profile.specializations).map((spec, idx) => (
+                profile.specializations.map((spec, idx) => (
                   <Badge key={idx} variant='outline'>{spec}</Badge>
                 ))
               ) : (
@@ -247,7 +250,7 @@ export function ProfileView() {
             <p className='text-sm font-medium text-muted-foreground mb-2'>Yaklaşım Metodları</p>
             <div className='flex flex-wrap gap-2'>
               {profile?.approach_methods && profile.approach_methods.length > 0 ? (
-                getApproachMethodNames(profile.approach_methods).map((method, idx) => (
+                profile.approach_methods.map((method, idx) => (
                   <Badge key={idx} variant='outline'>{method}</Badge>
                 ))
               ) : (
@@ -260,7 +263,7 @@ export function ProfileView() {
             <p className='text-sm font-medium text-muted-foreground mb-2'>Hedef Gruplar</p>
             <div className='flex flex-wrap gap-2'>
               {profile?.target_groups && profile.target_groups.length > 0 ? (
-                getTargetGroupNames(profile.target_groups).map((group, idx) => (
+                profile.target_groups.map((group, idx) => (
                   <Badge key={idx} variant='outline'>{group}</Badge>
                 ))
               ) : (
@@ -281,7 +284,7 @@ export function ProfileView() {
             <div>
               <p className='text-sm font-medium text-muted-foreground'>Seans Ücreti</p>
               <p className='text-sm font-semibold'>
-                {getCurrencySymbol(profile?.currency || 'TRY')} {profile?.session_price || '-'}
+                {profile?.currency} {profile?.session_price || '-'}
               </p>
             </div>
             <div>
@@ -298,7 +301,7 @@ export function ProfileView() {
             <p className='text-sm font-medium text-muted-foreground mb-2'>Seans Tipleri</p>
             <div className='flex flex-wrap gap-2'>
               {profile?.session_types && profile.session_types.length > 0 ? (
-                getSessionTypeNames(profile.session_types).map((type, idx) => (
+                profile.session_types.map((type, idx) => (
                   <Badge key={idx} variant='outline'>{type}</Badge>
                 ))
               ) : (
@@ -311,7 +314,7 @@ export function ProfileView() {
             <p className='text-sm font-medium text-muted-foreground mb-2'>Diller</p>
             <div className='flex flex-wrap gap-2'>
               {profile?.languages && profile.languages.length > 0 ? (
-                getLanguageNames(profile.languages).map((lang, idx) => (
+                profile.languages.map((lang, idx) => (
                   <Badge key={idx} variant='outline'>{lang}</Badge>
                 ))
               ) : (
@@ -336,7 +339,7 @@ export function ProfileView() {
                 .map((doc) => (
                   <div key={doc.uid} className='flex items-center justify-between p-3 border rounded-lg'>
                     <div className='flex-1'>
-                      <p className='text-sm font-medium'>{doc.filename}</p>
+                      <p className='text-sm font-medium'>{doc.original_filename}</p>
                       <p className='text-xs text-muted-foreground'>
                         Tip: {doc.type} • {doc.verified ? '✓ Doğrulandı' : 'Doğrulanmadı'}
                       </p>
@@ -345,7 +348,7 @@ export function ProfileView() {
                       </p>
                     </div>
                     <a
-                      href={getDocumentUrl(doc.uid, doc.type, doc.filename)}
+                      href={getDocumentUrl(doc.uid, doc.type, doc.original_filename)}
                       target='_blank'
                       rel='noopener noreferrer'
                       className='text-sm text-blue-600 hover:underline'

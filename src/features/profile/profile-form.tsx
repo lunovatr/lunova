@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { useForm } from 'react-hook-form'
+import { Resolver, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
@@ -45,6 +45,7 @@ import {
   SESSION_TYPES,
   LANGUAGES,
   CURRENCIES,
+  STATUS_CONFIG
 } from './maps'
 
 // Form validation schema
@@ -65,14 +66,14 @@ const profileFormSchema = z.object({
   services: z.array(z.number()).optional(),
   specializations: z.array(z.number()).optional(),
   approach_methods: z.array(z.number()).optional(),
-  target_groups: z.array(z.number()).optional(),
+  target_groups: z.array(z.string()).optional(),
 
   // Session Info
   session_price: z.string().optional(),
   currency: z.string().optional(),
   appointment_duration: z.coerce.number().min(30, 'Seans süresi en az 30 dakika olmalıdır').max(50, 'Seans süresi en fazla 50 dakika olabilir').optional(),
   free_first_session: z.boolean().optional(),
-  session_types: z.array(z.number()).optional(),
+  session_types: z.array(z.string()).optional(),
   languages: z.array(z.string()).optional(),
 
   // Other
@@ -80,8 +81,8 @@ const profileFormSchema = z.object({
   video_intro_url: z.string().url('Geçerli bir URL giriniz').or(z.literal('')).optional(),
 })
 
-type ProfileFormValues = z.infer<typeof profileFormSchema>
-
+// type ProfileFormValues = z.infer<typeof profileFormSchema>
+export type ProfileFormValues = z.infer<typeof profileFormSchema>
 export function ProfileForm() {
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState<ExpertProfile | null>(null)
@@ -92,7 +93,7 @@ export function ProfileForm() {
   const { user: authUser } = useAuthGuard()
 
   const form = useForm<ProfileFormValues>({
-    resolver: zodResolver(profileFormSchema),
+    resolver: zodResolver(profileFormSchema) as Resolver<ProfileFormValues>,
     defaultValues: {
       about: '',
       title: '',
@@ -119,58 +120,66 @@ export function ProfileForm() {
   })
 
   // Profil bilgilerini yükle
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        setLoading(true)
-        const data = await getProfile()
+  // Profil bilgilerini yükle ve Mapping işlemini yap
+    useEffect(() => {
+      const fetchProfile = async () => {
+        try {
+          setLoading(true)
+          const data = await getProfile()
 
-        if (data) {
-          const expertData = data as ExpertProfile
-          setProfile(expertData)
+          if (data) {
+            const expertData = data as ExpertProfile
+            console.log('Yüklenen Profil Verisi:', expertData)
+            setProfile(expertData)
 
-          // Form değerlerini güncelle
-          form.reset({
-            about: expertData.about || '',
-            title: expertData.title || '',
-            experience_years: expertData.experience_years || 0,
-            license_number: expertData.license_number || '',
-            institution: expertData.institution || '',
-            university: expertData.university || undefined,
-            degree_level: expertData.degree_level || undefined,
-            major: expertData.major || undefined,
-            services: expertData.services || [],
-            specializations: expertData.specializations || [],
-            approach_methods: expertData.approach_methods || [],
-            target_groups: expertData.target_groups || [],
-            session_price: expertData.session_price || '',
-            currency: expertData.currency || 'TRY',
-            appointment_duration: expertData.appointment_duration || 45,
-            free_first_session: expertData.free_first_session || false,
-            session_types: expertData.session_types || [],
-            languages: expertData.languages || [],
-            availability_status: expertData.availability_status || 'busy',
-            video_intro_url: expertData.video_intro_url || '',
-          })
+            // BACKEND -> FORM MAPPING
+            // Backend'den gelen string isimleri, bizim MAP'lerimizdeki ID karşılıklarına dönüştürüyoruz.
+            form.reset({
+              about: expertData.about || '',
+              title: expertData.title || '',
+              experience_years: expertData.experience_years || 0,
+              license_number: expertData.license_number || '',
+              institution: expertData.institution || '',
+              
+              // Tekli Seçimler (String -> ID)
+              university: Object.keys(UNIVERSITIES).find(key => UNIVERSITIES[Number(key)] === expertData.university) ? Number(Object.keys(UNIVERSITIES).find(key => UNIVERSITIES[Number(key)] === expertData.university)) : undefined,
+              degree_level: Object.keys(DEGREE_LEVELS).find(key => DEGREE_LEVELS[Number(key)] === expertData.degree_level) ? Number(Object.keys(DEGREE_LEVELS).find(key => DEGREE_LEVELS[Number(key)] === expertData.degree_level)) : undefined,
+              major: Object.keys(MAJORS).find(key => MAJORS[Number(key)] === expertData.major) ? Number(Object.keys(MAJORS).find(key => MAJORS[Number(key)] === expertData.major)) : undefined,
 
-          // Profil fotoğrafını preview olarak ayarla
-          const profilePhoto = expertData.documents?.find(doc => doc.type === 'profile_photo')
-          if (profilePhoto) {
-            setProfilePhotoPreview(getDocumentUrl(profilePhoto.uid, profilePhoto.type, profilePhoto.filename))
+              // Çoklu Seçimler (String[] -> ID[])
+              services: expertData.services?.map(s => Number(Object.keys(SERVICES).find(key => SERVICES[Number(key)] === s))).filter(Boolean) || [],
+              specializations: expertData.specializations?.map(s => Number(Object.keys(SPECIALIZATIONS).find(key => SPECIALIZATIONS[Number(key)] === s))).filter(Boolean) || [],
+              approach_methods: expertData.approach_methods?.map(s => Number(Object.keys(APPROACH_METHODS).find(key => APPROACH_METHODS[Number(key)] === s))).filter(Boolean) || [],
+              // target_groups: expertData.target_groups?.map(s => Number(Object.keys(TARGET_GROUPS).find(key => TARGET_GROUPS[Number(key)] === s))).filter(Boolean) || [],
+              target_groups: expertData.target_groups || [],
+              session_types: expertData.session_types || [],
+              
+              session_price: expertData.session_price || '',
+              currency: expertData.currency || 'TRY',
+              appointment_duration: expertData.appointment_duration || 45,
+              free_first_session: expertData.free_first_session ?? false,
+              languages: expertData.languages || [],
+              availability_status: expertData.availability_status || 'busy',
+              video_intro_url: expertData.video_intro_url || '',
+            })
+
+            // Profil fotoğrafı mapping (original_filename kullanarak)
+            const profilePhoto = expertData.documents?.find(doc => doc.type === 'profile_photo')
+            if (profilePhoto) {
+              // Backend'den tam URL geliyorsa access_url kullanılır
+              setProfilePhotoPreview(profilePhoto.access_url)
+            }
           }
+        } catch (error) {
+          console.error('Profil yüklenemedi:', error)
+        } finally {
+          setLoading(false)
         }
-      } catch (error) {
-        console.error('Profil yüklenemedi:', error)
-      } finally {
-        setLoading(false)
       }
-    }
 
-    if (authUser) {
-      fetchProfile()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authUser])
+      if (authUser) fetchProfile()
+    }, [authUser, form])
+
 
   // Profil fotoğrafı seçme
   const handleProfilePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -228,37 +237,46 @@ export function ProfileForm() {
     }
   }
 
-  const onSubmit = async (data: ProfileFormValues) => {
-    try {
-      const payload: ExpertProfileUpdatePayload = {
-        about: data.about,
-        title: data.title,
-        experience_years: data.experience_years,
-        license_number: data.license_number,
-        institution: data.institution,
-        university: data.university,
-        degree_level: data.degree_level,
-        major: data.major,
-        services: data.services,
-        specializations: data.specializations,
-        approach_methods: data.approach_methods,
-        target_groups: data.target_groups,
-        session_price: data.session_price,
-        currency: data.currency,
-        appointment_duration: data.appointment_duration,
-        free_first_session: data.free_first_session,
-        session_types: data.session_types,
-        languages: data.languages,
-        availability_status: data.availability_status,
-        video_intro_url: data.video_intro_url,
-      }
+  
+  // FORM -> BACKEND MAPPING (Submit)
+    const onSubmit = async (values: ProfileFormValues) => {
+      try {
+        // Backend tam olarak bu ID listelerini bekliyor
+        const payload: ExpertProfileUpdatePayload = {
+          ...values,
+          target_groups: values.target_groups?.map(label =>
+            Number(
+              Object.keys(TARGET_GROUPS).find(
+                key => TARGET_GROUPS[Number(key)] === label
+              )
+            )
+          ),
+          session_types: values.session_types?.map(label =>
+            Number(
+              Object.keys(SESSION_TYPES).find(
+                key => SESSION_TYPES[Number(key)] === label
+              )
+            )
+          ),
+          languages: values.languages
+            ?.map(label =>
+              Object.keys(LANGUAGES).find(
+                code => LANGUAGES[code] === label
+              )
+            )
+            .filter((code): code is string => Boolean(code)),
+          university: values.university ? Number(values.university) : undefined,
+          degree_level: values.degree_level ? Number(values.degree_level) : undefined,
+          major: values.major ? Number(values.major) : undefined,
+        }
 
-      const updatedProfile = await updateProfile(payload)
-      setProfile(updatedProfile as ExpertProfile)
-    } catch (error) {
-      console.error('Profil güncellenemedi:', error)
+        const updatedProfile = await updateProfile(payload)
+        setProfile(updatedProfile as ExpertProfile)
+        alert("Profil başarıyla güncellendi!")
+      } catch (error) {
+        console.error('Profil güncellenemedi:', error)
+      }
     }
-  }
 
   if (loading) {
     return (
@@ -446,9 +464,11 @@ export function ProfileForm() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value='available'>Müsait</SelectItem>
-                        <SelectItem value='busy'>Meşgul</SelectItem>
-                        <SelectItem value='limited'>Sınırlı Müsaitlik</SelectItem>
+                        {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+                          <SelectItem key={key} value={key}>
+                            {config.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -552,193 +572,186 @@ export function ProfileForm() {
               <CardDescription>Sunduğunuz hizmetler ve uzmanlık alanlarınız</CardDescription>
             </CardHeader>
             <CardContent className='space-y-6'>
-              <FormField
-                control={form.control}
-                name='services'
-                render={() => (
-                  <FormItem>
-                    <div className='mb-4'>
-                      <FormLabel>Hizmetler</FormLabel>
-                      <FormDescription>Sunduğunuz hizmetleri seçiniz</FormDescription>
-                    </div>
-                    <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                      {Object.entries(SERVICES).map(([id, label]) => (
-                        <FormField
-                          key={id}
-                          control={form.control}
-                          name='services'
-                          render={({ field }) => {
-                            return (
-                              <FormItem
-                                key={id}
-                                className='flex flex-row items-start space-x-3 space-y-0'
-                              >
-                                <FormControl>
-                                  <Checkbox
-                                    checked={field.value?.includes(Number(id))}
-                                    onCheckedChange={(checked) => {
-                                      return checked
-                                        ? field.onChange([...field.value || [], Number(id)])
-                                        : field.onChange(
-                                            field.value?.filter((value) => value !== Number(id))
-                                          )
-                                    }}
-                                  />
-                                </FormControl>
-                                <FormLabel className='font-normal cursor-pointer'>
-                                  {label}
-                                </FormLabel>
-                              </FormItem>
-                            )
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <FormItem>
+                <div className='mb-4'>
+                  <FormLabel>Hizmetler</FormLabel>
+                  <FormDescription>Sunduğunuz hizmetleri seçiniz</FormDescription>
+                </div>
 
-              <FormField
-                control={form.control}
-                name='specializations'
-                render={() => (
-                  <FormItem>
-                    <div className='mb-4'>
-                      <FormLabel>Uzmanlık Alanları</FormLabel>
-                      <FormDescription>Uzman olduğunuz alanları seçiniz</FormDescription>
-                    </div>
-                    <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                      {Object.entries(SPECIALIZATIONS).map(([id, label]) => (
-                        <FormField
-                          key={id}
-                          control={form.control}
-                          name='specializations'
-                          render={({ field }) => {
-                            return (
-                              <FormItem
-                                key={id}
-                                className='flex flex-row items-start space-x-3 space-y-0'
-                              >
-                                <FormControl>
-                                  <Checkbox
-                                    checked={field.value?.includes(Number(id))}
-                                    onCheckedChange={(checked) => {
-                                      return checked
-                                        ? field.onChange([...field.value || [], Number(id)])
-                                        : field.onChange(
-                                            field.value?.filter((value) => value !== Number(id))
-                                          )
-                                    }}
-                                  />
-                                </FormControl>
-                                <FormLabel className='font-normal cursor-pointer'>
-                                  {label}
-                                </FormLabel>
-                              </FormItem>
-                            )
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  {Object.entries(SERVICES).map(([id, label]) => (
+                    <FormField
+                      key={id}
+                      control={form.control}
+                      name='services'
+                      render={({ field }) => (
+                        <FormItem className='flex flex-row items-start space-x-3 space-y-0'>
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value?.includes(Number(id)) ?? false}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  field.onChange([...(field.value ?? []), Number(id)])
+                                } else {
+                                  field.onChange(
+                                    (field.value ?? []).filter(
+                                      (value: number) => value !== Number(id)
+                                    )
+                                  )
+                                }
+                              }}
+                            />
+                          </FormControl>
 
-              <FormField
-                control={form.control}
-                name='approach_methods'
-                render={() => (
-                  <FormItem>
-                    <div className='mb-4'>
-                      <FormLabel>Yaklaşım Metodları</FormLabel>
-                      <FormDescription>Kullandığınız terapi yaklaşımlarını seçiniz</FormDescription>
-                    </div>
-                    <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                      {Object.entries(APPROACH_METHODS).map(([id, label]) => (
-                        <FormField
-                          key={id}
-                          control={form.control}
-                          name='approach_methods'
-                          render={({ field }) => {
-                            return (
-                              <FormItem
-                                key={id}
-                                className='flex flex-row items-start space-x-3 space-y-0'
-                              >
-                                <FormControl>
-                                  <Checkbox
-                                    checked={field.value?.includes(Number(id))}
-                                    onCheckedChange={(checked) => {
-                                      return checked
-                                        ? field.onChange([...field.value || [], Number(id)])
-                                        : field.onChange(
-                                            field.value?.filter((value) => value !== Number(id))
-                                          )
-                                    }}
-                                  />
-                                </FormControl>
-                                <FormLabel className='font-normal cursor-pointer'>
-                                  {label}
-                                </FormLabel>
-                              </FormItem>
-                            )
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                          <FormLabel className='font-normal cursor-pointer'>
+                            {label}
+                          </FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                  ))}
+                </div>
+
+                <FormMessage />
+              </FormItem>
+
+
+              <FormItem>
+                <div className='mb-4'>
+                  <FormLabel>Uzmanlık Alanları</FormLabel>
+                  <FormDescription>Uzman olduğunuz alanları seçiniz</FormDescription>
+                </div>
+
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  {Object.entries(SPECIALIZATIONS).map(([id, label]) => (
+                    <FormField
+                      key={id}
+                      control={form.control}
+                      name='specializations'
+                      render={({ field }) => (
+                        <FormItem className='flex flex-row items-start space-x-3 space-y-0'>
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value?.includes(Number(id)) ?? false}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  field.onChange([...(field.value ?? []), Number(id)])
+                                } else {
+                                  field.onChange(
+                                    (field.value ?? []).filter(
+                                      (value: number) => value !== Number(id)
+                                    )
+                                  )
+                                }
+                              }}
+                            />
+                          </FormControl>
+
+                          <FormLabel className='font-normal cursor-pointer'>
+                            {label}
+                          </FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                  ))}
+                </div>
+
+                <FormMessage />
+              </FormItem>
+
+
+             <FormItem>
+              <div className='mb-4'>
+                <FormLabel>Yaklaşım Metodları</FormLabel>
+                <FormDescription>
+                  Kullandığınız terapi yaklaşımlarını seçiniz
+                </FormDescription>
+              </div>
+
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                {Object.entries(APPROACH_METHODS).map(([id, label]) => (
+                  <FormField
+                    key={id}
+                    control={form.control}
+                    name='approach_methods'
+                    render={({ field }) => (
+                      <FormItem className='flex flex-row items-start space-x-3 space-y-0'>
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value?.includes(Number(id)) ?? false}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                field.onChange([...(field.value ?? []), Number(id)])
+                              } else {
+                                field.onChange(
+                                  (field.value ?? []).filter(
+                                    (value: number) => value !== Number(id)
+                                  )
+                                )
+                              }
+                            }}
+                          />
+                        </FormControl>
+
+                        <FormLabel className='font-normal cursor-pointer'>
+                          {label}
+                        </FormLabel>
+                      </FormItem>
+                    )}
+                  />
+                ))}
+              </div>
+
+              <FormMessage />
+              </FormItem>
 
               <FormField
                 control={form.control}
                 name='target_groups'
-                render={() => (
-                  <FormItem>
-                    <div className='mb-4'>
-                      <FormLabel>Hedef Gruplar</FormLabel>
-                      <FormDescription>Çalıştığınız yaş gruplarını ve kitle türlerini seçiniz</FormDescription>
-                    </div>
-                    <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                      {Object.entries(TARGET_GROUPS).map(([id, label]) => (
-                        <FormField
-                          key={id}
-                          control={form.control}
-                          name='target_groups'
-                          render={({ field }) => {
-                            return (
-                              <FormItem
-                                key={id}
-                                className='flex flex-row items-start space-x-3 space-y-0'
-                              >
-                                <FormControl>
-                                  <Checkbox
-                                    checked={field.value?.includes(Number(id))}
-                                    onCheckedChange={(checked) => {
-                                      return checked
-                                        ? field.onChange([...field.value || [], Number(id)])
-                                        : field.onChange(
-                                            field.value?.filter((value) => value !== Number(id))
-                                          )
-                                    }}
-                                  />
-                                </FormControl>
-                                <FormLabel className='font-normal cursor-pointer'>
-                                  {label}
-                                </FormLabel>
-                              </FormItem>
-                            )
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const currentValues: string[] = field.value ?? [];
+                  return (
+                    <FormItem>
+                      <div className='mb-4'>
+                        <FormLabel>Hedef Gruplar</FormLabel>
+                        <FormDescription>
+                          Çalıştığınız yaş gruplarını ve kitle türlerini seçiniz
+                        </FormDescription>
+                      </div>
+                      <div className='grid grid-cols-2 md:grid-cols-3 gap-4'>
+                        {Object.entries(TARGET_GROUPS).map(([code, label]) => {
+                          return (
+                            <FormItem
+                              key={code}
+                              className='flex flex-row items-start space-x-3 space-y-0'
+                            >
+                              <FormControl>
+                                <Checkbox
+                                  checked={currentValues.includes(label)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      field.onChange([...currentValues, label])
+                                    } else {
+                                      field.onChange(
+                                        currentValues.filter(v => v !== label)
+                                      )
+                                    }
+                                  }}
+                                />
+                              </FormControl>
+                              <FormLabel className='font-normal cursor-pointer'>
+                                {label}
+                              </FormLabel>
+                            </FormItem>
+                          );
+                        })}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
+
             </CardContent>
           </Card>
 
@@ -827,95 +840,89 @@ export function ProfileForm() {
               <FormField
                 control={form.control}
                 name='session_types'
-                render={() => (
-                  <FormItem>
-                    <div className='mb-4'>
-                      <FormLabel>Seans Tipleri</FormLabel>
-                      <FormDescription>Sunduğunuz seans tiplerini seçiniz</FormDescription>
-                    </div>
-                    <div className='space-y-2'>
-                      {Object.entries(SESSION_TYPES).map(([id, label]) => (
-                        <FormField
-                          key={id}
-                          control={form.control}
-                          name='session_types'
-                          render={({ field }) => {
-                            return (
-                              <FormItem
-                                key={id}
-                                className='flex flex-row items-start space-x-3 space-y-0'
-                              >
-                                <FormControl>
-                                  <Checkbox
-                                    checked={field.value?.includes(Number(id))}
-                                    onCheckedChange={(checked) => {
-                                      return checked
-                                        ? field.onChange([...field.value || [], Number(id)])
-                                        : field.onChange(
-                                            field.value?.filter((value) => value !== Number(id))
-                                          )
-                                    }}
-                                  />
-                                </FormControl>
-                                <FormLabel className='font-normal cursor-pointer'>
-                                  {label}
-                                </FormLabel>
-                              </FormItem>
-                            )
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const currentValues = field.value || [];
+
+                  return (
+                    <FormItem>
+                      <div className='mb-4'>
+                        <FormLabel>Seans Tipleri</FormLabel>
+                        <FormDescription>Sunduğunuz seans tiplerini seçiniz</FormDescription>
+                      </div>
+                      <div className='space-y-2'>
+                        {Object.entries(SESSION_TYPES).map(([id, label]) => (
+                          <FormItem
+                            key={id}
+                            className='flex flex-row items-start space-x-3 space-y-0'
+                          >
+                            <FormControl>
+                              <Checkbox
+                                // Sadece label üzerinden kontrol
+                                checked={currentValues.includes(label)}
+                                onCheckedChange={(checked) => {
+                                  return checked
+                                    ? field.onChange([...currentValues, label])
+                                    : field.onChange(
+                                        currentValues.filter((value: string) => value !== label)
+                                      );
+                                }}
+                              />
+                            </FormControl>
+                            <FormLabel className='font-normal cursor-pointer'>
+                              {label}
+                            </FormLabel>
+                          </FormItem>
+                        ))}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
 
               <FormField
                 control={form.control}
                 name='languages'
-                render={() => (
-                  <FormItem>
-                    <div className='mb-4'>
-                      <FormLabel>Diller</FormLabel>
-                      <FormDescription>Hangi dillerde hizmet veriyorsunuz?</FormDescription>
-                    </div>
-                    <div className='grid grid-cols-2 md:grid-cols-3 gap-4'>
-                      {Object.entries(LANGUAGES).map(([code, label]) => (
-                        <FormField
-                          key={code}
-                          control={form.control}
-                          name='languages'
-                          render={({ field }) => {
-                            return (
-                              <FormItem
-                                key={code}
-                                className='flex flex-row items-start space-x-3 space-y-0'
-                              >
-                                <FormControl>
-                                  <Checkbox
-                                    checked={field.value?.includes(code)}
-                                    onCheckedChange={(checked) => {
-                                      return checked
-                                        ? field.onChange([...field.value || [], code])
-                                        : field.onChange(
-                                            field.value?.filter((value) => value !== code)
-                                          )
-                                    }}
-                                  />
-                                </FormControl>
-                                <FormLabel className='font-normal cursor-pointer'>
-                                  {label}
-                                </FormLabel>
-                              </FormItem>
-                            )
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const currentValues: string[] = field.value ?? [];
+                  return (
+                    <FormItem>
+                      <div className='mb-4'>
+                        <FormLabel>Diller</FormLabel>
+                        <FormDescription>Hangi dillerde hizmet veriyorsunuz?</FormDescription>
+                      </div>
+                      <div className='grid grid-cols-2 md:grid-cols-3 gap-4'>
+                        {Object.entries(LANGUAGES).map(([code, label]) => {
+                          return (
+                            <FormItem
+                              key={code}
+                              className='flex flex-row items-start space-x-3 space-y-0'
+                            >
+                              <FormControl>
+                                <Checkbox
+                                  checked={currentValues.includes(label)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      field.onChange([...currentValues, label])
+                                    } else {
+                                      field.onChange(
+                                        currentValues.filter(v => v !== label)
+                                      )
+                                    }
+                                  }}
+                                />
+                              </FormControl>
+                              <FormLabel className='font-normal cursor-pointer'>
+                                {label}
+                              </FormLabel>
+                            </FormItem>
+                          );
+                        })}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
             </CardContent>
           </Card>
@@ -962,13 +969,13 @@ export function ProfileForm() {
                     .map((doc) => (
                       <div key={doc.uid} className='flex items-center justify-between p-3 border rounded-lg'>
                         <div className='flex-1'>
-                          <p className='text-sm font-medium'>{doc.filename}</p>
+                          <p className='text-sm font-medium'>{doc.original_filename}</p>
                           <p className='text-xs text-muted-foreground'>
                             Tip: {doc.type} • {doc.verified ? '✓ Doğrulandı' : 'Doğrulanmadı'}
                           </p>
                         </div>
                         <a
-                          href={getDocumentUrl(doc.uid, doc.type, doc.filename)}
+                          href={getDocumentUrl(doc.uid, doc.type, doc.original_filename)}
                           target='_blank'
                           rel='noopener noreferrer'
                           className='text-sm text-blue-600 hover:underline'
