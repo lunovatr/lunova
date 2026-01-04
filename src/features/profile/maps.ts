@@ -130,6 +130,22 @@ export const STATUS_CONFIG = {
   away: { label: "Tatilde", variant: "secondary" as const },
 }
 
+export enum DocumentType {
+  PROFILE_PHOTO = 'profile_photo',
+  CONSENT_FORM = 'consent_form',
+  CV = 'cv',
+  DEGREE = 'degree',
+  OTHER = 'other',
+}
+
+export const DOCUMENT_TYPE_LABEL: Record<DocumentType, string> = {
+  [DocumentType.PROFILE_PHOTO]: 'Profil Fotoğrafı',
+  [DocumentType.CONSENT_FORM]: 'Onam Formu',
+  [DocumentType.CV]: 'CV',
+  [DocumentType.DEGREE]: 'Diploma',
+  [DocumentType.OTHER]: 'Diğer Belgeler',
+}
+
 // Helper fonksiyonlar
 export const getUniversityName = (id: number | null): string => {
   if (!id) return '-'

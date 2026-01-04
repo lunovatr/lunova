@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { SignOutDialog } from '@/components/sign-out-dialog'
 import { useAuthGuard } from '@/hooks/use-auth-guard'
-import { getProfile, getDocumentUrl } from '@/features/profile/api'
+import { getProfile } from '@/features/profile/api'
 import type { ExpertProfile } from '@/features/profile/types'
 
 export function ProfileDropdown() {
@@ -37,7 +37,7 @@ export function ProfileDropdown() {
           const expertProfile = profile as ExpertProfile
           const profilePhoto = expertProfile.documents?.find(doc => doc.type === 'profile_photo')
           if (profilePhoto) {
-            setProfilePhotoUrl(getDocumentUrl(profilePhoto.uid, profilePhoto.type, profilePhoto.filename))
+            setProfilePhotoUrl(profilePhoto.access_url)
           }
         }
       } catch (error) {

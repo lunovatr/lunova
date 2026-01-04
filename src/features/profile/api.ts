@@ -11,8 +11,7 @@ import {
 } from './types'
 
 const PROFILE_URL = '/api/v1/accounts/profile/'
-const DOCUMENT_UPLOAD_URL = '/api/v1/accounts/documents/upload/'
-const DOCUMENT_RETRIEVE_URL = '/api/v1/accounts/documents/retrieve/'
+const DOCUMENT_URL = '/api/v1/accounts/documents/'
 
 // ========================================================
 // Genel hata yöneticisi
@@ -44,7 +43,7 @@ const handleApiError = (error: any, message = 'İşlem başarısız oldu', showT
 }
 
 // ========================================================
-// 1️⃣ GET PROFILE
+// GET PROFILE
 // ========================================================
 // GET /api/v1/accounts/profile/ → ExpertProfile | ClientProfile | null
 export const getProfile = async (): Promise<ExpertProfile | ClientProfile | null> => {
@@ -63,7 +62,7 @@ export const getProfile = async (): Promise<ExpertProfile | ClientProfile | null
 }
 
 // ========================================================
-// 2️⃣ UPDATE PROFILE
+// UPDATE PROFILE
 // ========================================================
 // PATCH /api/v1/accounts/profile/ → ExpertProfile | ClientProfile
 export const updateProfile = async (
@@ -85,7 +84,7 @@ export const updateProfile = async (
 }
 
 // ========================================================
-// 3️⃣ UPLOAD DOCUMENT
+// UPLOAD DOCUMENT
 // ========================================================
 // POST /api/v1/accounts/documents/upload/ → DocumentUploadResponse
 export const uploadDocument = async (
@@ -93,17 +92,40 @@ export const uploadDocument = async (
   type: string
 ): Promise<DocumentUploadResponse> => {
   try {
+    const resPreSign = await api.post(`${DOCUMENT_URL}presign-upload/`, {"type": type})
+
+    const uploadUrl = resPreSign.data.upload.url;
     const formData = new FormData()
     formData.append('file', file)
-    formData.append('type', type)
-
-    const res = await api.post(DOCUMENT_UPLOAD_URL, formData, {
+    const resUpload = await api.put(uploadUrl, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     })
-    toast.success('Dosya başarıyla yüklendi')
-    return res.data
+
+    if (resUpload.status === 200) {
+      const dbSavePayload = {
+        "type": type,
+        "file_key": resPreSign.data.file_key,
+        "original_filename": file.name,
+        "is_primary": false
+      }
+      const resDbSave = await api.post(DOCUMENT_URL, dbSavePayload)
+      if (resDbSave.status === 201) {
+        toast.success('Dosya başarıyla yüklendi')
+        // burada gelen veriyi global state'e ekleyebilirsin eğer kullanıyorsan
+        // (şimdilik kullanmıyoruz ama)
+      } else if (resDbSave.status === 401) {
+        toast.success('Lütfen tekrar giriş yapın.')
+      }
+
+    } else if (resUpload.status === 400) {
+      console.log('File already exists.')
+    } else {
+      throw new Error('File upload failed with status ' + resUpload.status);
+    }
+
+    return resPreSign.data;
   } catch (err: any) {
     handleApiError(err, 'Dosya yüklenemedi')
     throw err
@@ -111,13 +133,15 @@ export const uploadDocument = async (
 }
 
 // ========================================================
-// 4️⃣ GET DOCUMENT URL
+// DELETE DOCUMENT
 // ========================================================
-// GET /api/v1/accounts/documents/retrieve/?uid=...&type=...&filename=...
-// Returns the URL to retrieve the document
-export const getDocumentUrl = (uid: string, type: string, filename: string): string => {
-  const params = new URLSearchParams({ uid, type, filename })
-  // Return full URL with base URL from api instance
-  const baseURL = api.defaults.baseURL || ''
-  return `${baseURL}${DOCUMENT_RETRIEVE_URL}?${params.toString()}`
+export const deleteDocument = async (uid: string): Promise<any> => {
+  try {
+    const DELETE_URL = `${DOCUMENT_URL}${uid}/`
+    const res = await api.delete(DELETE_URL)
+    return res.data
+  } catch (err: any) {
+    handleApiError(err, 'Dosya bulunamadı.')
+    throw err
+  }
 }

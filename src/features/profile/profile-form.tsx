@@ -31,7 +31,7 @@ import { Main } from '@/components/layout/main'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { getProfile, updateProfile, uploadDocument, getDocumentUrl } from './api'
+import { getProfile, updateProfile, uploadDocument, deleteDocument } from './api'
 import { ExpertProfile, ExpertProfileUpdatePayload } from './types'
 import { useAuthGuard } from '@/hooks/use-auth-guard'
 import {
@@ -45,8 +45,11 @@ import {
   SESSION_TYPES,
   LANGUAGES,
   CURRENCIES,
-  STATUS_CONFIG
+  STATUS_CONFIG,
+  DocumentType,
+  DOCUMENT_TYPE_LABEL
 } from './maps'
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogTitle, AlertDialogAction, AlertDialogHeader } from '@/components/ui/alert-dialog'
 
 // Form validation schema
 const profileFormSchema = z.object({
@@ -89,8 +92,28 @@ export function ProfileForm() {
   const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null)
   const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null)
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
-  const [isUploadingDocument, setIsUploadingDocument] = useState(false)
   const { user: authUser } = useAuthGuard()
+
+  // dosya silme akışı
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const handleAskDelete = (uid: string) => {
+    setDeleteTarget(uid)
+  }
+  const handleCancelDelete = () => {
+    setDeleteTarget(null)
+  }
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return
+    try {
+      setIsDeleting(true)
+      await deleteDocument(deleteTarget)
+    } finally {
+      setIsDeleting(false)
+      setDeleteTarget(null)
+    }
+  }
+  // --------------
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema) as Resolver<ProfileFormValues>,
@@ -129,7 +152,6 @@ export function ProfileForm() {
 
           if (data) {
             const expertData = data as ExpertProfile
-            console.log('Yüklenen Profil Verisi:', expertData)
             setProfile(expertData)
 
             // BACKEND -> FORM MAPPING
@@ -215,7 +237,8 @@ export function ProfileForm() {
     }
   }
 
-  // Belge yükleme
+  // Belge yükleme akışı
+  const [isUploadingDocument, setIsUploadingDocument] = useState(false)
   const handleUploadDocument = async (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -236,6 +259,7 @@ export function ProfileForm() {
       setIsUploadingDocument(false)
     }
   }
+  // --------------
 
   
   // FORM -> BACKEND MAPPING (Submit)
@@ -957,98 +981,109 @@ export function ProfileForm() {
           <Card>
             <CardHeader>
               <CardTitle>Belgeler</CardTitle>
-              <CardDescription>Mesleki belgelerinizi yükleyin (diploma, sertifika, vb.)</CardDescription>
+              <CardDescription>
+                Mesleki belgelerinizi yükleyin (diploma, sertifika, vb.)
+              </CardDescription>
             </CardHeader>
-            <CardContent className='space-y-4'>
-              {/* Mevcut Belgeler */}
-              {profile?.documents && profile.documents.filter(doc => doc.type !== 'profile_photo').length > 0 && (
-                <div className='space-y-2 mb-4'>
-                  <h4 className='text-sm font-medium'>Yüklenen Belgeler</h4>
-                  {profile.documents
-                    .filter(doc => doc.type !== 'profile_photo')
-                    .map((doc) => (
-                      <div key={doc.uid} className='flex items-center justify-between p-3 border rounded-lg'>
-                        <div className='flex-1'>
-                          <p className='text-sm font-medium'>{doc.original_filename}</p>
-                          <p className='text-xs text-muted-foreground'>
-                            Tip: {doc.type} • {doc.verified ? '✓ Doğrulandı' : 'Doğrulanmadı'}
-                          </p>
-                        </div>
-                        <a
-                          href={getDocumentUrl(doc.uid, doc.type, doc.original_filename)}
-                          target='_blank'
-                          rel='noopener noreferrer'
-                          className='text-sm text-blue-600 hover:underline'
-                        >
-                          Görüntüle
-                        </a>
-                      </div>
-                    ))}
-                </div>
-              )}
 
-              {/* Belge Yükleme */}
-              <div className='space-y-3'>
-                <div>
-                  <label className='text-sm font-medium mb-2 block'>Diploma</label>
-                  <label
-                    htmlFor='diploma-input'
-                    className='inline-flex items-center gap-2 px-4 py-2 border rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors w-full'
-                  >
-                    <Paperclip className='h-4 w-4' />
-                    <span className='text-sm'>Dosya Seç</span>
-                  </label>
-                  <Input
-                    id='diploma-input'
-                    type='file'
-                    accept='.pdf,.jpg,.jpeg,.png'
-                    onChange={(e) => handleUploadDocument(e, 'diploma')}
-                    disabled={isUploadingDocument}
-                    className='hidden'
-                  />
-                </div>
-                <div>
-                  <label className='text-sm font-medium mb-2 block'>Lisans/Sertifika</label>
-                  <label
-                    htmlFor='license-input'
-                    className='inline-flex items-center gap-2 px-4 py-2 border rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors w-full'
-                  >
-                    <Paperclip className='h-4 w-4' />
-                    <span className='text-sm'>Dosya Seç</span>
-                  </label>
-                  <Input
-                    id='license-input'
-                    type='file'
-                    accept='.pdf,.jpg,.jpeg,.png'
-                    onChange={(e) => handleUploadDocument(e, 'license')}
-                    disabled={isUploadingDocument}
-                    className='hidden'
-                  />
-                </div>
-                <div>
-                  <label className='text-sm font-medium mb-2 block'>Diğer Belgeler</label>
-                  <label
-                    htmlFor='other-input'
-                    className='inline-flex items-center gap-2 px-4 py-2 border rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors w-full'
-                  >
-                    <Paperclip className='h-4 w-4' />
-                    <span className='text-sm'>Dosya Seç</span>
-                  </label>
-                  <Input
-                    id='other-input'
-                    type='file'
-                    accept='.pdf,.jpg,.jpeg,.png'
-                    onChange={(e) => handleUploadDocument(e, 'other')}
-                    disabled={isUploadingDocument}
-                    className='hidden'
-                  />
-                </div>
-              </div>
+            <CardContent className='space-y-4'>
+              {Object.entries(DOCUMENT_TYPE_LABEL)
+                .filter(([type]) => type !== DocumentType.PROFILE_PHOTO)
+                .map(([type, label]) => {
+                  const docs = profile?.documents?.filter(d => d.type === type) ?? []
+                  const canUpload = docs.length < 3
+
+                  return (
+                    <div key={type} className='space-y-2'>
+                      <div className='flex items-center justify-between'>
+                        <label className='text-sm font-medium'>
+                          {label} ({docs.length}/3)
+                        </label>
+
+                        {canUpload && (
+                          <label
+                            htmlFor={type}
+                            className='w-7 h-7 flex items-center justify-center rounded-full border cursor-pointer hover:bg-accent'
+                          >
+                            +
+                          </label>
+                        )}
+                      </div>
+
+                      {docs.map(doc => (
+                        <div
+                          key={doc.uid}
+                          className='flex items-center justify-between p-3 border rounded-lg'
+                        >
+                          <div className='flex-1'>
+                            <p className='text-sm font-medium'>
+                              {doc.original_filename}
+                            </p>
+                          </div>
+
+                          <div className='flex items-center gap-3'>
+                            <a
+                              href={doc.access_url}
+                              target='_blank'
+                              className='text-sm text-blue-600 hover:underline'
+                            >
+                              Görüntüle
+                            </a>
+
+                            <button
+                              type='button'
+                              onClick={() => handleAskDelete(doc.uid)}
+                              className='text-sm text-red-600 hover:underline'
+                            >
+                              Sil
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                      <Input
+                        id={type}
+                        type='file'
+                        className='hidden'
+                        accept='.pdf,.jpg,.jpeg,.png'
+                        disabled={!canUpload || isUploadingDocument}
+                        onChange={e => handleUploadDocument(e, type)}
+                      />
+                    </div>
+                  )
+                })}
 
               {isUploadingDocument && (
-                <p className='text-sm text-muted-foreground'>Belge yükleniyor...</p>
+                <p className='text-sm text-muted-foreground'>
+                  Belge yükleniyor...
+                </p>
               )}
             </CardContent>
+
+            <AlertDialog open={!!deleteTarget} onOpenChange={handleCancelDelete}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Belge silinsin mi?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Bu belge kalıcı olarak silinecek. Bu işlem geri alınamaz.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={isDeleting}>
+                    Vazgeç
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleConfirmDelete}
+                    disabled={isDeleting}
+                    className='bg-red-600 hover:bg-red-700'
+                  >
+                    {isDeleting ? 'Siliniyor…' : 'Evet, sil'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
           </Card>
 
           <div className='flex justify-end gap-4'>

@@ -12,10 +12,12 @@ import { Search } from '@/components/search'
 import { ConfigDrawer } from '@/components/config-drawer'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { ProfileDropdown } from '@/components/profile-dropdown'
-import { getProfile, getDocumentUrl } from './api'
+import { getProfile } from './api'
 import { ExpertProfile } from './types'
 import { useAuthGuard } from '@/hooks/use-auth-guard'
 import {
+  DocumentType,
+  DOCUMENT_TYPE_LABEL,
   getGenderName,
   STATUS_CONFIG
 } from './maps'
@@ -59,7 +61,7 @@ export function ProfileView() {
   // Profil fotoğrafını bul
   const profilePhoto = profile?.documents?.find(doc => doc.type === 'profile_photo')
   const profilePhotoUrl = profilePhoto
-    ? getDocumentUrl(profilePhoto.uid, profilePhoto.type, profilePhoto.original_filename)
+    ? profilePhoto.access_url
     : undefined
 
   if (loading) {
@@ -341,14 +343,14 @@ export function ProfileView() {
                     <div className='flex-1'>
                       <p className='text-sm font-medium'>{doc.original_filename}</p>
                       <p className='text-xs text-muted-foreground'>
-                        Tip: {doc.type} • {doc.verified ? '✓ Doğrulandı' : 'Doğrulanmadı'}
+                        Tip: {DOCUMENT_TYPE_LABEL[doc.type as DocumentType] || doc.type} • {doc.verified ? '✓ Doğrulandı' : 'Doğrulanmadı'}
                       </p>
                       <p className='text-xs text-muted-foreground'>
                         Yüklenme: {new Date(doc.updated_at).toLocaleDateString('tr-TR')}
                       </p>
                     </div>
                     <a
-                      href={getDocumentUrl(doc.uid, doc.type, doc.original_filename)}
+                      href={doc.access_url}
                       target='_blank'
                       rel='noopener noreferrer'
                       className='text-sm text-blue-600 hover:underline'
