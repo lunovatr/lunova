@@ -97,10 +97,12 @@ export const uploadDocument = async (
     const uploadUrl = resPreSign.data.upload.url;
     const formData = new FormData()
     formData.append('file', file)
-    const resUpload = await api.put(uploadUrl, formData, {
+    const resUpload = await fetch(uploadUrl, {
+      method: "PUT",
+      body: file,
       headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+        "Content-Type": file.type
+      }
     })
 
     if (resUpload.status === 200) {
