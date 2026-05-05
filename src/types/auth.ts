@@ -1,12 +1,4 @@
-export interface User {
-  id: number | string;
-  email: string;
-  username?: string;
-  first_name?: string;
-  last_name?: string;
-  role?: string;
-  [key: string]: any;
-}
+import { User } from './profile.types';
 
 export interface AuthTokens {
   access: string;
