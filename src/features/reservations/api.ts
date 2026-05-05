@@ -54,6 +54,17 @@ export const getAppointments = async (
   }
 }
 
+export const getAppointmentDetail = async (id: number): Promise<Appointment> => {
+  try {
+    const { data } = await api.get(`${APPOINTMENTS_URL}${id}/`)
+    return data
+  } catch (error: any) {
+    const message =
+      error.response?.data?.detail || 'Randevu detayı alınamadı.'
+    throw new Error(message)
+  }
+}
+
 /**
  * Randevu durum güncelleme (PATCH /appointments/{id}/status/)
  */

@@ -59,9 +59,10 @@ interface Appointment {
  * Component'in dışarıdan alacağı propları tanımlar.
  */
 interface ExpertDailyScheduleProps {
-  appointments: Appointment[] // Filtrelenmemiş tüm randevu listesi
-  workDayStartHour?: number // Uzmanın varsayılan mesai başlangıç saati
-  workDayEndHour?: number // Uzmanın varsayılan mesai bitiş saati
+  appointments: Appointment[]
+  workDayStartHour?: number
+  workDayEndHour?: number
+  onAppointmentClick?: (id: number) => void
 }
 
 /**
@@ -74,11 +75,12 @@ export const ExpertDailySchedule = ({
   appointments,
   workDayStartHour = 9,
   workDayEndHour: _workDayEndHour = 18,
+  onAppointmentClick,
 }: ExpertDailyScheduleProps) => {
   // Component'in kendi içinde seçili tarihi yönetmesi için state.
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   // Görünüm modu: 'daily' veya 'weekly'
-  const [viewMode, setViewMode] = useState<'daily' | 'weekly'>('daily')
+  const [viewMode, setViewMode] = useState<'daily' | 'weekly'>('weekly')
   // Theme context
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
@@ -308,7 +310,10 @@ export const ExpertDailySchedule = ({
                 </div>
                 <HoverCard>
                   <HoverCardTrigger asChild>
-                    <div className='bg-primary/10 border-primary/20 flex h-full items-center justify-between rounded-md border p-3 cursor-pointer hover:bg-primary/20 transition-colors'>
+                    <div
+                        className='bg-primary/10 border-primary/20 flex h-full items-center justify-between rounded-md border p-3 cursor-pointer hover:bg-primary/20 transition-colors'
+                        onClick={() => onAppointmentClick?.(app.id)}
+                      >
                       <div className='text-primary truncate text-sm font-semibold'>
                         {format(app.startTime, 'HH:mm')} -{' '}
                         {format(app.endTime, 'HH:mm')}
@@ -375,18 +380,18 @@ export const ExpertDailySchedule = ({
                           </div>
                         )}
 
-                        {app.zoom_join_url && app.zoom_join_url !== 'mock url' && (
+                        {app.zoom_start_url && (
                           <div className='flex items-start gap-2'>
                             <Video className='h-4 w-4 text-muted-foreground mt-0.5' />
                             <div className='text-sm flex-1'>
                               <span className='font-medium'>Zoom:</span>
                               <a
-                                href={app.zoom_join_url}
+                                href={app.zoom_start_url}
                                 target='_blank'
                                 rel='noopener noreferrer'
                                 className='text-primary hover:underline block mt-1'
                               >
-                                Toplantıya Katıl
+                                Toplantıyı Başlat
                               </a>
                             </div>
                           </div>
@@ -409,6 +414,7 @@ export const ExpertDailySchedule = ({
           <WeeklyScheduleView
             appointments={appointments}
             selectedDate={selectedDate}
+            onAppointmentClick={onAppointmentClick}
           />
         )}
       </CardContent>
@@ -422,9 +428,10 @@ export const ExpertDailySchedule = ({
 interface WeeklyScheduleViewProps {
   appointments: Appointment[]
   selectedDate: Date
+  onAppointmentClick?: (id: number) => void
 }
 
-const WeeklyScheduleView = ({ appointments, selectedDate }: WeeklyScheduleViewProps) => {
+const WeeklyScheduleView = ({ appointments, selectedDate, onAppointmentClick }: WeeklyScheduleViewProps) => {
   // Seçili haftanın başı ve sonu (Pazartesi-Pazar)
   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 })
   const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 1 })
@@ -503,6 +510,7 @@ const WeeklyScheduleView = ({ appointments, selectedDate }: WeeklyScheduleViewPr
                     <HoverCardTrigger asChild>
                       <div
                         className='h-8 border border-primary/20 bg-primary/10 cursor-pointer hover:bg-primary/20 transition-colors flex items-center justify-center p-1'
+                        onClick={() => onAppointmentClick?.(appointment.id)}
                       >
                         <span className='text-xs text-primary font-semibold truncate'>
                           {appointment.client_name}
@@ -548,18 +556,18 @@ const WeeklyScheduleView = ({ appointments, selectedDate }: WeeklyScheduleViewPr
                             </div>
                           )}
 
-                          {appointment.zoom_join_url && appointment.zoom_join_url !== 'mock url' && (
+                          {appointment.zoom_start_url && (
                             <div className='flex items-start gap-2'>
                               <Video className='h-4 w-4 text-muted-foreground mt-0.5' />
                               <div className='text-sm flex-1'>
                                 <span className='font-medium'>Zoom:</span>
                                 <a
-                                  href={appointment.zoom_join_url}
+                                  href={appointment.zoom_start_url}
                                   target='_blank'
                                   rel='noopener noreferrer'
                                   className='text-primary hover:underline block mt-1'
                                 >
-                                  Toplantıya Katıl
+                                  Toplantıyı Başlat
                                 </a>
                               </div>
                             </div>

@@ -1,11 +1,14 @@
 import { Link } from '@tanstack/react-router'
 import {
-  BadgeCheck,
-  Bell,
+  // BadgeCheck,
+  // Bell,
   ChevronsUpDown,
-  CreditCard,
+  // CreditCard,
   LogOut,
-  Sparkles,
+  // Sparkles,
+  UserCog,
+  UserRoundPen,
+  Palette,
 } from 'lucide-react'
 import useDialogState from '@/hooks/use-dialog-state'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -77,31 +80,31 @@ export function NavUser({ user }: NavUserProps) {
                   </div>
                 </div>
               </DropdownMenuLabel>
-              <DropdownMenuSeparator />
+              {/* <DropdownMenuSeparator />
               <DropdownMenuGroup>
                 <DropdownMenuItem>
                   <Sparkles />
                   Upgrade to Pro
                 </DropdownMenuItem>
-              </DropdownMenuGroup>
+              </DropdownMenuGroup> */}
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
                 <DropdownMenuItem asChild>
-                  <Link to='/settings/account'>
-                    <BadgeCheck />
-                    Account
+                  <Link to='/profile'>
+                    <UserCog />
+                    Profilim
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to='/settings'>
-                    <CreditCard />
-                    Billing
+                  <Link to='/update-profile'>
+                    <UserRoundPen />
+                    Profili Düzenle
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to='/settings/notifications'>
-                    <Bell />
-                    Notifications
+                  <Link to='/settings/appearance'>
+                    <Palette />
+                    Görünüm
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuGroup>

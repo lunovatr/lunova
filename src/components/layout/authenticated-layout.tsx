@@ -51,9 +51,11 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
         <LayoutProvider>
           <SkipToMain />
           <AppSidebar>
-            <SidebarHeader>
-              <TeamSwitcher teams={sidebarData.teams} />
-            </SidebarHeader>
+            {sidebarData.teams.length > 0 && (
+              <SidebarHeader>
+                <TeamSwitcher teams={sidebarData.teams} />
+              </SidebarHeader>
+            )}
             <SidebarContent>
               {sidebarData.navGroups.map((props) => (
                 <NavGroup key={props.title} {...props} />

@@ -13,9 +13,10 @@ import { Appointment } from '../api'
 
 interface PastAppointmentsProps {
   appointments: Appointment[]
+  onAppointmentClick?: (id: number) => void
 }
 
-export function PastAppointments({ appointments }: PastAppointmentsProps) {
+export function PastAppointments({ appointments, onAppointmentClick }: PastAppointmentsProps) {
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -77,7 +78,10 @@ export function PastAppointments({ appointments }: PastAppointmentsProps) {
         return (
           <HoverCard key={appointment.id}>
             <HoverCardTrigger asChild>
-              <div className='flex items-center gap-4 cursor-pointer'>
+              <div
+                className='flex items-center gap-4 cursor-pointer'
+                onClick={() => onAppointmentClick?.(appointment.id)}
+              >
                 <Avatar className='h-9 w-9'>
                   <AvatarFallback>
                     {getInitials(appointment.client_name)}
@@ -172,18 +176,18 @@ export function PastAppointments({ appointments }: PastAppointmentsProps) {
                     </div>
                   )}
 
-                  {appointment.zoom_join_url && appointment.zoom_join_url !== 'mock url' && (
+                  {appointment.zoom_start_url && (
                     <div className='flex items-start gap-2'>
                       <Video className='h-4 w-4 text-muted-foreground mt-0.5' />
                       <div className='text-sm flex-1'>
                         <span className='font-medium'>Zoom:</span>
                         <a
-                          href={appointment.zoom_join_url}
+                          href={appointment.zoom_start_url}
                           target='_blank'
                           rel='noopener noreferrer'
                           className='text-primary hover:underline block mt-1'
                         >
-                          Toplantıya Katıl
+                          Toplantıyı Başlat
                         </a>
                       </div>
                     </div>

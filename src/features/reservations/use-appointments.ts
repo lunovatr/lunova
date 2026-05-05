@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { getAppointments, Appointment } from './api';
-import { format, addMonths } from 'date-fns';
+import { format, addMonths, subMonths } from 'date-fns';
 
 export interface UniqueClient {
   id: number;
@@ -10,44 +10,53 @@ export interface UniqueClient {
 }
 
 export const useAppointments = () => {
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
+  const [historicalAppointments, setHistoricalAppointments] = useState<Appointment[]>([]);
+  const [tableAppointments, setTableAppointments] = useState<Appointment[]>([]);
+  const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
   const [clients, setClients] = useState<UniqueClient[]>([]);
   const [expertId, setExpertId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // fetchAppointments fonksiyonunu useCallback ile tanımla
-  // Mevcut tarihten 4 ay sonrasına kadar randevuları getir (backend max 4 ay)
   const fetchAppointments = useCallback(async () => {
     try {
       setIsLoading(true);
 
       const today = new Date();
-      const fourMonthsLater = addMonths(today, 4);
+      const todayStr = format(today, 'yyyy-MM-dd');
 
-      const startDate = format(today, 'yyyy-MM-dd');
-      const endDate = format(fourMonthsLater, 'yyyy-MM-dd');
+      // İki paralel sorgu: geçmiş (-4ay → bugün) ve gelecek (bugün → +4ay)
+      const [pastData, futureData] = await Promise.all([
+        getAppointments(format(subMonths(today, 4), 'yyyy-MM-dd'), todayStr),
+        getAppointments(todayStr, format(addMonths(today, 4), 'yyyy-MM-dd')),
+      ]);
 
-      const data = await getAppointments(startDate, endDate);
-      setAppointments(data);
-
-      // Expert ID'yi appointments'tan çıkar (tüm appointments'lar aynı expert'e ait)
-      if (data.length > 0) {
-        setExpertId(data[0].expert);
-      }
-
-      // Unique client'ları çıkar
-      const uniqueClientsMap = new Map<number, string>();
-      data.forEach((appointment) => {
-        if (!uniqueClientsMap.has(appointment.client)) {
-          uniqueClientsMap.set(appointment.client, appointment.client_name);
-        }
+      // Bugünkü randevular her iki sorguya da gelebilir, deduplicate et
+      const seen = new Set<number>();
+      const combined = [...pastData, ...futureData].filter(a => {
+        if (seen.has(a.id)) return false;
+        seen.add(a.id);
+        return true;
       });
 
-      const uniqueClients: UniqueClient[] = Array.from(uniqueClientsMap.entries()).map(
-        ([id, name]) => ({ id, name })
-      );
-      setClients(uniqueClients);
+      // Tablo aralığı: -2ay → +2ay (string karşılaştırması yyyy-MM-dd için güvenli)
+      const twoAgoStr = format(subMonths(today, 2), 'yyyy-MM-dd');
+      const twoLaterStr = format(addMonths(today, 2), 'yyyy-MM-dd');
+      const tableData = combined.filter(a => a.date >= twoAgoStr && a.date <= twoLaterStr);
+
+      setUpcomingAppointments(futureData);
+      setHistoricalAppointments(pastData);
+      setTableAppointments(tableData);
+      setAllAppointments(combined);
+
+      if (combined.length > 0) setExpertId(combined[0].expert);
+
+      const clientMap = new Map<number, string>();
+      combined.forEach(a => {
+        if (!clientMap.has(a.client)) clientMap.set(a.client, a.client_name);
+      });
+      setClients(Array.from(clientMap.entries()).map(([id, name]) => ({ id, name })));
 
       setError(null);
     } catch (err) {
@@ -62,5 +71,15 @@ export const useAppointments = () => {
     fetchAppointments();
   }, [fetchAppointments]);
 
-  return { appointments, clients, expertId, isLoading, error, refetch: fetchAppointments };
+  return {
+    upcomingAppointments,
+    historicalAppointments,
+    tableAppointments,
+    allAppointments,
+    clients,
+    expertId,
+    isLoading,
+    error,
+    refetch: fetchAppointments,
+  };
 };

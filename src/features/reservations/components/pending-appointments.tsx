@@ -16,9 +16,10 @@ import { Appointment, updateAppointmentStatus } from '../api'
 interface PendingAppointmentsProps {
   appointments: Appointment[]
   onUpdate?: () => void
+  onAppointmentClick?: (id: number) => void
 }
 
-export function PendingAppointments({ appointments, onUpdate }: PendingAppointmentsProps) {
+export function PendingAppointments({ appointments, onUpdate, onAppointmentClick }: PendingAppointmentsProps) {
   const handleApprove = async (appointmentId: number) => {
     try {
       await updateAppointmentStatus(appointmentId, 'confirmed')
@@ -49,7 +50,7 @@ export function PendingAppointments({ appointments, onUpdate }: PendingAppointme
 
   const pendingAppointments = appointments
     .filter((app) => app.status === 'pending' || app.status === 'waiting_approval')
-    .slice(0, 5)
+    .sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime())
 
   if (pendingAppointments.length === 0) {
     return (
@@ -74,7 +75,10 @@ export function PendingAppointments({ appointments, onUpdate }: PendingAppointme
           return (
             <HoverCard key={appointment.id}>
               <HoverCardTrigger asChild>
-                <div className='flex items-center gap-4 cursor-pointer'>
+                <div
+                  className='flex items-center gap-4 cursor-pointer'
+                  onClick={() => onAppointmentClick?.(appointment.id)}
+                >
                   <Avatar className='h-9 w-9'>
                     <AvatarFallback>{getInitials(appointment.client_name)}</AvatarFallback>
                   </Avatar>
@@ -143,18 +147,18 @@ export function PendingAppointments({ appointments, onUpdate }: PendingAppointme
                       </div>
                     )}
 
-                    {appointment.zoom_join_url && appointment.zoom_join_url !== 'mock url' && (
+                    {appointment.zoom_start_url && (
                       <div className='flex items-start gap-2'>
                         <Video className='h-4 w-4 text-muted-foreground mt-0.5' />
                         <div className='text-sm flex-1'>
                           <span className='font-medium'>Zoom:</span>
                           <a
-                            href={appointment.zoom_join_url}
+                            href={appointment.zoom_start_url}
                             target='_blank'
                             rel='noopener noreferrer'
                             className='text-primary hover:underline block mt-1'
                           >
-                            Toplantıya Katıl
+                            Toplantıyı Başlat
                           </a>
                         </div>
                       </div>
