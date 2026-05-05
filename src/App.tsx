@@ -9,18 +9,18 @@ import ResetPassword from "./pages/AuthPages/ResetPassword";
 import ResetPasswordSent from "./pages/AuthPages/ResetPasswordSent";
 import NotFound from "./pages/OtherPage/NotFound";
 import UserProfiles from "./pages/UserProfiles";
-import Videos from "./pages/UiElements/Videos";
-import Images from "./pages/UiElements/Images";
-import Alerts from "./pages/UiElements/Alerts";
-import Badges from "./pages/UiElements/Badges";
-import Avatars from "./pages/UiElements/Avatars";
-import Buttons from "./pages/UiElements/Buttons";
-import LineChart from "./pages/Charts/LineChart";
-import BarChart from "./pages/Charts/BarChart";
-import Calendar from "./pages/Calendar";
-import BasicTables from "./pages/Tables/BasicTables";
-import FormElements from "./pages/Forms/FormElements";
-import Blank from "./pages/Blank";
+// import Videos from "./pages/UiElements/Videos";
+// import Images from "./pages/UiElements/Images";
+// import Alerts from "./pages/UiElements/Alerts";
+// import Badges from "./pages/UiElements/Badges";
+// import Avatars from "./pages/UiElements/Avatars";
+// import Buttons from "./pages/UiElements/Buttons";
+// import LineChart from "./pages/Charts/LineChart";
+// import BarChart from "./pages/Charts/BarChart";
+// import Calendar from "./pages/Calendar";
+// import BasicTables from "./pages/Tables/BasicTables";
+// import FormElements from "./pages/Forms/FormElements";
+// import Blank from "./pages/Blank";
 import Request from "./pages/Appointments/Request";
 import AppointmentsList from "./pages/Appointments/AppointmentsList";
 import AppLayout from "./layout/AppLayout";
@@ -84,29 +84,22 @@ export default function App() {
           <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
             <Route index path="/" element={<Home />} />
             <Route path="/profile" element={<UserProfiles />} />
-            <Route path="/calendar" element={<Calendar />} />
             <Route path="/appointments/request" element={<Request />} />
-            <Route path="/blank" element={<Blank />} />
-
-            {/* Forms */}
-            <Route path="/form-elements" element={<FormElements />} />
-
-            {/* Tables */}
-            <Route path="/basic-tables" element={<BasicTables />} />
-
             <Route path="/appointments" element={<AppointmentsList />} />
 
-            {/* Ui Elements */}
-            <Route path="/alerts" element={<Alerts />} />
-            <Route path="/avatars" element={<Avatars />} />
-            <Route path="/badge" element={<Badges />} />
-            <Route path="/buttons" element={<Buttons />} />
-            <Route path="/images" element={<Images />} />
-            <Route path="/videos" element={<Videos />} />
-
-            {/* Charts */}
-            <Route path="/line-chart" element={<LineChart />} />
-            <Route path="/bar-chart" element={<BarChart />} />
+            {/* Şimdilik devre dışı — ileride aktif edilecek */}
+            {/* <Route path="/calendar" element={<Calendar />} /> */}
+            {/* <Route path="/blank" element={<Blank />} /> */}
+            {/* <Route path="/form-elements" element={<FormElements />} /> */}
+            {/* <Route path="/basic-tables" element={<BasicTables />} /> */}
+            {/* <Route path="/alerts" element={<Alerts />} /> */}
+            {/* <Route path="/avatars" element={<Avatars />} /> */}
+            {/* <Route path="/badge" element={<Badges />} /> */}
+            {/* <Route path="/buttons" element={<Buttons />} /> */}
+            {/* <Route path="/images" element={<Images />} /> */}
+            {/* <Route path="/videos" element={<Videos />} /> */}
+            {/* <Route path="/line-chart" element={<LineChart />} /> */}
+            {/* <Route path="/bar-chart" element={<BarChart />} /> */}
           </Route>
 
           {/* Fallback Route */}

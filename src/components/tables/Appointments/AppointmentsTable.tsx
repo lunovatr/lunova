@@ -86,6 +86,12 @@ export default function AppointmentsTable({
               >
                 Notlar
               </TableCell>
+              <TableCell
+                isHeader
+                className="px-5 py-3 text-start text-theme-xs font-medium text-gray-500 dark:text-gray-400"
+              >
+                İşlemler
+              </TableCell>
             </TableRow>
           </TableHeader>
 
@@ -94,7 +100,7 @@ export default function AppointmentsTable({
             {appointments.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={7}
                   className="px-5 py-8 text-center text-gray-500 dark:text-gray-400"
                 >
                   Henüz randevunuz bulunmamaktadır.
@@ -106,12 +112,12 @@ export default function AppointmentsTable({
                   <TableCell className="px-5 py-4 text-start sm:px-6">
                     <div className="flex items-center gap-3">
                       <div>
-                         <span className="block text-theme-sm font-medium text-gray-800 dark:text-white/90">
-                        {appointment.expert?.name || (appointment as any).expert_name}
-                      </span>
-                      <span className="block text-theme-xs text-gray-500 dark:text-gray-400">
-                        User ID: {appointment.expert?.id ?? (appointment as any).expert}
-                      </span>
+                        <span className="block text-theme-sm font-medium text-gray-800 dark:text-white/90">
+                          {appointment.expert?.name || (appointment as any).expert_name}
+                        </span>
+                        <span className="block text-theme-xs text-gray-500 dark:text-gray-400">
+                          User ID: {appointment.expert?.id ?? (appointment as any).expert}
+                        </span>
                       </div>
                     </div>
                   </TableCell>
@@ -131,6 +137,18 @@ export default function AppointmentsTable({
                   </TableCell>
                   <TableCell className="px-4 py-3 text-theme-sm text-gray-500 dark:text-gray-400">
                     {appointment.notes || "-"}
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-start">
+                    {appointment.status === "confirmed" && appointment.zoom_join_url ? (
+                      <button
+                        onClick={() => window.open(appointment.zoom_join_url!, "_blank")}
+                        className="rounded-lg bg-blue-600 px-3 py-1.5 text-theme-xs font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      >
+                        Zoom'a Katıl
+                      </button>
+                    ) : (
+                      <span className="text-theme-sm text-gray-400 dark:text-gray-600">—</span>
+                    )}
                   </TableCell>
                 </TableRow>
               ))

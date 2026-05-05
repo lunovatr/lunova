@@ -31,79 +31,34 @@ const navItems: NavItem[] = [
     name: "Dashboard",
     subItems: [{ name: "Ana Panel", path: "/", pro: false }],
   },
-  {
-    icon: <CalenderIcon />,
-    name: "Takvim",
-    path: "/calendar",
-  },
+  // { icon: <CalenderIcon />, name: "Takvim", path: "/calendar" },
   {
     icon: <UserCircleIcon />,
     name: "Profil",
     path: "/profile",
   },
-  {
-    name: "Formlar",
-    icon: <ListIcon />,
-    subItems: [{ name: "Form Elemanları", path: "/form-elements", pro: false }],
-  },
-  {
-    name: "Tablolar",
-    icon: <TableIcon />,
-    subItems: [{ name: "Temel Tablolar", path: "/basic-tables", pro: false }],
-  },
-
+  // { name: "Formlar", icon: <ListIcon />, subItems: [{ name: "Form Elemanları", path: "/form-elements", pro: false }] },
+  // { name: "Tablolar", icon: <TableIcon />, subItems: [{ name: "Temel Tablolar", path: "/basic-tables", pro: false }] },
   {
     icon: <CalenderIcon />,
     name: "Randevu Oluştur +",
     path: "/appointments/request",
   },
-
   {
     icon: <CalenderIcon />,
     name: "Randevularım",
     path: "/appointments",
   },
-
-  {
-    name: "Sayfalar",
-    icon: <PageIcon />,
-    subItems: [
-      { name: "Boş Sayfa", path: "/blank", pro: false },
-      { name: "404 Hata", path: "/error-404", pro: false },
-    ],
-  },
+  // { name: "Sayfalar", icon: <PageIcon />, subItems: [{ name: "Boş Sayfa", path: "/blank", pro: false }, { name: "404 Hata", path: "/error-404", pro: false }] },
 ];
 
-const othersItems: NavItem[] = [
-  {
-    icon: <PieChartIcon />,
-    name: "Grafikler",
-    subItems: [
-      { name: "Çizgi Grafik", path: "/line-chart", pro: false },
-      { name: "Sütun Grafik", path: "/bar-chart", pro: false },
-    ],
-  },
-  {
-    icon: <BoxCubeIcon />,
-    name: "UI Elemanları",
-    subItems: [
-      { name: "Uyarılar", path: "/alerts", pro: false },
-      { name: "Avatar", path: "/avatars", pro: false },
-      { name: "Rozet", path: "/badge", pro: false },
-      { name: "Butonlar", path: "/buttons", pro: false },
-      { name: "Resimler", path: "/images", pro: false },
-      { name: "Videolar", path: "/videos", pro: false },
-    ],
-  },
-  {
-    icon: <PlugInIcon />,
-    name: "Kimlik Doğrulama",
-    subItems: [
-      { name: "Giriş Yap", path: "/signin", pro: false },
-      { name: "Kayıt Ol", path: "/signup", pro: false },
-    ],
-  },
-];
+// Şimdilik devre dışı — ileride aktif edilecek
+// const othersItems: NavItem[] = [
+//   { icon: <PieChartIcon />, name: "Grafikler", subItems: [{ name: "Çizgi Grafik", path: "/line-chart", pro: false }, { name: "Sütun Grafik", path: "/bar-chart", pro: false }] },
+//   { icon: <BoxCubeIcon />, name: "UI Elemanları", subItems: [{ name: "Uyarılar", path: "/alerts", pro: false }, { name: "Avatar", path: "/avatars", pro: false }, { name: "Rozet", path: "/badge", pro: false }, { name: "Butonlar", path: "/buttons", pro: false }, { name: "Resimler", path: "/images", pro: false }, { name: "Videolar", path: "/videos", pro: false }] },
+//   { icon: <PlugInIcon />, name: "Kimlik Doğrulama", subItems: [{ name: "Giriş Yap", path: "/signin", pro: false }, { name: "Kayıt Ol", path: "/signup", pro: false }] },
+// ];
+const othersItems: NavItem[] = [];
 
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
@@ -363,7 +318,8 @@ const AppSidebar: React.FC = () => {
               </h2>
               {renderMenuItems(navItems, "main")}
             </div>
-            <div className="">
+            {/* Others bölümü şimdilik devre dışı — othersItems dolduğunda tekrar aktif et */}
+            {/* <div className="">
               <h2
                 className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
                   !isExpanded && !isHovered
@@ -378,7 +334,7 @@ const AppSidebar: React.FC = () => {
                 )}
               </h2>
               {renderMenuItems(othersItems, "others")}
-            </div>
+            </div> */}
           </div>
         </nav>
         {isExpanded || isHovered || isMobileOpen ? <SidebarWidget /> : null}
