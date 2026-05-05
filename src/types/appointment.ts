@@ -15,6 +15,8 @@ export interface Appointment {
   duration: number;
   status: string;
   notes?: string;
+  zoom_join_url?: string | null;
+  zoom_meeting_id?: string | null;
 }
 
 export default Appointment;
