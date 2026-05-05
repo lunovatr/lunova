@@ -5,21 +5,7 @@ import PageBreadCrumb from "../../components/common/PageBreadCrumb";
 import AppointmentsTable from "../../components/tables/Appointments/AppointmentsTable";
 import api from "../../lib/api";
 import { useNavigate } from "react-router";
-
-interface Appointment {
-  id: number;
-  expert: {
-    id: number;
-    name: string;
-    image: string;
-    specialty: string;
-  };
-  date: string;
-  time: string;
-  duration: number;
-  status: string;
-  notes: string;
-}
+import type { Appointment } from "../../types/appointment";
 
 export default function AppointmentsList() {
   const navigate = useNavigate();
@@ -56,7 +42,7 @@ export default function AppointmentsList() {
       }
 
       console.log("Randevular getiriliyor:", params);
-      const response = await api.get("/api/v1/appointments/", { params });
+      const response = await api.get<Appointment[]>("/api/v1/appointments/", { params });
       console.log("Gelen randevular:", response.data);
       setAppointments(response.data);
     } catch (err: any) {
@@ -85,13 +71,7 @@ export default function AppointmentsList() {
     <>
       <PageMeta title="Randevularım" description="Kullanıcının randevularını listeleyen sayfa" />
       <div className="mx-auto w-full max-w-screen-xl">
-        <PageBreadCrumb
-          title="Randevularım"
-          items={[
-            { label: "Dashboard", link: "/" },
-            { label: "Randevularım" },
-          ]}
-        />
+        <PageBreadCrumb pageTitle="Randevularım" />
 
         <div className="mt-8 space-y-6">
           {/* Filters */}

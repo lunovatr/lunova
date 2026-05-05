@@ -7,31 +7,19 @@ import {
   TableRow,
 } from "../../ui/table";
 import Badge from "../../ui/badge/Badge";
-
-interface Appointment {
-  id: number;
-  expert: number;
-  expert_name: string;
-  client: number;
-  client_name: string;
-  date: string;
-  time: string;
-  duration: number;
-  status: string;
-  notes: string;
-}
+import type { Appointment } from "../../../types/appointment";
 
 interface AppointmentsTableProps {
   appointments: Appointment[];
 }
 
-const statusColors: Record<string, "success" | "warning" | "error" | "default"> = {
+const statusColors: Record<string, "success" | "warning" | "error" | "light"> = {
   pending: "warning",
   waiting_approval: "warning",
   confirmed: "success",
   cancel_requested: "error",
   cancelled: "error",
-  completed: "default",
+  completed: "light",
 };
 
 const statusLabels: Record<string, string> = {
@@ -119,10 +107,10 @@ export default function AppointmentsTable({
                     <div className="flex items-center gap-3">
                       <div>
                          <span className="block text-theme-sm font-medium text-gray-800 dark:text-white/90">
-                        {appointment.expert_name}
+                        {appointment.expert?.name || (appointment as any).expert_name}
                       </span>
                       <span className="block text-theme-xs text-gray-500 dark:text-gray-400">
-                        User ID: {appointment.expert}
+                        User ID: {appointment.expert?.id ?? (appointment as any).expert}
                       </span>
                       </div>
                     </div>
@@ -137,10 +125,7 @@ export default function AppointmentsTable({
                     {appointment.duration} dk
                   </TableCell>
                   <TableCell className="px-4 py-3 text-start text-theme-sm text-gray-500 dark:text-gray-400">
-                    <Badge
-                      size="sm"
-                      color={statusColors[appointment.status] || "default"}
-                    >
+                    <Badge size="sm" color={statusColors[appointment.status] || "light"}>
                       {statusLabels[appointment.status] || appointment.status}
                     </Badge>
                   </TableCell>
