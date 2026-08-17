@@ -27,9 +27,17 @@ const handleApiError = (error: any, message = 'İşlem başarısız oldu', showT
   } else if (errorData?.message) {
     detail = errorData.message
   } else if (errorData?.errors) {
-    // Form validation errors
+    // { errors: { field: [...] } } şeklinde sarmalanmış validasyon hataları
     const errorMessages = Object.entries(errorData.errors)
       .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
+      .join('\n')
+    detail = errorMessages
+  } else if (errorData && typeof errorData === 'object' && Object.keys(errorData).length > 0) {
+    // DRF'in düz alan-bazlı validasyon hataları: { "field": ["mesaj"] }
+    const errorMessages = Object.entries(errorData)
+      .map(([field, messages]) =>
+        `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`
+      )
       .join('\n')
     detail = errorMessages
   } else if (error.message) {

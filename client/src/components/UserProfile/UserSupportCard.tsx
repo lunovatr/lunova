@@ -9,10 +9,13 @@ import { fetchProfile } from "../../store/authSlice";
 import { ADDICTION_TYPES } from "../../types/profile.types";
 import { ProfileUpdatePayload } from "../../types/profile.payload";
 import { mapProfileToUpdatePayload } from "../../mappers/profileMapper";
+import { useToast } from "../../hooks/useToast";
+import ToastContainer from "../common/ToastContainer";
 
 export default function UserTreatmentCard() {
   const dispatch = useAppDispatch();
   const { userProfile: storeUser } = useAppSelector((s) => s.auth);
+  const { toasts, showToast, removeToast } = useToast();
   const { isOpen, openModal, closeModal } = useModal();
   
   const [formData, setFormData] = useState<Partial<ProfileUpdatePayload>>({});
@@ -47,15 +50,23 @@ export default function UserTreatmentCard() {
       };
       
       await api.patch('/api/v1/accounts/profile/', updateData);
-      dispatch(fetchProfile());
+      await dispatch(fetchProfile());
       closeModal();
-    } catch (error) {
+      showToast("Süreç bilgileriniz güncellendi.", "success");
+    } catch (error: any) {
       console.error("Profil detayları güncelleme hatası:", error);
+      const message =
+        error?.response?.data?.detail ||
+        error?.response?.data?.error ||
+        error?.response?.data?.message ||
+        "Süreç bilgileri güncellenemedi. Lütfen tekrar deneyin.";
+      showToast(message, "error");
     }
   };
 
   return (
     <>
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
       {/* Görüntüleme Kartı */}
       <div className="p-5 border border-gray-200 rounded-2xl dark:border-gray-800 lg:p-6 bg-white dark:bg-gray-900">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">

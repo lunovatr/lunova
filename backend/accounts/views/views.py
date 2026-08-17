@@ -12,7 +12,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from django.contrib.auth import get_user_model, authenticate
 from django.conf import settings
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
@@ -20,11 +21,40 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.core.mail import send_mail
 from django.contrib.auth.password_validation import validate_password
+from django.middleware.csrf import get_token
 from django.db.models import Q
 from ..models import UserRole, ExpertProfile, ClientProfile, Document, DocumentType
 from accounts.serializers.document_serializers import DocumentSerializer
 
 User = get_user_model()
+
+
+def set_auth_cookies(response, access_token, refresh_token):
+    """
+    access_token/refresh_token'ı httpOnly cookie olarak set eder. Süreler
+    settings.SIMPLE_JWT'den okunur (tek doğruluk kaynağı) — böylece
+    ACCESS_TOKEN_LIFETIME/REFRESH_TOKEN_LIFETIME değiştiğinde cookie'nin
+    tarayıcı tarafındaki max_age'i otomatik senkron kalır. LoginView ve
+    TokenRefreshView tarafından ortak kullanılır.
+    """
+    access_max_age = int(settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds())
+    refresh_max_age = int(settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'].total_seconds())
+
+    cookie_params = {
+        'httponly': True,
+        # [2026-08-17'de None'dan değiştirildi] Tüm frontend'ler backend ile aynı
+        # "site" (lunova.tr / dev'de localhost) olduğu için Lax yeterli ve daha
+        # güvenli — gerçek cross-site (başka bir domain'den) CSRF isteklerinde
+        # tarayıcı bu cookie'yi artık göndermiyor. Detay: kök claude.md, CSRF bölümü.
+        'samesite': 'Lax',
+        'secure': True,
+        'path': '/',
+    }
+    if getattr(settings, 'ENVIRONMENT', '').lower() == 'production':
+        cookie_params['domain'] = 'lunova.tr'
+
+    response.set_cookie(key="access_token", value=access_token, max_age=access_max_age, **cookie_params)
+    response.set_cookie(key="refresh_token", value=refresh_token, max_age=refresh_max_age, **cookie_params)
 
 
 class ExpertRegisterView(generics.CreateAPIView):
@@ -123,6 +153,8 @@ class LoginView(APIView):
         else:
             profile_photo_url = None
         response = Response({
+            "id": user.id,
+            "role": user.role,
             "name": user.first_name,
             "surname": user.last_name,
             "email": user.email,
@@ -130,32 +162,53 @@ class LoginView(APIView):
             "gender": user.gender if user.gender else None
             # profil fotoğrafı yoksa front ona gender'a göre pp atasın.
         }, status=status.HTTP_200_OK)
-        # JWT'yi httpOnly cookie olarak ekle
-        cookie_params = {
-            'httponly': True,
-            'samesite': 'None',
-            'secure': True,
-            'max_age': 60*15,
-            'path': '/',
-        }
-        refresh_cookie_params = cookie_params.copy()
-        refresh_cookie_params['max_age'] = 60*60*24*7
+        # JWT'yi httpOnly cookie olarak ekle (süreler settings.SIMPLE_JWT'den okunur)
+        set_auth_cookies(response, access_token, refresh_token)
+        # CSRF cookie'sini burada mint ediyoruz (get_token httpOnly OLMAYAN bir
+        # 'csrftoken' cookie'si set eder) — frontend bunu okuyup sonraki
+        # state-değiştiren isteklerde X-CSRFToken header'ı olarak geri gönderecek
+        # (bkz. accounts/authentication.py -> enforce_csrf).
+        get_token(request)
+        return response
 
-        # Ortam kontrolü: prod ise domain ekle
-        if getattr(settings, 'ENVIRONMENT', '').lower() == 'production':
-            cookie_params['domain'] = 'lunova.tr'
-            refresh_cookie_params['domain'] = 'lunova.tr'
 
-        response.set_cookie(
-            key="access_token",
-            value=access_token,
-            **cookie_params
-        )
-        response.set_cookie(
-            key="refresh_token",
-            value=refresh_token,
-            **refresh_cookie_params
-        )
+class TokenRefreshView(APIView):
+    """
+    POST /token/refresh/
+    Body gerekmez. Cookie'deki refresh_token kullanılarak yeni bir access_token
+    (ve ROTATE_REFRESH_TOKENS=True olduğu için rotasyonlu yeni bir refresh_token)
+    üretir; ikisi de httpOnly cookie olarak set edilir — refresh token hiçbir zaman
+    JS'e/response body'sine sızmaz, login/logout ile aynı güvenlik modeli korunur.
+
+    Bu, oturumun "sliding window" (kayan pencere) mantığıyla uzamasını sağlar:
+    kullanıcı aktif oldukça (en az REFRESH_TOKEN_LIFETIME'da bir istek attıkça)
+    oturum kendini yeniler; kullanıcı bu süre kadar tamamen hareketsiz kalırsa
+    refresh token de süresi dolmuş sayılır ve bir sonraki istekte 401 alıp tekrar
+    giriş yapması gerekir. REFRESH_TOKEN_LIFETIME (settings.py) bilinçli olarak
+    1 saate ayarlandı: seanslar Zoom üzerinden yapılıyor ve bir görüşme sırasında
+    kullanıcı sitede en fazla ~50 dakika (appointment_duration üst sınırı)
+    hareketsiz kalabiliyor — 1 saatlik pencere bunu, gereksiz yere uzatmadan
+    güvenli şekilde kapsıyor.
+    """
+
+    def post(self, request):
+        raw_refresh = request.COOKIES.get("refresh_token")
+        if not raw_refresh:
+            raise InvalidToken("Refresh token bulunamadı. Lütfen tekrar giriş yapın.")
+
+        serializer = TokenRefreshSerializer(data={"refresh": raw_refresh})
+        try:
+            serializer.is_valid(raise_exception=True)
+        except TokenError as e:
+            raise InvalidToken(e.args[0])
+
+        access_token = serializer.validated_data["access"]
+        # ROTATE_REFRESH_TOKENS=True olduğu için serializer her zaman yeni bir
+        # refresh de üretir; savunma amaçlı fallback olarak eskisi kullanılır.
+        refresh_token = serializer.validated_data.get("refresh", raw_refresh)
+
+        response = Response({"detail": "Oturum yenilendi."}, status=status.HTTP_200_OK)
+        set_auth_cookies(response, access_token, refresh_token)
         return response
 
 
@@ -213,7 +266,15 @@ class MeView(APIView):
         else:
             profile_photo_url = None
 
+        # csrftoken cookie'si yoksa (örn. bu deploy'dan önce login olmuş, hâlâ
+        # geçerli bir oturum) burada da mint ediliyor — frontend her açılışta
+        # zaten /me/ çağırdığı için mevcut oturumlar tekrar login olmaya
+        # zorlanmadan CSRF cookie'sine "backfill" ediliyor.
+        get_token(request)
+
         return Response({
+            "id": user.id,
+            "role": user.role,
             "first_name": user.first_name,
             "last_name": user.last_name,
             "email": user.email,

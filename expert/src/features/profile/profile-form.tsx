@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { Resolver, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useState } from 'react'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, Paperclip } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -87,6 +87,7 @@ const profileFormSchema = z.object({
 // type ProfileFormValues = z.infer<typeof profileFormSchema>
 export type ProfileFormValues = z.infer<typeof profileFormSchema>
 export function ProfileForm() {
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState<ExpertProfile | null>(null)
   const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null)
@@ -296,7 +297,7 @@ export function ProfileForm() {
 
         const updatedProfile = await updateProfile(payload)
         setProfile(updatedProfile as ExpertProfile)
-        alert("Profil başarıyla güncellendi!")
+        navigate({ to: '/profile' })
       } catch (error) {
         console.error('Profil güncellenemedi:', error)
       }

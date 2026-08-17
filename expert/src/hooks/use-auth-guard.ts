@@ -8,7 +8,7 @@ interface User {
   first_name: string
   last_name: string
   email: string
-  role?: string[]
+  role?: string
 }
 
 let userCache: User | null = null
@@ -44,11 +44,13 @@ export function useAuthGuard() {
         const response = await api.get('/api/v1/accounts/me/')
         const userData = response.data
 
+        // Backend artık /me/ üzerinden gerçek id ve role döndürüyor
+        // (öncesinde bu alanlar yoktu, role burada sabit 'expert' varsayılıyordu).
         const user: User = {
           first_name: userData.first_name,
           last_name: userData.last_name,
           email: userData.email,
-          role: userData.role || ['expert'],
+          role: userData.role ?? 'expert',
         }
 
         // Cache güncelle
@@ -60,7 +62,7 @@ export function useAuthGuard() {
           id: userData.id,
           username: userData.username,
           email: userData.email,
-          role: userData.role || ['expert'],
+          role: userData.role ?? 'expert',
           first_name: userData.first_name,
           last_name: userData.last_name
         })

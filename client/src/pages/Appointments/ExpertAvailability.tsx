@@ -1,6 +1,7 @@
 // src/components/ExpertAvailability.tsx
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from "react-router";
 import api from "../../lib/api";
 import AppointmentForm from './AppointmentForm';
 import { 
@@ -121,6 +122,7 @@ const ExpertAvailability: React.FC<ExpertAvailabilityProps> = ({
     end_date,
 }) => {
     const { showToast } = useToast();
+    const navigate = useNavigate();
 
     // State Yönetimi
     const [loading, setLoading] = useState<boolean>(false);
@@ -293,7 +295,7 @@ const ExpertAvailability: React.FC<ExpertAvailabilityProps> = ({
                         slotMinutes={60} 
                         notes={notes}
                         setNotes={setNotes}
-                        navigate={() => {}} 
+                        navigate={navigate}
                     />
                 </div>
             )}

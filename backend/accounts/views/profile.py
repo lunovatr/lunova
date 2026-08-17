@@ -1,6 +1,7 @@
 from rest_framework.generics import RetrieveUpdateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied, NotFound
+from rest_framework.response import Response
 from accounts.models import Document, ExpertProfile, ClientProfile, UserRole
 from django.db.models import Prefetch
 from accounts.serializers.profile_update_serializers import (
@@ -58,3 +59,35 @@ class ProfileView(RetrieveUpdateAPIView):
                 return ClientProfileUpdateSerializer
 
         raise PermissionDenied("Bu endpoint sadece uzman ve danışan kullanıcılar içindir.")
+
+    def get_read_serializer_class(self):
+        user = self.request.user
+        if user.role == UserRole.EXPERT:
+            return ExpertProfileSerializer
+        elif user.role == UserRole.CLIENT:
+            return ClientProfileSerializer
+        raise PermissionDenied("Bu endpoint sadece uzman ve danışan kullanıcılar içindir.")
+
+    def update(self, request, *args, **kwargs):
+        """
+        UpdateModelMixin'in varsayılan davranışı, PATCH/PUT sonrası response'u
+        güncelleme sırasında kullanılan (write) serializer ile üretir. Bu write
+        serializer'ın alan seti/şekli (örn. "user_data", ham FK id'leri) GET
+        endpoint'inin döndürdüğü şekilden ("user", nested/string alanlar) tamamen
+        farklı. Frontend'ler GET ile aynı şekli beklediği için bu fark, kaydetme
+        sonrası ekranın çökmesine (frontend'de undefined alan erişimi) yol açıyordu.
+        Bu yüzden burada response'u GET ile aynı read serializer ile yeniden üretiyoruz.
+        """
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        if getattr(instance, "_prefetched_objects_cache", None):
+            instance._prefetched_objects_cache = {}
+
+        read_serializer = self.get_read_serializer_class()(
+            instance, context=self.get_serializer_context()
+        )
+        return Response(read_serializer.data)

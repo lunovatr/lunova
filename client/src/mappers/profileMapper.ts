@@ -50,7 +50,7 @@ export const mapProfileToUpdatePayload = (
   onboarding_complete: profile.onboarding_complete,
   is_active_in_treatment: profile.is_active_in_treatment,
 
-  substances_used: profile.substances_used.map(s => s.id),
+  substances_used: profile.substances_used?.map(s => s.id) ?? [],
 
   emergency_contacts: profile.emergency_contacts?.map(
     mapEmergencyContactToPayload

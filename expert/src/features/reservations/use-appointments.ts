@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getAppointments, Appointment } from './api';
 import { format, addMonths, subMonths } from 'date-fns';
+import { useAuthStore } from '@/stores/auth-store';
 
 export interface UniqueClient {
   id: number;
@@ -15,9 +16,16 @@ export const useAppointments = () => {
   const [tableAppointments, setTableAppointments] = useState<Appointment[]>([]);
   const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
   const [clients, setClients] = useState<UniqueClient[]>([]);
-  const [expertId, setExpertId] = useState<number | null>(null);
+  // Randevu geçmişinden çıkarılan expert id (fallback amaçlı - aşağıya bakın)
+  const [derivedExpertId, setDerivedExpertId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Öncelikli kaynak: oturum açmış kullanıcının kendi User id'si (/me/ üzerinden).
+  // Önceden expertId SADECE mevcut randevulardan türetiliyordu; bu da hiç randevusu
+  // olmayan yeni bir uzmanın ilk randevusunu hiç oluşturamamasına yol açıyordu.
+  const ownUserId = useAuthStore((s) => s.user?.id ?? null);
+  const expertId = ownUserId ?? derivedExpertId;
 
   const fetchAppointments = useCallback(async () => {
     try {
@@ -50,7 +58,7 @@ export const useAppointments = () => {
       setTableAppointments(tableData);
       setAllAppointments(combined);
 
-      if (combined.length > 0) setExpertId(combined[0].expert);
+      if (combined.length > 0) setDerivedExpertId(combined[0].expert);
 
       const clientMap = new Map<number, string>();
       combined.forEach(a => {

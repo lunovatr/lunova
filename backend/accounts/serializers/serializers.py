@@ -22,6 +22,10 @@ class AdminProfileSerializer(serializers.ModelSerializer):
 
 class ExpertListSerializer(serializers.ModelSerializer):
     """Simplified serializer for expert listing with basic profile info"""
+    # NOT: "id" alanı bu ExpertProfile kaydının kendi PK'sıdır (User.id DEĞİLDİR).
+    # Randevu/müsaitlik gibi User FK'sı bekleyen her endpoint için "user_id" kullanılmalıdır
+    # (accounts/appointments/availability arasındaki 3 farklı id tipi karışıklığını önlemek için eklendi).
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
     first_name = serializers.CharField(source='user.first_name', read_only=True)
     last_name = serializers.CharField(source='user.last_name', read_only=True)
     email = serializers.EmailField(source='user.email', read_only=True)
@@ -34,6 +38,7 @@ class ExpertListSerializer(serializers.ModelSerializer):
         model = ExpertProfile
         fields = [
             'id',
+            'user_id',
             'first_name',
             'last_name',
             'email',
@@ -216,6 +221,10 @@ class ClientRegisterSerializer(BaseRegisterSerializer):
 
 class ClientListSerializer(serializers.ModelSerializer):
     """Simplified serializer for client listing with basic profile info"""
+    # NOT: "id" alanı bu ClientProfile kaydının kendi PK'sıdır (User.id DEĞİLDİR).
+    # Randevu oluşturma/güncelleme gibi User FK'sı bekleyen her endpoint için
+    # "user_id" kullanılmalıdır (bkz. ExpertListSerializer'daki aynı not).
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
     first_name = serializers.CharField(source='user.first_name', read_only=True)
     last_name = serializers.CharField(source='user.last_name', read_only=True)
     email = serializers.EmailField(source='user.email', read_only=True)
@@ -229,6 +238,7 @@ class ClientListSerializer(serializers.ModelSerializer):
         model = ClientProfile
         fields = [
             'id',
+            'user_id',
             'first_name',
             'last_name',
             'email',

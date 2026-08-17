@@ -5,7 +5,7 @@ export interface AuthUser {
     id: number
     username?: string
     email: string
-    role: string[]
+    role: string
     first_name: string
     last_name: string
 }

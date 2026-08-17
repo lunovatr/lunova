@@ -228,8 +228,16 @@ class AppointmentDetailView(generics.RetrieveUpdateDestroyAPIView):
 
         # Kullanıcı yetki kontrolü
         if new_status in ['confirmed', 'cancelled', 'completed']:
-            # Sadece uzman bu durumları değiştirebilir
-            if instance.expert != user:
+            # Danışan, henüz uzman onayı almamış kendi talebini geri çekebilir
+            # (waiting_approval -> cancelled). Diğer tüm durumlarda (confirmed'ı
+            # onaylama/iptal etme, expert'in oluşturduğu pending randevular vb.)
+            # yetki sadece uzmandadır.
+            client_withdrawing_own_request = (
+                new_status == 'cancelled'
+                and current_status == 'waiting_approval'
+                and instance.client == user
+            )
+            if instance.expert != user and not client_withdrawing_own_request:
                 return Response(
                     {'error': 'Bu durumu değiştirmek için uzman olmanız gerekir'},
                     status=status.HTTP_403_FORBIDDEN

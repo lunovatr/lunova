@@ -25,12 +25,13 @@ class BaseUserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'first_name', 
-            'last_name', 
-            'birth_date', 
-            'gender', 
-            'phone_number', 
-            'country'
+            'first_name',
+            'last_name',
+            'birth_date',
+            'gender',
+            'phone_number',
+            'country',
+            'timezone',
         ]
         extra_kwargs = {
             'phone_number': {'required': False},
@@ -38,6 +39,7 @@ class BaseUserUpdateSerializer(serializers.ModelSerializer):
             'birth_date': {'required': False},
             'first_name': {'required': False},
             'last_name': {'required': False},
+            'timezone': {'required': False},
         }
 
     def validate_gender(self, value):

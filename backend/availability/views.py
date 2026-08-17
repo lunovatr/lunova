@@ -460,6 +460,13 @@ class AvailabilityExceptionView(generics.GenericAPIView):
         """
         Gelen exceptions listesindeki öğelerle tam eşleşen
         (id + date + start_time + end_time) istisnaları siler.
+
+        NOT: `get_serializer()` DELETE için input doğrulamasında kasıtlı olarak dar
+        AvailabilityExceptionDeleteSerializer'ı döner (get_serializer_class()).
+        Output ("deleted"/"current") için ise ProfileView.update()'te düzeltilen aynı
+        kalıptan kaçınmak amacıyla bilinçli olarak zengin AvailabilityExceptionSerializer
+        kullanılıyor — aksi halde exception_type/note/service_name/expert_name/created_at
+        gibi GET/PUT'ta dönen alanlar burada sessizce kaybolurdu.
         """
         expert = request.user.expertprofile
         incoming = request.data.get('exceptions', [])
@@ -498,7 +505,7 @@ class AvailabilityExceptionView(generics.GenericAPIView):
                     )
 
                     if qs.exists():
-                        deleted.extend(self.get_serializer(qs, many=True).data)
+                        deleted.extend(AvailabilityExceptionSerializer(qs, many=True).data)
                         qs.delete()
                     else:
                         errors.append({
@@ -508,7 +515,7 @@ class AvailabilityExceptionView(generics.GenericAPIView):
                 except Exception as e:
                     errors.append({'id': exc_id, 'message': str(e)})
 
-        current_data = self.get_serializer(
+        current_data = AvailabilityExceptionSerializer(
             AvailabilityException.objects.filter(expert=expert), many=True
         ).data
 

@@ -6,9 +6,12 @@ import AppointmentsTable from "../../components/tables/Appointments/Appointments
 import api from "../../lib/api";
 import { useNavigate } from "react-router";
 import type { Appointment } from "../../types/appointment";
+import { useToast } from "../../hooks/useToast";
+import ToastContainer from "../../components/common/ToastContainer";
 
 export default function AppointmentsList() {
   const navigate = useNavigate();
+  const { toasts, showToast, removeToast } = useToast();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +60,31 @@ export default function AppointmentsList() {
     }
   };
 
+  const handleStatusChange = async (
+    appointmentId: number,
+    newStatus: "cancel_requested" | "cancelled"
+  ) => {
+    try {
+      await api.patch(`/api/v1/appointments/${appointmentId}/status/`, {
+        status: newStatus,
+      });
+      showToast(
+        newStatus === "cancel_requested"
+          ? "İptal talebiniz gönderildi."
+          : "Randevu talebiniz geri çekildi.",
+        "success"
+      );
+      await fetchAppointments();
+    } catch (err: any) {
+      const message =
+        err.response?.data?.detail ||
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        "İşlem gerçekleştirilemedi.";
+      showToast(message, "error");
+    }
+  };
+
   const handleFilterChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -70,6 +98,7 @@ export default function AppointmentsList() {
   return (
     <>
       <PageMeta title="Randevularım" description="Kullanıcının randevularını listeleyen sayfa" />
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
       <div className="mx-auto w-full max-w-screen-xl">
         <PageBreadCrumb pageTitle="Randevularım" />
 
@@ -163,7 +192,7 @@ export default function AppointmentsList() {
               </div>
             </div>
           ) : (
-            <AppointmentsTable appointments={appointments} />
+            <AppointmentsTable appointments={appointments} onStatusChange={handleStatusChange} />
           )}
         </div>
       </div>

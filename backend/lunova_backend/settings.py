@@ -198,7 +198,13 @@ CORS_ALLOW_CREDENTIALS = True
 SESSION_COOKIE_SECURE = True    # Prod’da HTTPS zorunlu
 SESSION_COOKIE_SAMESITE = None  # Cross-site cookie için None
 CSRF_COOKIE_SECURE = True
-CSRF_COOKIE_SAMESITE = None   # Eğer CSRF cookie de kullanacaksan
+# [2026-08-17'de değiştirildi] None -> Lax: tüm frontend'ler backend ile aynı "site"
+# (registrable domain lunova.tr; dev'de hepsi "localhost") olduğu için cross-site
+# cookie gönderimine hiç gerek yok — Lax, aynı site içi cross-origin (farklı port/
+# subdomain) isteklerde cookie'yi göndermeye devam eder, sadece GERÇEK cross-site
+# (başka bir domain'den) POST/PATCH/DELETE'lerde cookie'yi tutar. Bu, CSRF açığının
+# birinci savunma katmanı. Detay için kök claude.md -> "🔴 En kritik açık madde: CSRF".
+CSRF_COOKIE_SAMESITE = 'Lax'
 
 # Custom header'lara izin ver
 CORS_ALLOW_HEADERS = [
@@ -244,7 +250,7 @@ if env.str('ENVIRONMENT') == 'Production':
         if not CORS_ALLOWED_ORIGINS:
             print("No frontend URLs found for CORS!")
             raise ImproperlyConfigured("No frontend URLs found for CORS!")
-            
+
     except ValueError as e:
         raise ImproperlyConfigured(f"Invalid FRONTEND_URLS JSON format: {e}")
     SESSION_COOKIE_DOMAIN = ".lunova.tr"
@@ -255,6 +261,26 @@ else:
     ]
     # Localde domain ayarı gerekmez
     SESSION_COOKIE_DOMAIN = None
+
+# [2026-08-17'de eklendi] CSRF token doğrulaması artık gerçekten aktif (bkz.
+# accounts/authentication.py -> CookieJWTAuthentication.enforce_csrf()). Django'nun
+# CSRF kontrolü, cross-origin (frontend'ler backend'den farklı port/subdomain'de)
+# isteklerde Origin header'ını CSRF_TRUSTED_ORIGINS'e karşı doğrular — bu liste
+# olmadan CORS'a izin verilen meşru frontend istekleri de CSRF 403 alır. Frontend'ler
+# zaten CORS için güvenilir sayıldığından (CORS_ALLOWED_ORIGINS) aynı listeyi kullanmak
+# güvenli ve tutarlı.
+CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
+
+# [2026-08-17'de eklendi] KRİTİK: CSRF_COOKIE_DOMAIN açıkça set edilmezse Django
+# varsayılanı (None) 'csrftoken' cookie'sini backend'in KENDİ host'una (örn. prod'da
+# api.lunova.tr) "host-only" olarak scope eder — access_token/refresh_token'ın aksine
+# (onlar set_auth_cookies() içinde açıkça domain='lunova.tr' alıyor). Bu durumda
+# uzman.lunova.tr/danisan.lunova.tr üzerindeki JS, document.cookie ile csrftoken'ı HİÇ
+# okuyamaz ve her state-değiştiren istek CSRF 403 ile başarısız olurdu. SESSION_COOKIE_DOMAIN
+# ile aynı mantık (prod'da ".lunova.tr", dev'de None — dev'de zaten tüm frontend'ler
+# "localhost" host'unu portdan bağımsız paylaşıyor, ayrıca domain gerekmiyor) burada da
+# uygulanıyor.
+CSRF_COOKIE_DOMAIN = SESSION_COOKIE_DOMAIN
 
 # HTTPS reverse proxy arkasında çalışırken güvenli protokolü algılaması için:
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -269,15 +295,26 @@ AUTH_USER_MODEL = 'accounts.User'
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    # Danışan/uzman görüşmeleri Zoom üzerinden yapılıyor (appointment_duration en
+    # fazla 50 dk) — bir seans boyunca kullanıcı sitede hiç istek atmayabilir.
+    # REFRESH_TOKEN_LIFETIME bilinçli olarak bunun üzerinde, 1 saat olarak
+    # ayarlandı: kullanıcı aktif oldukça (POST /accounts/token/refresh/ ile)
+    # oturum kayan pencere (sliding window) şeklinde uzar; 1 saatten uzun süre
+    # tamamen hareketsiz kalırsa oturum düşer ve tekrar giriş istenir.
+    'REFRESH_TOKEN_LIFETIME': timedelta(hours=1),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_COOKIE': 'access_token',
     'AUTH_COOKIE_REFRESH': 'refresh_token',
     'AUTH_COOKIE_HTTP_ONLY': True,
     'AUTH_COOKIE_SECURE': True,
-    'AUTH_COOKIE_SAMESITE': 'None',
+    'AUTH_COOKIE_SAMESITE': 'Lax',  # NOT: bu anahtar hiçbir yerde okunmuyor, bkz. not aşağıda
 }
+# NOT: Yukarıdaki AUTH_COOKIE/AUTH_COOKIE_REFRESH/AUTH_COOKIE_HTTP_ONLY/AUTH_COOKIE_SECURE/
+# AUTH_COOKIE_SAMESITE anahtarları ölü konfigürasyon — gerçek access/refresh cookie'leri
+# accounts/views/views.py -> set_auth_cookies()'te kendi sabit değerleriyle set ediliyor,
+# burayı hiç okumuyor. Değer tutarlılığı için burada da güncellendi ama tek doğruluk
+# kaynağı set_auth_cookies()'teki cookie_params'tır.
 
 # Email Settings
 EMAIL_BACKEND = env.str('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')

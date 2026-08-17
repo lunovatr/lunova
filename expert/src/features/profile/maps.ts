@@ -40,9 +40,7 @@ export const SERVICES: Record<number, string> = {
   2: 'Bireysel Danışmanlık',
   3: 'Çift Terapisi',
   4: 'Grup Terapisi',
-  5: 'Grup Supervizyon',
-  // 6: 'Online Terapi',
-  // 7: 'Psikolojik Değerlendirme',
+  5: 'Supervizyon',
 }
 
 // Uzmanlık Alanları
@@ -62,13 +60,9 @@ export const SPECIALIZATIONS: Record<number, string> = {
 // Yaklaşım Metodları
 export const APPROACH_METHODS: Record<number, string> = {
   1: 'Bilişsel Davranışçı Terapi (BDT)',
-  2: 'Psikanalitik Terapi',
-  3: 'Hümanistik Terapi',
-  4: 'EMDR',
-  // 5: 'Şema Terapi',
-  // 6: 'Kabul ve Kararlılık Terapisi (ACT)',
-  // 7: 'Diyalektik Davranış Terapisi (DBT)',
-  // 8: 'Gestalt Terapi',
+  2: 'Kabul ve Kararlılık Terapisi (ACT)',
+  3: 'EMDR',
+  4: 'Psikodinamik Terapi',
 }
 
 // Hedef Gruplar

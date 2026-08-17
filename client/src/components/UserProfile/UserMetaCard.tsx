@@ -9,10 +9,13 @@ import api from "../../lib/api";
 import { fetchProfile } from "../../store/authSlice";
 import { ProfileResponse, Gender } from "../../types/profile.types";
 import UploadDocumentModal from "./UploadDocumentModal";
+import { useToast } from "../../hooks/useToast";
+import ToastContainer from "../common/ToastContainer";
 
 export default function UserMetaCard() {
   const dispatch = useAppDispatch();
   const { userProfile: storeUser } = useAppSelector((s) => s.auth);
+  const { toasts, showToast, removeToast } = useToast();
   const { isOpen, openModal, closeModal } = useModal();
   const { 
     isOpen: isPhotoModalOpen, 
@@ -42,10 +45,17 @@ export default function UserMetaCard() {
       };
       
       await api.patch('/api/v1/accounts/profile/', updateData);
-      dispatch(fetchProfile());
+      await dispatch(fetchProfile());
       closeModal();
-    } catch (error) {
+      showToast("Kimlik bilgileriniz güncellendi.", "success");
+    } catch (error: any) {
       console.error("Kimlik bilgileri güncelleme hatası:", error);
+      const message =
+        error?.response?.data?.detail ||
+        error?.response?.data?.error ||
+        error?.response?.data?.message ||
+        "Kimlik bilgileri güncellenemedi. Lütfen tekrar deneyin.";
+      showToast(message, "error");
     }
   };
 
@@ -58,6 +68,7 @@ export default function UserMetaCard() {
 
   return (
     <>
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
       <div className="p-5 border border-gray-200 rounded-2xl dark:border-gray-800 lg:p-6 bg-white dark:bg-gray-900">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-col items-center w-full gap-6 xl:flex-row">

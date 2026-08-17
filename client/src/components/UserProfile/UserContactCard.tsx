@@ -9,10 +9,13 @@ import api from "../../lib/api";
 import { fetchProfile } from "../../store/authSlice";
 import { ProfileUpdatePayload } from "../../types/profile.payload";
 import { mapProfileToUpdatePayload } from "../../mappers/profileMapper";
+import { useToast } from "../../hooks/useToast";
+import ToastContainer from "../common/ToastContainer";
 
 export default function UserSupportCard() {
   const dispatch = useAppDispatch();
   const { userProfile: storeUser } = useAppSelector((s) => s.auth);
+  const { toasts, showToast, removeToast } = useToast();
   const { isOpen, openModal, closeModal } = useModal();
   
   // Form datayı ProfileResponse tipinde tutuyoruz
@@ -36,15 +39,23 @@ export default function UserSupportCard() {
       };
       
       await api.patch('/api/v1/accounts/profile/', updateData);
-      dispatch(fetchProfile());
+      await dispatch(fetchProfile());
       closeModal();
-    } catch (error) {
+      showToast("İletişim bilgileriniz güncellendi.", "success");
+    } catch (error: any) {
       console.error("İletişim bilgileri güncelleme hatası:", error);
+      const message =
+        error?.response?.data?.detail ||
+        error?.response?.data?.error ||
+        error?.response?.data?.message ||
+        "İletişim bilgileri güncellenemedi. Lütfen tekrar deneyin.";
+      showToast(message, "error");
     }
   };
 
   return (
     <div className="p-5 border border-gray-200 rounded-2xl dark:border-gray-800 lg:p-6 bg-white dark:bg-gray-900">
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="w-full">
           <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 lg:mb-6">
