@@ -1,0 +1,11 @@
+# Not: her serviste kendi .gitignore'u var (backend/, client/, expert/) — bu dosya
+# sadece repo kökündeki dosyalar için.
+
+# Claude Code / agentic tooling local state (proje ile ilgisi yok, makineye özel)
+.claude/
+
+# Editor/OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

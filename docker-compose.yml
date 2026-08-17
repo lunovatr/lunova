@@ -1,0 +1,65 @@
+# Lunova - Yerel geliştirme / test orkestrasyonu
+#
+# Kullanım:
+#   docker compose up              -> backend + client + expert, hepsi
+#   docker compose up backend      -> sadece backend (SQLite ile)
+#   docker compose up client       -> sadece danışan arayüzü
+#   docker compose up expert       -> sadece uzman arayüzü
+#   docker compose up -d           -> arka planda (detached)
+#   docker compose down            -> durdur ve konteynerleri kaldır (volume'lar/DB kalır)
+#   docker compose logs -f backend -> canlı log takibi
+#
+# Not: backend/client/expert her biri kendi .env dosyasını kullanır
+# (backend/.env, client/.env, expert/.env). Bu dosyalar repo ile birlikte
+# dev-uyumlu varsayılan değerlerle geldi, elle bir şey yapmanıza gerek yok.
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: lunova-backend
+    env_file:
+      - ./backend/.env
+    volumes:
+      # Kod + db.sqlite3 host ile paylaşılır: container içinde migrate/kod
+      # değişikliği host'taki dosyalarda da kalıcı olur (veri kaybı riski yok).
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: lunova-client
+    env_file:
+      - ./client/.env
+    volumes:
+      - ./client:/app
+      # node_modules'ı host'unkiyle ezmemek için ayrı (anonim) bir volume.
+      # Host Windows'ta, container Linux'ta derlendiği için native modüller
+      # (varsa) karışmasın diye gerekli.
+      - /app/node_modules
+    ports:
+      - "5174:5174"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  expert:
+    build:
+      context: ./expert
+      dockerfile: Dockerfile
+    container_name: lunova-expert
+    env_file:
+      - ./expert/.env
+    volumes:
+      - ./expert:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    restart: unless-stopped
