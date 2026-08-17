@@ -1,0 +1,621 @@
+{
+	"info": {
+		"_postman_id": "08de4942-6d4a-4b8b-95d8-724aeca81703",
+		"name": "Accounts",
+		"description": "Lunova Backend servisimizin testlerini yaptığımız çalışma alanı.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "37991120",
+		"_collection_link": "https://www.postman.com/red-shuttle-701984/workspace/lunova/collection/37991120-08de4942-6d4a-4b8b-95d8-724aeca81703?action=share&source=collection_link&creator=37991120"
+	},
+	"item": [
+		{
+			"name": "Reset Password",
+			"item": [
+				{
+					"name": "password-reset",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{ \"email\" : \"expert1@example.com\" }\r\n// kişisel mail ile test edebilirsiniz.",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/api/v1/accounts/auth/password-reset/",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"auth",
+								"password-reset",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "confirm-password",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n        \"uid\": \"MQ\",\r\n        \"token\": \"cxkhvp-099256595c2a56c95c9c755525432dab\",\r\n        \"new_password\": \"yenisifre123\",\r\n        \"new_password_confirm\": \"yenisifre123\"\r\n}\r\n// şifre sıfırlama isteğinde konsolda verilen çıktı ile bu isteği atabilirsiniz.",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/api/v1/accounts/auth/password-reset/confirm/",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"auth",
+								"password-reset",
+								"confirm",
+								""
+							],
+							"query": [
+								{
+									"key": "uid",
+									"value": "Mw",
+									"disabled": true
+								},
+								{
+									"key": "token",
+									"value": "cwzwpg-24d8d76476a510d3f46e5746bcdd5e9c",
+									"disabled": true
+								},
+								{
+									"key": "new_password",
+									"value": "yenisifre123!",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Profile",
+			"item": [
+				{
+					"name": "profile",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/profile/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"profile",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "profile-update",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"description": "API'ye gönderilen verinin JSON formatında olduğunu belirtir.",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    /*==========================================================\n    EXPERT (Uzman) rolü için body\n    ==========================================================*/\n\n    // \"user_data\": {\n    //     \"gender\": \"male\"\n    // }\n\n    // \"about\": \"Bilişsel Davranışçı Terapi (BDT) ve Kabul ve Kararlılık Terapisi (ACT) yöntemlerini kullanarak danışanlarıma destek sağlıyorum.\",\n    // \"experience_years\": 8,\n    // \"title\": \"Uzm. Klinik Psk.\",\n    // \"session_price\": 450.00,\n    // \"currency\": \"TRY\",\n    // \"availability_status\": \"active\",/* Foreign Key alanlar: İlgili tablonun ID'sini göndermelisiniz */\n    // \"university\": 5, \n    // \"degree_level\": 2, \n    // \"major\": 1\n\n    // /* Many-to-Many alanlar: Güncel ID listesini göndermelisiniz. */\n    // \"services\": [1, 3, 2],\n    // \"specializations\": [1, 2],\n    // \"languages\": [\"tr\", \"en\"],\n    // \"approach_methods\": [2, 3]\n    // session_types: [1, 2, 3] şeklinde olmalı\n    // \"session_types\": [1, 2]\n    // \"target_groups\": [1, 2]\n\n/* Kalan Expert alanları: */\n    // \"institution\": \"Ankara Üniversitesi\",\n    // \"license_number\": \"TR-4567\",\n    // \"appointment_duration\": 45,\n    // \"free_first_session\": true,\n    // \"video_intro_url\": \"https://youtube.com/myintro\"\n\n\n/* ========================================================== */\n\n/* CLIENT (Danışan) rolü için body\n(kullanmak için yukarıdaki Expert body'sini silin ve aşağıdaki body'nin yorum satırlarını kaldırın): */\n    // \"support_goal\": \"Yaşadığım panik ataklar için etkili başa çıkma stratejileri geliştirmek istiyorum.\",\n    // \"received_service_before\": true, \n    // \"onboarding_complete\": true,   \n    // \"is_active_in_treatment\": false,\n\n    // \"user_data\": {\n    //     \"gender\": \"male\"\n    // },\n\n    // \"emergency_contacts\": [\n    //     {\n    //         \"name\": \"selam\",\n    //         \"phone_number\": 159159951,\n    //         \"relationship\": \"kardeşşş\",\n    //         \"is_primary\": true\n    //     }\n    // ]\n    \n    // // Many-to-Many (M2M) Alan: Bağımlılık Türleri (AddictionType) \n    // \"substances_used\": [1, 3] // AddictionType ID'leri\n/* ========================================================== */\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/profile/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"profile",
+								""
+							]
+						},
+						"description": "Bu istek, giriş yapmış kullanıcının rolüne göre profilini günceller. Expert ve Client için ayrı body yapıları gereklidir. Aşağıdaki örnek EXPERT rolü içindir."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Register",
+			"item": [
+				{
+					"name": "register-expert",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"first_name\": \"Yusuf\",\n    \"last_name\": \"Kahraman\",\n    \"email\": \"expert_92@expert.com\",\n    \"password\": \"baris123\",\n    \"password2\": \"baris123\",\n    \"phone_number\": \"05316849781\",\n    \"id_number\": \"15515191332\",\n    \"country\": \"TR\",\n    \"national_id\": \"\",\n    \"university_id\": 1,\n    \"gender\": \"male\",\n    \"birth_date\": \"1990-01-20\"\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/register/expert/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"register",
+								"expert",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "register-client",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"first_name\": \"Ahmet\",\n  \"last_name\": \"Yılmaz\",\n  \"email\": \"ahmet_2@client.com\",\n  \"password\": \"sifre123\",\n  \"password2\": \"sifre123\",\n  \"phone_number\": \"05321234567\",\n  \"id_number\": \"12945678901\",\n  \"country\": \"TR\",\n  \"national_id\": \"\",\n  \"birth_date\": \"1995-04-12\",\n  \"gender\": \"female\",\n  \"support_goal\": \"Bağımlılık tedavisi görmek istiyorum\",\n  \"received_service_before\": false,\n  \"substances_used\": [1, 2] \n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/register/client/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"register",
+								"client",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "register-admin",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"first_name\": \"Admin\",\n  \"last_name\": \"User\",\n  \"email\": \"admin@lunova.com\",\n  \"password\": \"Password-123\",\n  \"password2\": \"Password-123\",\n  \"phone_number\": \"05329998877\",\n  \"id_number\": \"98765432109\",\n  \"country\": \"TR\",\n  \"national_id\": \"\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/register/admin/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"register",
+								"admin",
+								""
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Documents",
+			"item": [
+				{
+					"name": "Documents Presign",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"type\": \"cv\"\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/documents/presign-upload/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"documents",
+								"presign-upload",
+								""
+							]
+						},
+						"description": "Ön imzalı, dosya yükleme isteğini döndürür. Buradan dönen upload alanındaki url'e body kısmında ilgili dosya iliştirilerek istek atılır ve ilgili dosya artık uzak s3 bucket'a yüklenir. Daha sonra backend'e bu dosyanın s3'e yüklenmiş olduğu bilgisi de verilmelidir.\n\nDönüş değeri olan file_key ile AccessUrl talebi oluşturulabilir."
+					},
+					"response": []
+				},
+				{
+					"name": "Remote Bucket",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "",
+									"type": "file",
+									"src": "/C:/Users/ksyus/Downloads/bilgisayar-muh.-final-v4.pdf"
+								}
+							]
+						},
+						"url": {
+							"raw": "https://ccmuclvpabfwzphswxae.supabase.co/storage/v1/object/upload/sign/selam/clients/21/profile_photo/92aa7d10-ad8e-48f2-bd31-976b2c2e071b.png?token={{vault:json-web-token}}",
+							"protocol": "https",
+							"host": [
+								"ccmuclvpabfwzphswxae",
+								"supabase",
+								"co"
+							],
+							"path": [
+								"storage",
+								"v1",
+								"object",
+								"upload",
+								"sign",
+								"selam",
+								"clients",
+								"21",
+								"profile_photo",
+								"92aa7d10-ad8e-48f2-bd31-976b2c2e071b.png"
+							],
+							"query": [
+								{
+									"key": "token",
+									"value": "{{vault:json-web-token}}"
+								}
+							]
+						},
+						"description": "imzalanmış bir dosya yükleme isteğinin döndüğü uplaod_url\n\ndönen endpointe bu şekilde istek atılır.\n\nbruadan dönen key dönüşü içerisinde bucket ismi de tanımlı, ama sen backend'e finalize isteğini atarken\n\nbir önceki istekten aldığın file_key değerini girmelisin. ve original_filename özelliği de burada dosya ismini belirliyor."
+					},
+					"response": []
+				},
+				{
+					"name": "Add backend DB",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"type\": \"profile_photo\",\r\n  \"file_key\": \"clients/21/cv/9d837a07-b517-4c51-8e1f-7b51f9990e09\",\r\n  \"original_filename\": \"özel-3.png\", \r\n  \"is_primary\": false\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/documents/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"documents",
+								""
+							]
+						},
+						"description": "Kullanıcı, uzak s3'e yüklediği dosyayı bize bu endpoint ile haber verir. eğer yükleme başarısız olduğu halde buraya yükleme yapılmaya çalışılırsa, uzak bucket üzerindeki dosyasına artık erişilemez."
+					},
+					"response": []
+				},
+				{
+					"name": "Documents",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/documents/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"documents",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Remote Bucket",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/accounts/documents/{{uid}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"accounts",
+								"documents",
+								"{{uid}}",
+								""
+							]
+						},
+						"description": "uid formatında giriş vermezsen 404 not found alırsın."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "login",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"email\": \"expert4@mail.com\", \"password\": \"password123\"}\r\n// {\"email\": \"client5@mail.com\", \"password\": \"password123\"}\r\n// {\"email\": \"admin@lunova.com\", \"password\": \"adminpassword\"}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/accounts/login/",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"accounts",
+						"login",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "logout",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/v1/accounts/logout/",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"accounts",
+						"logout",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "me",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/v1/accounts/me/",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"accounts",
+						"me",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "experts-list",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/v1/accounts/experts/?category=cift-terapisi",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"accounts",
+						"experts",
+						""
+					],
+					"query": [
+						{
+							"key": "category",
+							"value": "cift-terapisi",
+							"description": "Kategoriye göre filtreleme (örn: cift-terapisi, aile-terapisi) kategori yoksa hepsi gelir."
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "clients-list",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/v1/accounts/clients/",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"accounts",
+						"clients",
+						""
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "uid",
+			"value": "9d837a07-b517-4c51-8e1f-7b51f9990e09",
+			"type": "default"
+		}
+	]
+}

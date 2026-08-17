@@ -1,0 +1,444 @@
+{
+	"info": {
+		"_postman_id": "7e963976-ebb0-4a3e-9379-28d3ffaec134",
+		"name": "Appointments",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "37991120",
+		"_collection_link": "https://www.postman.com/red-shuttle-701984/workspace/lunova/collection/37991120-7e963976-ebb0-4a3e-9379-28d3ffaec134?action=share&source=collection_link&creator=37991120"
+	},
+	"item": [
+		{
+			"name": "Randevu Oluşturma",
+			"item": [
+				{
+					"name": "Uzman Tarafından Randevu Oluşturma",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"expert\": 21,\n  \"client\": 20,\n  \"date\": \"2025-02-27\",\n  \"time\": \"15:00:00\",\n  \"duration\": 60,\n  \"notes\": \"Uzman tarafından oluşturulan randevu\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/appointments/expert/create/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"appointments",
+								"expert",
+								"create",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Danışan Tarafından Randevu Talebi",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"expert_user_id\": 4,\n  \"date\": \"2025-11-26\",\n  \"time\": \"21:00:00\",\n  \"duration\": 50,\n  \"notes\": \"Danışan tarafından randevu talebi\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/appointments/client/request/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"appointments",
+								"client",
+								"request",
+								""
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Rezervasyon Detay ve İşlemleri",
+			"item": [
+				{
+					"name": "Rezervasyon Detayını Getir",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "/*\r\nRezervasyon Detayları Getirme\r\n\r\nGönderilen rezervasyon id değerine göre rezervasyon detayı döndürülür.\r\n\r\nYalnızca giriş yapmış ve rezervasyon ile ilişkili kullanıcılara dönüş sağlar.\r\n\r\nBaşkasının rezervasyonlarını göremezsin.\r\n*/",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/appointments/{{appointment_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"appointments",
+								"{{appointment_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Rezervasyon Kısmi Güncelleme (PATCH)",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"notes\": \"Notlar güncellendi - hasta 15 dakika geç gelecek\",\n  \"duration\": 75\n}\n/*\nRezervasyon Kısmi Güncelleme\n\nBu endpoint ile rezervasyonun belirli alanlarını güncelleyebilirsiniz.\nSadece gönderdiğiniz alanlar güncellenir, diğer alanlar değişmez.\n\nGüncellenebilir Alanlar:\n- notes: Notlar\n- duration: Süre (dakika)\n- date: Tarih\n- time: Saat\n\nÖrnek: Sadece notları güncellemek için:\n{\"notes\": \"Yeni not\"}\n\nÖrnek: Saat ve süreyi güncellemek için:\n{\"time\": \"14:30:00\", \"duration\": 60}\n*/",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/appointments/{{appointment_id}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"appointments",
+								"{{appointment_id}}",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Rezervasyon Durum Güncelleme",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"cancel_requested\"\n}\n/*\nRezervasyon Durum Güncelleme\n\nBu endpoint sadece rezervasyon durumunu günceller.\nDurum geçiş kuralları ve kullanıcı yetkilendirmesi otomatik kontrol edilir.\n\nKullanılabilir Durum Değerleri:\n- \"pending\": Beklemede (uzman tarafından oluşturuldu)\n- \"waiting_approval\": Onay Bekliyor (danışan tarafından oluşturuldu)\n- \"confirmed\": Onaylandı\n- \"cancel_requested\": İptal Talep Edildi (sadece danışan)\n- \"cancelled\": İptal Edildi (sadece uzman)\n- \"completed\": Tamamlandı (sadece uzman)\n\nDurum Geçiş Kuralları:\n- pending → confirmed, cancelled\n- waiting_approval → confirmed, cancelled\n- confirmed → cancel_requested, completed\n- cancel_requested → cancelled, confirmed\n- cancelled, completed: çıkış yok\n\nYetki Kuralları:\n- confirmed, cancelled, completed: Sadece uzman\n- cancel_requested: Sadece danışan\n\nÖrnek kullanımlar:\n- Danışan iptal talebi: {\"status\": \"cancel_requested\"}\n- Uzman onaylama: {\"status\": \"confirmed\"}\n- Uzman tamamlama: {\"status\": \"completed\"}\n*/",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/appointments/{{appointment_id}}/status/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"appointments",
+								"{{appointment_id}}",
+								"status",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Rezervasyon Silme (Soft Delete)",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/appointments/{{appointment_id}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"appointments",
+								"{{appointment_id}}",
+								""
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Appointments List",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "/*\nRandevu Listesi Endpoint'i - Tarih Aralığı ve Durum Filtreleme\n\nZorunlu Sorgu Parametreleri:\n\nstart_date: Başlangıç tarihi (YYYY-MM-DD formatında)\nend_date: Bitiş tarihi (YYYY-MM-DD formatında)\n\nİsteğe Bağlı Sorgu Parametreleri:\n\nstatus: Randevu durumuna göre filtrele\nGeçerli değerler: pending, waiting_approval, confirmed, cancel_requested, cancelled, completed\n\nTarih Aralığı Kısıtlamaları:\n- Admin kullanıcılar için maksimum 6 ay\n- Diğer kullanıcılar için maksimum 4 ay\n- start_date, end_date'den büyük olamaz\n\nÖrnekler:\n- Kullanıcının Ekim ayı randevuları: ?start_date=2025-10-01&end_date=2025-10-31\n- Kullanıcının onaylanmış randevuları (Kasım): ?start_date=2025-11-01&end_date=2025-11-30&status=confirmed\n- Kullanıcının bekleyen randevuları (Aralık): ?start_date=2025-12-01&end_date=2025-12-31&status=pending\n\nRol Tabanlı Erişim:\n- Tüm kullanıcılar sadece kendi randevularını görebilir (uzman veya danışan olarak)\n- Admin kullanıcılar daha geniş tarih aralığı kullanabilir\n*/",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/appointments/?end_date=2025-12-10&start_date=2025-10-10",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"appointments",
+						""
+					],
+					"query": [
+						{
+							"key": "end_date",
+							"value": "2025-12-10",
+							"description": "Bitiş tarihi (YYYY-MM-DD) - zorunlu"
+						},
+						{
+							"key": "status",
+							"value": "confirmed",
+							"description": "Filter by status: confirmed",
+							"disabled": true
+						},
+						{
+							"key": "status",
+							"value": "pending",
+							"description": "Filter by status: pending",
+							"disabled": true
+						},
+						{
+							"key": "status",
+							"value": "waiting_approval",
+							"description": "Filter by status: waiting_approval",
+							"disabled": true
+						},
+						{
+							"key": "status",
+							"value": "cancel_requested",
+							"description": "Filter by status: cancel_requested",
+							"disabled": true
+						},
+						{
+							"key": "status",
+							"value": "cancelled",
+							"description": "Filter by status: cancelled",
+							"disabled": true
+						},
+						{
+							"key": "status",
+							"value": "completed",
+							"description": "Filter by status: completed",
+							"disabled": true
+						},
+						{
+							"key": "start_date",
+							"value": "2025-10-10"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Zoom Toplantı Bilgileri",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/v1/appointments/{{appointment_id}}/meeting-info/",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"appointments",
+						"{{appointment_id}}",
+						"meeting-info",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Uzman Randevuları (Danışan İçin)",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/v1/appointments/experts/{{expert_id}}/appointments/?start_date=2025-10-01&end_date=2025-12-30",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"appointments",
+						"experts",
+						"{{expert_id}}",
+						"appointments",
+						""
+					],
+					"query": [
+						{
+							"key": "start_date",
+							"value": "2025-10-01",
+							"description": "Başlangıç tarihi (YYYY-MM-DD)"
+						},
+						{
+							"key": "end_date",
+							"value": "2025-12-30",
+							"description": "Bitiş tarihi (YYYY-MM-DD)"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "appointment_id",
+			"value": ""
+		}
+	]
+}

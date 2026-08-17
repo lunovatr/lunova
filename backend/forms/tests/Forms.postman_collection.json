@@ -1,0 +1,215 @@
+{
+	"info": {
+		"_postman_id": "5a809253-0461-4496-961d-0efbb59c1b07",
+		"name": "Forms",
+		"description": "Forms app için RESTful API endpoint'leri (Client / Expert)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "37991120",
+		"_collection_link": "https://www.postman.com/red-shuttle-701984/workspace/lunova/collection/37991120-5a809253-0461-4496-961d-0efbb59c1b07?action=share&source=collection_link&creator=37991120"
+	},
+	"item": [
+		{
+			"name": "Forms (Public)",
+			"item": [
+				{
+					"name": "Forms List",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/forms/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"forms",
+								""
+							]
+						},
+						"description": "Aktif formların listesini döndürür (admin kullanıcılar için tüm formlar)."
+					},
+					"response": []
+				},
+				{
+					"name": "Form Detail",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/forms/{{form_id}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"forms",
+								"{{form_id}}",
+								""
+							]
+						},
+						"description": "Belirli bir formun detaylarını ve sorularını döndürür."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Client",
+			"item": [
+				{
+					"name": "Submit Form",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"form_id\": 1,\n  \"answers\": [\n    {\n      \"question_id\": 1,\n      \"text_answer\": \"1\"\n    },\n    {\n      \"question_id\": 2,\n      \"text_answer\": \"Some text answer\"\n    },\n    {\n      \"question_id\": 3,\n      \"selected_option_ids\": [1, 2]\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/forms/submit/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"forms",
+								"submit",
+								""
+							]
+						},
+						"description": "Kullanıcının bir formu doldurup göndermesini sağlar ve form cevabını kaydeder."
+					},
+					"response": []
+				},
+				{
+					"name": "My Form Responses",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/forms/me/form-responses/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"forms",
+								"me",
+								"form-responses",
+								""
+							]
+						},
+						"description": "Kullanıcının kendi form cevaplarının özet listesini döndürür (sadece client kullanıcılar için)."
+					},
+					"response": []
+				},
+				{
+					"name": "My Form Response Detail",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/forms/me/form-responses/{{response_id}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"forms",
+								"me",
+								"form-responses",
+								"{{response_id}}",
+								""
+							]
+						},
+						"description": "Kullanıcının belirli bir form cevabının detaylarını ve tüm cevaplarını döndürür (sadece client kullanıcılar için)."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Expert",
+			"item": [
+				{
+					"name": "Client Form Responses",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/forms/clients/{{client_id}}/form-responses/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"forms",
+								"clients",
+								"{{client_id}}",
+								"form-responses",
+								""
+							]
+						},
+						"description": "Expert kullanıcının bir client'ın form cevaplarının özet listesini görüntülemesini sağlar."
+					},
+					"response": []
+				},
+				{
+					"name": "Client Form Response Detail",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/forms/clients/{{client_id}}/form-responses/{{response_id}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"forms",
+								"clients",
+								"{{client_id}}",
+								"form-responses",
+								"{{response_id}}",
+								""
+							]
+						},
+						"description": "Expert kullanıcının bir client'ın belirli bir form cevabının detaylarını, skorlamasını ve yorumlarını görüntülemesini sağlar."
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://127.0.0.1:8000"
+		},
+		{
+			"key": "form_id",
+			"value": "16"
+		},
+		{
+			"key": "client_id",
+			"value": "6"
+		},
+		{
+			"key": "response_id",
+			"value": "210"
+		}
+	]
+}
