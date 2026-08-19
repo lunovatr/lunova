@@ -1,6 +1,33 @@
 # Client Frontend (Danışan) - Claude Developer Guide
 
-> Bu dosya `client/src` kaynak kodu ve `package.json` doğrudan okunarak doğrulanmıştır. Önceki taslak; Redux thunk isimlerini, paket versiyonlarını ve `.env` dosyalarının varlığını yanlış tahmin etmişti — burada düzeltildi. Genel sistem bilgisi için kök [claude.md](../claude.md)'ye bakın.
+> Bu dosya `client/src` kaynak kodu ve `package.json` doğrudan okunarak doğrulanmıştır. Önceki taslak; Redux thunk isimlerini, paket versiyonlarını ve `.env` dosyalarının varlığını yanlış tahmin etmişti — burada düzeltildi. Genel sistem bilgisi için kök [claude.md](../claude.md)'ye bakın (dokümantasyon bakım kuralları da orada — kısaca: `client/` içinde yaptığın HER değişiklikten sonra hem bu dosya hem kök `claude.md` güncellenmeli, token maliyeti gerekçesiyle atlanmaz).
+
+> ## 🔧 Son Değişiklikler (2026-08-19, 8. tur) — Ana Sayfa Scroll Bug'ı, Zoom 15dk Kısıtı, Takvim Rengi Lejantı
+> Kullanıcının bildirdiği somut bir bug + bir yeni özellik. Tam detay için kök [claude.md](../claude.md)'nin 8. tur girdisine bakın.
+> - **`components/common/GlobalSpinner.tsx`**: ilk login sonrası ana sayfada scroll çalışmıyordu. Kök neden: `document.body.style.overflow = 'hidden'` mount-only bir effect'te set ediliyor, sadece unmount cleanup'ında resetleniyordu — ama bu component `App.tsx`'te kalıcı mount'lu (hiç unmount olmuyor). Effect artık `[loading]`'e bağımlı; loading `false` olur olmaz overflow anında `'unset'`e dönüyor.
+> - **Yeni `utils/zoomAccess.ts`** → `getZoomJoinBlockMessage(date, time)`: randevu saatinden 15 dk'dan erken çağrılırsa uyarı metni, aksi halde `null` döner. `components/tables/Appointments/AppointmentsTable.tsx` (yeni `onZoomBlocked` prop) ve `components/dashboard/UpcomingAppointmentsCard.tsx` (kendi toast instance'ı) Zoom butonlarının `onClick`'ine bu kontrolü ekledi — erken tıklamada `window.open` hiç çağrılmıyor.
+> - **`components/dashboard/MiniCalendarCard.tsx`**: küçük bir renk lejantı eklendi (zaten `cancelled` hariç her durumu renkli gösteriyordu, sadece hangi rengin ne anlama geldiği belli değildi).
+> - **[Bu sohbette ayrıca yanıtlandı, kod değişmedi]** "Zoom linkine tıklayınca 404" sorusu — kök neden backend'de (`appointments/views.py`, dev modda mock `"mock url"` string'i), detay kök claude.md'de.
+> - **Doğrulama**: `npx tsc --noEmit` + `npx vite build` temiz. Gerçek tarayıcıda tıklanarak test edilmedi (araç yok) — özellikle "login sonrası ana sayfa scroll" ve "Zoom butonuna erken tıklayınca toast çıkıp link açılmıyor, 15 dk kala normal açılıyor" akışlarının manuel doğrulanması öneriliyor.
+
+> ## 🔧 Son Değişiklikler (2026-08-19, 7. tur) — Mobil Bug'lar, Şablon Temizliği, Ana Sayfa Yeniden Yapıldı
+> Geniş bir UI turu — tam detay için kök [claude.md](../claude.md)'nin 7. tur girdisine bakın. Burada sadece `client`'a özgü teknik özet.
+> - **Mobil header logosu taşıyordu** (`layout/AppHeader.tsx:86-97`): `lg:hidden` bloğundaki `<img>`'lerde hiç boyut kısıtı yoktu → 1500×500px'lik logo mobilde ham boyutuyla basılıp ekranın ~4 katı genişlikte taşıyordu. `width`/`height={120×32}` + `h-8 w-auto` eklendi. Ayrıca `src="./images/..."` (relative, `/appointments/request` gibi 2+ segmentli route'larda URL çözümleme kurallarına göre kırılıyordu) → `/images/...` (absolute, `AppSidebar.tsx` zaten böyle kullanıyordu) düzeltildi.
+> - **Mobil sidebar bir linke tıklayınca kapanmıyordu** (`layout/AppSidebar.tsx`): nav `Link`lerinde `onClick` yoktu. `closeMobileSidebar` helper'ı eklenip iki `Link`e de (`nav.path` ve `subItem.path`) bağlandı (`isMobileOpen` ise `toggleMobileSidebar()`, masaüstünde etkisiz).
+> - `context/SidebarContext.tsx`: `isMobile` eşiği `768px`→`1024px` (Header/Sidebar'ın kendi `lg` kullanımıyla tutarlı hale getirildi — önceden 768-1024 arası tutarsız davranıyordu).
+> - **`pages/Dashboard/Home.tsx` tamamen yeniden yazıldı**: eski TailAdmin e-ticaret dashboard'u (sahte metrikler, "ürün" olarak giydirilmiş randevu tablosu, dünya haritası demografi widget'ı) kaldırıldı. Yeni `components/dashboard/{WelcomeCard,UpcomingAppointmentsCard,MiniCalendarCard}.tsx` — `GET /api/v1/appointments/`'tan tek bir fetch (`AppointmentsList.tsx` ile aynı parametreler), karşılama+hızlı linkler, en yakın 3 randevu (durum rozeti + Zoom butonu), ve zaten bağımlılıklarda hazır olan FullCalendar (`@fullcalendar/react`+`daygrid`, TR locale) ile kompakt aylık takvim. Eski `components/ecommerce/*` (6 dosya) öksüz kaldığı için silindi.
+> - **Şablon/marka temizliği**: `layout/SidebarWidget.tsx`'teki canlı "tailadmin.com/pricing" upsell kutusu kaldırıldı (basit "© Lunova" notu kondu); `index.html` favicon mime type düzeltildi (`image/svg+xml`→`image/png`, dosya zaten `.png`'ydi) + eksik `<title>` eklendi; `pages/OtherPage/NotFound.tsx` ve 4 auth sayfasının `PageMeta` başlıkları "TailAdmin" → Lunova/Türkçe; `alt="Logo"` → `alt="Lunova"` (AppSidebar, AuthPageLayout). `package.json` `name`: `tailadmin-react` → `lunova-client`.
+> - **Silindi (doğrulanmış, kullanılmayan)**: `components/header/Header.tsx` (hiçbir yerden import edilmiyordu, içinde `formbold.com`'a giden bir form + gömülü YouTube videoları vardı); `public/images/logo/{logo.svg,logo-dark.svg,auth-logo.svg}` (TailAdmin'in kendi jenerik placeholder logosu, kod tarafından hiç kullanılmıyordu — gerçek Lunova logosu `logo-black-red.png`/`logo.png`'ye dokunulmadı); `App.tsx`'te zaten yorum satırıyla devre dışı olan `pages/{Blank,Calendar}.tsx` + `pages/{Charts,Forms,Tables,UiElements}/` ve SADECE onlara özel bileşenler (`components/charts/{bar,line}/`, `components/ui/{videos,images}/`, `components/form/form-elements/`, `components/tables/BasicTables/`) — artık sadece gizli değil, dosyalar da yok. `App.tsx`/`AppSidebar.tsx`'teki bu dosyalara işaret eden ölü yorum satırları temizlendi.
+> - **`/terms` ve `/privacy` altyapısı eklendi (İÇERİKSİZ)**: `pages/Legal/{TermsOfService,PrivacyPolicy}.tsx` (yeni) + `App.tsx`'te auth durumundan bağımsız, herkese açık route'lar. `SignUpForm.tsx`'teki düz/tıklanamaz "Kullanım Şartları"/"Gizlilik Politikası" metni artık bu route'lara giden gerçek `<Link target="_blank">`.
+> - **Doğrulama**: `npx tsc --noEmit` temiz, `npx vite build` başarılı (dist temizlendi). **Gerçek tarayıcıda tıklanarak hiçbiri test edilmedi** (ortamda hâlâ tarayıcı otomasyon aracı yok) — bir sonraki oturumda mobil genişlikte sidebar/header ve yeni ana sayfa widget'larının manuel kontrolü öneriliyor.
+> - **Fark edilen, ele alınmayan follow-up**: sidebar daraltılmış hâldeki ikon (`public/images/logo/logo-icon.svg`) hâlâ TailAdmin'in jenerik ikonu — elimizde uygun bir icon-only Lunova asset'i yok, otomatik kırpma denenmedi (kötü sonuç riski). `README.md` bu turun kapsamı dışında bırakıldı.
+
+> ## 🔧 Son Değişiklikler (2026-08-19, 6. tur) — Profil Kartlarında Gizli Toast Bug'ı
+> Kullanıcı şikayeti: profil kartlarından (Kimlik/İletişim/Süreç) birini düzenleyip kaydedince hiçbir bildirim çıkmıyor, düzenleme modalı da kapanmıyordu. Kapsam: sadece `src/components/common/ToastContainer.tsx` (tek satır değişiklik).
+> - **Kök neden**: `src/components/ui/modal/index.tsx` → `Modal`, tam ekranı kaplayan bulanık backdrop'la `z-99999` kullanıyor. `ToastContainer.tsx` ise `z-50` ile render ediliyordu. `UserMetaCard.tsx`/`UserContactCard.tsx`/`UserSupportCard.tsx`'teki `handleSave()` hata aldığında (örn. bir CSRF/ağ/validasyon hatası) `closeModal()`'a hiç uğramıyor (bu doğru davranış — sadece BAŞARIDA modal kapanıyor), ama `showToast(message, "error")` gerçekten çağrılıyor olsa da toast, hâlâ açık duran modalın backdrop'ının arkasında kalıp görünmüyordu. Kullanıcı gözünden "hiçbir şey olmadı" — aslında bir hata oluşuyordu, sadece bildirim gizliydi.
+> - **Düzeltme**: `ToastContainer.tsx`'teki `z-50` → `z-999999` (`index.css`'te zaten tanımlı en üst custom z-index tonu, Modal'ın `z-99999`'undan yüksek). `ToastContainer` tek/paylaşılan bir bileşen olduğu için bu düzeltme, onu kullanan diğer yerlerde de (`pages/Appointments/AppointmentsList.tsx`, `AppointmentForm.tsx`, `Request.tsx`) aynı gizli-toast riskini kapatıyor.
+> - **Doğrulama**: `npx tsc --noEmit` temiz. Ayrıca bu vesileyle backend'in CSRF zinciri (kök [claude.md](../claude.md)'nin 6. tur girdisine bakın) gerçekçi bir `curl` senaryosuyla (login → `csrftoken` cookie → üç kartın gerçek payload şekilleriyle `PATCH /accounts/profile/` → `200`; header'sız aynı istek → temiz `403`) yeniden ve daha sıkı doğrulandı — sonuç: backend tarafı sağlam, bu turun asıl bulgusu (toast z-index'i) CSRF'ten bağımsız, saf bir frontend CSS/stacking-context hatasıydı. **Toast'ın düzeltmeden sonra gerçek bir tarayıcıda modalın önünde göründüğü tıklanarak doğrulanmadı** (ortamda tarayıcı otomasyon aracı yok) — statik bir z-index karşılaştırması olduğu için yüksek güvenle doğru kabul ediliyor, ama bir sonraki oturumda/tarayıcıda gözle teyit önerilir.
+> - **Fark edilen, kritik olmayan bir isimlendirme notu**: `UserSupportCard.tsx` dosyasının içindeki bileşen adı aslında `UserTreatmentCard`; `UserContactCard.tsx` ise `pages/UserProfiles.tsx`'te `UserInfoCard` diye import ediliyor. Üçü de doğru render ediliyor, fonksiyonel bug yok — sadece dosya adı/bileşen adı/import alias'ı tutarsızlığı, düşük öncelik.
 
 > ## 🔧 Son Değişiklikler (2026-08-17, 5. tur) — CSRF Token Desteği
 > Backend artık POST/PATCH/DELETE'lerde gerçek CSRF token doğrulaması yapıyor (kök [claude.md](../claude.md)'deki 5. tur changelog'una bakın). Kapsam: sadece `src/lib/api.ts`.
@@ -66,18 +93,23 @@ npm run preview
 ```
 client/src/
 ├── App.tsx, main.tsx, index.css
-├── components/   → UserProfile, auth, charts, common, ecommerce, form, header, tables, ui
+├── components/   → UserProfile, auth, common, dashboard, form, header, tables, ui
+│                   ("charts"/"ecommerce" KLASÖRLERİ YOK — 7. turda silindi, aşağıya bakın)
 ├── context/      → SidebarContext.tsx, ThemeContext.tsx
 ├── hooks/        → useGoBack.ts, useModal.ts, useToast.ts
 ├── icons/
 ├── layout/       → AppHeader, AppLayout, AppSidebar, Backdrop, SidebarWidget
 ├── lib/          → api.ts (TEK dosya)
 ├── mappers/      → profileMapper.ts
-├── pages/        → Appointments, AuthPages, Blank, Calendar, Charts, Dashboard,
-│                   Forms, OtherPage, Tables, UiElements, UserProfiles
+├── pages/        → Appointments, AuthPages, Dashboard, Legal, OtherPage, UserProfiles
+│                   ("Blank"/"Calendar"/"Charts"/"Forms"/"Tables"/"UiElements" YOK —
+│                    7. turda TailAdmin şablon leftover'ı olarak silindi; "Legal" yeni,
+│                    içeriksiz /terms+/privacy altyapısı)
 ├── store/        → authReducer.ts (KULLANILMIYOR — bkz. aşağı), authSlice.ts, hooks.ts, index.ts
 └── types/        → appointment.ts, auth.ts, profile.payload.ts, profile.types.ts
 ```
+
+`components/dashboard/` (7. turda yeni) → `WelcomeCard.tsx`, `UpcomingAppointmentsCard.tsx`, `MiniCalendarCard.tsx` — `pages/Dashboard/Home.tsx`'in gerçek veri kullanan widget'ları, `components/ecommerce/*`'in yerine geçti.
 
 ## 🔌 API Client (`lib/api.ts`) — birebir doğrulanmış
 
@@ -118,7 +150,7 @@ Gerçek thunk'lar: **`fetchMe`, `fetchProfile`, `logoutThunk`** — önceki dok�
 "react-redux": "^9.2.0",     // ⚠️ önceki dokümanda ^8.1.0 deniyordu, YANLIŞ
 "redux": "^5.0.1"             // ayrı bir doğrudan bağımlılık olarak da var
 ```
-Paket adı: `"tailadmin-react"`, versiyon `"2.0.2"` (şablondan kalma).
+Paket adı: **[7. turda düzeltildi]** ~~`"tailadmin-react"`~~ → `"lunova-client"`, versiyon `"2.0.2"` → `"0.1.0"`.
 
 ## 🧪 Testing
 
@@ -136,6 +168,9 @@ Test dosyası yok (`*.test.*`/`*.spec.*` → 0 sonuç), `package.json` scriptler
 8. ✅ **[DÜZELTİLDİ — 2026-08-17, 4. tur]** ~~`pages/Appointments/ExpertAvailability.tsx:296` → `AppointmentForm`'a `navigate={() => {}}` (no-op) geçiyor~~ — artık gerçek `useNavigate()` geçiliyor. Detay için yukarıdaki "4. tur" changelog girişine bakın. **Not**: gerçek tarayıcıda tıklanarak henüz doğrulanmadı, sadece `tsc` + kod-yolu incelemesiyle.
 9. **[2026-08-17'de bulundu, düşük öncelik]** `pages/Appointments/AppointmentsList.tsx:50`, `Request.tsx:50` → API response'u şekil kontrolsüz `.map()`'e veriliyor (yeni eklenen `ErrorBoundary` bunu artık yakalıyor, ama kök neden düzeltilmedi).
 10. **[doğrulandı, hâlâ mevcut]** `components/UserProfile/UploadDocumentModal.tsx`, fotoğraf yükleme sonrası `dispatch(fetchMe())` → `App.tsx`'teki `RequireAuth` tüm `AppLayout`'u (overlay değil, tam replace) `GlobalSpinner` ile değiştiriyor.
+11. **[7. turda bulundu]** Sidebar daraltılmış hâlde gösterilen `public/images/logo/logo-icon.svg` gerçek bir Lunova ikonu değil, TailAdmin'in jenerik placeholder'ı — elimizdeki iki PNG (yatay/dikey lockup) bu kullanım için uygun değil, ayrı bir icon-only asset gerekiyor.
+12. **[7. turda bilinçli olarak kapsam dışı bırakıldı]** `README.md` hâlâ orijinal TailAdmin şablon README'si (yukarıda detaylı) — bu tur "canlı UI" turuydu, dokümantasyon turu değil.
+13. **[7. turda eklendi, içeriksiz]** `pages/Legal/{TermsOfService,PrivacyPolicy}.tsx` sadece altyapı — gerçek Kullanım Şartları/Gizlilik Politikası metni kullanıcı tarafından eklenecek.
 
 ---
-**Son Güncelleme**: 2026-08-17, 5. tur (`lib/api.ts`'e CSRF token desteği eklendi; `tsc` temiz, backend curl ile doğrulandı, tarayıcı testi bekliyor)
+**Son Güncelleme**: 2026-08-19, 8. tur (ana sayfa scroll bug'ı `GlobalSpinner.tsx`'te düzeltildi, Zoom butonlarına 15dk ön koşul eklendi, mini takvime renk lejantı eklendi — `tsc`/`vite build` temiz, gerçek tarayıcı testi bekliyor)

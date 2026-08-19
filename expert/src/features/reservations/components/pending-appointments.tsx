@@ -91,7 +91,7 @@ export function PendingAppointments({ appointments, onUpdate, onAppointmentClick
                         {format(startTime, 'HH:mm')} - {format(endTime, 'HH:mm')}
                       </p>
                     </div>
-                    <div className='flex gap-2'>
+                    <div className='flex gap-2' onClick={(e) => e.stopPropagation()}>
                       <Button
                         size='sm'
                         variant='outline'

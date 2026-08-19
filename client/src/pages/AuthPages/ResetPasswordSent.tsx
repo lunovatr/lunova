@@ -6,8 +6,8 @@ export default function ResetPasswordSent() {
   return (
     <>
       <PageMeta
-        title="Email Gönderildi | TailAdmin - React.js Admin Dashboard Template"
-        description="Şifre sıfırlama email'i gönderildi - TailAdmin React.js Tailwind CSS Admin Dashboard Template"
+        title="E-posta Gönderildi | Lunova"
+        description="Şifre sıfırlama e-postası gönderildi."
       />
       <AuthLayout>
         <ResetPasswordSentContent />

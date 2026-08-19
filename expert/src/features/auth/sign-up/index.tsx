@@ -35,19 +35,19 @@ export function SignUp() {
         <CardFooter>
           <p className='text-muted-foreground px-8 text-center text-sm'>
             Hesap oluşturarak{' '}
-            <a
-              href='/terms'
+            <Link
+              to='/terms'
               className='hover:text-primary underline underline-offset-4'
             >
               Hizmet Şartları
-            </a>{' '}
+            </Link>{' '}
             ve{' '}
-            <a
-              href='/privacy'
+            <Link
+              to='/privacy'
               className='hover:text-primary underline underline-offset-4'
             >
               Gizlilik Politikası
-            </a>
+            </Link>
             'nı kabul etmiş olursunuz.
           </p>
         </CardFooter>

@@ -450,13 +450,23 @@ export default function SignUpForm() {
                   />
                   <p className="inline-block text-sm font-normal text-gray-500 dark:text-gray-400">
                     Hesap oluştururken,{" "}
-                    <span className="text-gray-800 dark:text-white/90">
-                      Kullanım Şartları,
-                    </span>{" "}
+                    <Link
+                      to="/terms"
+                      target="_blank"
+                      className="text-gray-800 underline hover:text-brand-500 dark:text-white/90"
+                    >
+                      Kullanım Şartları
+                    </Link>
+                    {"'nı "}
                     ve{" "}
-                    <span className="text-gray-800 dark:text-white">
-                      Gizlilik Politikasını kabul ediyorum.
-                    </span>
+                    <Link
+                      to="/privacy"
+                      target="_blank"
+                      className="text-gray-800 underline hover:text-brand-500 dark:text-white"
+                    >
+                      Gizlilik Politikası
+                    </Link>
+                    {"'nı kabul ediyorum."}
                   </p>
                   {errors.terms && <p className="mt-1 text-sm text-red-500">{errors.terms}</p>}
                 </div>

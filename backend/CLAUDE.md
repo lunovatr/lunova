@@ -1,6 +1,6 @@
 # Backend - Claude Developer Guide
 
-> Bu dosya kaynak koddan (settings.py, models.py, views.py, urls.py) doğrudan doğrulanmıştır — bir önceki AI taslağındaki model alanları, endpoint listesi ve token ömrü gibi bilgilerin çoğu hatalıydı ve burada düzeltildi. Kök dizindeki [claude.md](../claude.md) genel sistem/haberleşme sorunlarını, bu dosya backend'in iç detaylarını anlatır.
+> Bu dosya kaynak koddan (settings.py, models.py, views.py, urls.py) doğrudan doğrulanmıştır — bir önceki AI taslağındaki model alanları, endpoint listesi ve token ömrü gibi bilgilerin çoğu hatalıydı ve burada düzeltildi. Kök dizindeki [claude.md](../claude.md) genel sistem/haberleşme sorunlarını, bu dosya backend'in iç detaylarını anlatır (dokümantasyon bakım kuralları da orada — kısaca: `backend/` içinde yaptığın HER değişiklikten sonra hem bu dosya hem kök `claude.md` güncellenmeli, token maliyeti gerekçesiyle atlanmaz).
 
 > ## 🔧 Son Değişiklikler (2026-08-17, 5. tur) — CSRF Koruması
 > Sistemin en kritik açık güvenlik bulgusu kapatıldı. Kapsam: `accounts/authentication.py`, `accounts/views/views.py`, `lunova_backend/settings.py`. Tam gerekçe ve curl doğrulama adımları için kök [claude.md](../claude.md)'deki 5. tur changelog'una bakın; burada sadece backend'e özgü teknik detaylar.

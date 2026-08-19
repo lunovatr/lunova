@@ -9,6 +9,7 @@ import {
 } from "../../ui/table";
 import Badge from "../../ui/badge/Badge";
 import type { Appointment } from "../../../types/appointment";
+import { getZoomJoinBlockMessage } from "../../../utils/zoomAccess";
 
 interface AppointmentsTableProps {
   appointments: Appointment[];
@@ -16,6 +17,8 @@ interface AppointmentsTableProps {
   // Backend'in desteklediği geçişler: confirmed -> cancel_requested (danışan iptal talebi),
   // waiting_approval -> cancelled (danışan kendi onaylanmamış talebini geri çeker).
   onStatusChange?: (appointmentId: number, status: "cancel_requested" | "cancelled") => Promise<void>;
+  // Zoom bağlantısı randevu saatinden 15 dk'dan daha erken açılmaya çalışılırsa çağrılır.
+  onZoomBlocked?: (message: string) => void;
 }
 
 const statusColors: Record<string, "success" | "warning" | "error" | "light"> = {
@@ -39,6 +42,7 @@ const statusLabels: Record<string, string> = {
 export default function AppointmentsTable({
   appointments,
   onStatusChange,
+  onZoomBlocked,
 }: AppointmentsTableProps) {
   const [pendingActionId, setPendingActionId] = useState<number | null>(null);
 
@@ -157,7 +161,14 @@ export default function AppointmentsTable({
                     <div className="flex flex-wrap items-center gap-2">
                       {appointment.status === "confirmed" && appointment.zoom_join_url && (
                         <button
-                          onClick={() => window.open(appointment.zoom_join_url!, "_blank")}
+                          onClick={() => {
+                            const blockMessage = getZoomJoinBlockMessage(appointment.date, appointment.time);
+                            if (blockMessage) {
+                              onZoomBlocked?.(blockMessage);
+                              return;
+                            }
+                            window.open(appointment.zoom_join_url!, "_blank");
+                          }}
                           className="rounded-lg bg-blue-600 px-3 py-1.5 text-theme-xs font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                         >
                           Zoom'a Katıl

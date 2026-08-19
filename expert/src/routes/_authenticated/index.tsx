@@ -5,8 +5,3 @@ export const Route = createFileRoute('/_authenticated/')({
     throw redirect({ to: '/reservations' })
   },
 })
-
-// import { Dashboard } from '@/features/dashboard'
-// export const Route = createFileRoute('/_authenticated/')({
-//   component: Dashboard,
-// })

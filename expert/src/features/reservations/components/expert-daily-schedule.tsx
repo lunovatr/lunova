@@ -65,6 +65,58 @@ interface ExpertDailyScheduleProps {
   onAppointmentClick?: (id: number) => void
 }
 
+// Program (günlük/haftalık) görünümünde randevu bloklarının durum bazlı rengi.
+// "cancelled" hiç gösterilmiyor (aşağıdaki filtrelerde eleniyor), yine de map'te
+// tutuluyor — ileride bir yerde kullanılırsa diye.
+const STATUS_STYLES: Record<
+  Appointment['status'],
+  { bg: string; border: string; text: string; dot: string }
+> = {
+  confirmed: {
+    bg: 'bg-emerald-500/10 hover:bg-emerald-500/20',
+    border: 'border-emerald-500/30',
+    text: 'text-emerald-700 dark:text-emerald-400',
+    dot: 'bg-emerald-500',
+  },
+  pending: {
+    bg: 'bg-amber-500/10 hover:bg-amber-500/20',
+    border: 'border-amber-500/30',
+    text: 'text-amber-700 dark:text-amber-400',
+    dot: 'bg-amber-500',
+  },
+  waiting_approval: {
+    bg: 'bg-amber-500/10 hover:bg-amber-500/20',
+    border: 'border-amber-500/30',
+    text: 'text-amber-700 dark:text-amber-400',
+    dot: 'bg-amber-500',
+  },
+  cancel_requested: {
+    bg: 'bg-orange-500/10 hover:bg-orange-500/20',
+    border: 'border-orange-500/30',
+    text: 'text-orange-700 dark:text-orange-400',
+    dot: 'bg-orange-500',
+  },
+  completed: {
+    bg: 'bg-gray-500/10 hover:bg-gray-500/20',
+    border: 'border-gray-500/30',
+    text: 'text-gray-600 dark:text-gray-400',
+    dot: 'bg-gray-500',
+  },
+  cancelled: {
+    bg: 'bg-red-500/10 hover:bg-red-500/20',
+    border: 'border-red-500/30',
+    text: 'text-red-700 dark:text-red-400',
+    dot: 'bg-red-500',
+  },
+}
+
+const STATUS_LEGEND: { status: Appointment['status']; label: string }[] = [
+  { status: 'pending', label: 'Onay Bekliyor' },
+  { status: 'confirmed', label: 'Onaylandı' },
+  { status: 'cancel_requested', label: 'İptal Talebi' },
+  { status: 'completed', label: 'Tamamlandı' },
+]
+
 /**
  * @component ExpertDailySchedule
  * Belirli bir uzmanın günlük programını dikey bir zaman çizelgesi üzerinde görselleştirir.
@@ -86,8 +138,9 @@ export const ExpertDailySchedule = ({
   const isDark = resolvedTheme === 'dark'
 
   // Randevuları günlere göre grupla ve her günün randevu sayısını hesapla
+  // (iptal edilenler hariç tüm durumlar — onay bekleyenler de yoğunluğa dahil)
   const appointmentsByDate = appointments
-    .filter((app) => app.status === 'confirmed')
+    .filter((app) => app.status !== 'cancelled')
     .reduce((acc, app) => {
       const date = app.date
       if (!acc[date]) {
@@ -119,7 +172,7 @@ export const ExpertDailySchedule = ({
     .filter(
       (app) =>
         app.date === format(selectedDate, 'yyyy-MM-dd') &&
-        app.status === 'confirmed'
+        app.status !== 'cancelled'
     )
     .map((app) => {
       const startTime = parse(
@@ -254,6 +307,14 @@ export const ExpertDailySchedule = ({
           </Popover>
         </div>
       </CardHeader>
+      <div className='flex flex-wrap items-center gap-3 px-6 pb-2'>
+        {STATUS_LEGEND.map(({ status, label }) => (
+          <span key={status} className='flex items-center gap-1.5 text-xs text-muted-foreground'>
+            <span className={`h-2.5 w-2.5 rounded-full ${STATUS_STYLES[status].dot}`} />
+            {label}
+          </span>
+        ))}
+      </div>
       <CardContent>
         {viewMode === 'daily' ? (
           /* GÜNLÜK GÖRÜNÜM - Mevcut Timeline */
@@ -304,17 +365,17 @@ export const ExpertDailySchedule = ({
                 style={{ top: `${topPosition}px`, height: `${blockHeight}px` }}
               >
                 <div className='absolute -left-1.5 flex h-full items-start pt-1'>
-                  <div className='bg-background border-primary flex h-4 w-4 items-center justify-center rounded-full border-2'>
-                    <div className='bg-primary h-2 w-2 rounded-full' />
+                  <div className='bg-background border-foreground/20 flex h-4 w-4 items-center justify-center rounded-full border-2'>
+                    <div className={`h-2 w-2 rounded-full ${STATUS_STYLES[app.status].dot}`} />
                   </div>
                 </div>
                 <HoverCard>
                   <HoverCardTrigger asChild>
                     <div
-                        className='bg-primary/10 border-primary/20 flex h-full items-center justify-between rounded-md border p-3 cursor-pointer hover:bg-primary/20 transition-colors'
+                        className={`${STATUS_STYLES[app.status].bg} ${STATUS_STYLES[app.status].border} flex h-full items-center justify-between rounded-md border p-3 cursor-pointer transition-colors`}
                         onClick={() => onAppointmentClick?.(app.id)}
                       >
-                      <div className='text-primary truncate text-sm font-semibold'>
+                      <div className={`${STATUS_STYLES[app.status].text} truncate text-sm font-semibold`}>
                         {format(app.startTime, 'HH:mm')} -{' '}
                         {format(app.endTime, 'HH:mm')}
                       </div>
@@ -448,7 +509,7 @@ const WeeklyScheduleView = ({ appointments, selectedDate, onAppointmentClick }: 
   const appointmentsByDay = weekDays.map((day) => {
     const dayStr = format(day, 'yyyy-MM-dd')
     const dayAppointments = appointments
-      .filter((app) => app.date === dayStr && app.status === 'confirmed')
+      .filter((app) => app.date === dayStr && app.status !== 'cancelled')
       .map((app) => {
         const startTime = parse(
           `${app.date} ${app.time}`,
@@ -509,10 +570,10 @@ const WeeklyScheduleView = ({ appointments, selectedDate, onAppointmentClick }: 
                   <HoverCard key={`${dayStr}-${time}`}>
                     <HoverCardTrigger asChild>
                       <div
-                        className='h-8 border border-primary/20 bg-primary/10 cursor-pointer hover:bg-primary/20 transition-colors flex items-center justify-center p-1'
+                        className={`h-8 border ${STATUS_STYLES[appointment.status].border} ${STATUS_STYLES[appointment.status].bg} cursor-pointer transition-colors flex items-center justify-center p-1`}
                         onClick={() => onAppointmentClick?.(appointment.id)}
                       >
-                        <span className='text-xs text-primary font-semibold truncate'>
+                        <span className={`text-xs ${STATUS_STYLES[appointment.status].text} font-semibold truncate`}>
                           {appointment.client_name}
                         </span>
                       </div>

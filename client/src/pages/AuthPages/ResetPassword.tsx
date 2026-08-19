@@ -7,8 +7,8 @@ export default function ResetPassword() {
   return (
     <>
       <PageMeta
-        title="React.js Reset Password Dashboard | TailAdmin - Next.js Admin Dashboard Template"
-        description="This is React.js Reset Password page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="Şifremi Unuttum | Lunova"
+        description="Lunova hesabınız için şifrenizi sıfırlayın."
       />
       <AuthLayout>
         <ResetPasswordForm />

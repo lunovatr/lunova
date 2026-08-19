@@ -192,7 +192,11 @@ export default function AppointmentsList() {
               </div>
             </div>
           ) : (
-            <AppointmentsTable appointments={appointments} onStatusChange={handleStatusChange} />
+            <AppointmentsTable
+              appointments={appointments}
+              onStatusChange={handleStatusChange}
+              onZoomBlocked={(message) => showToast(message, "warning")}
+            />
           )}
         </div>
       </div>

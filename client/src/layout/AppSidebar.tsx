@@ -22,17 +22,14 @@ type NavItem = {
 const navItems: NavItem[] = [
   {
     icon: <GridIcon />,
-    name: "Dashboard",
-    subItems: [{ name: "Ana Panel", path: "/", pro: false }],
+    name: "Ana Panel",
+    path: "/",
   },
-  // { icon: <CalenderIcon />, name: "Takvim", path: "/calendar" },
   {
     icon: <UserCircleIcon />,
     name: "Profil",
     path: "/profile",
   },
-  // { name: "Formlar", icon: <ListIcon />, subItems: [{ name: "Form Elemanları", path: "/form-elements", pro: false }] },
-  // { name: "Tablolar", icon: <TableIcon />, subItems: [{ name: "Temel Tablolar", path: "/basic-tables", pro: false }] },
   {
     icon: <CalenderIcon />,
     name: "Randevu Oluştur +",
@@ -43,20 +40,19 @@ const navItems: NavItem[] = [
     name: "Randevularım",
     path: "/appointments",
   },
-  // { name: "Sayfalar", icon: <PageIcon />, subItems: [{ name: "Boş Sayfa", path: "/blank", pro: false }, { name: "404 Hata", path: "/error-404", pro: false }] },
 ];
 
-// Şimdilik devre dışı — ileride aktif edilecek
-// const othersItems: NavItem[] = [
-//   { icon: <PieChartIcon />, name: "Grafikler", subItems: [{ name: "Çizgi Grafik", path: "/line-chart", pro: false }, { name: "Sütun Grafik", path: "/bar-chart", pro: false }] },
-//   { icon: <BoxCubeIcon />, name: "UI Elemanları", subItems: [{ name: "Uyarılar", path: "/alerts", pro: false }, { name: "Avatar", path: "/avatars", pro: false }, { name: "Rozet", path: "/badge", pro: false }, { name: "Butonlar", path: "/buttons", pro: false }, { name: "Resimler", path: "/images", pro: false }, { name: "Videolar", path: "/videos", pro: false }] },
-//   { icon: <PlugInIcon />, name: "Kimlik Doğrulama", subItems: [{ name: "Giriş Yap", path: "/signin", pro: false }, { name: "Kayıt Ol", path: "/signup", pro: false }] },
-// ];
 const othersItems: NavItem[] = [];
 
 const AppSidebar: React.FC = () => {
-  const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
+  const { isExpanded, isMobileOpen, isHovered, setIsHovered, toggleMobileSidebar } = useSidebar();
   const location = useLocation();
+
+  // Mobilde bir sayfaya geçildiğinde sidebar'ı otomatik kapat — masaüstünde
+  // (isMobileOpen zaten false olduğu için) hiçbir etkisi olmaz.
+  const closeMobileSidebar = () => {
+    if (isMobileOpen) toggleMobileSidebar();
+  };
 
   const [openSubmenu, setOpenSubmenu] = useState<{
     type: "main" | "others";
@@ -166,6 +162,7 @@ const AppSidebar: React.FC = () => {
             nav.path && (
               <Link
                 to={nav.path}
+                onClick={closeMobileSidebar}
                 className={`menu-item group ${
                   isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"
                 }`}
@@ -203,6 +200,7 @@ const AppSidebar: React.FC = () => {
                   <li key={subItem.name}>
                     <Link
                       to={subItem.path}
+                      onClick={closeMobileSidebar}
                       className={`menu-dropdown-item ${
                         isActive(subItem.path)
                           ? "menu-dropdown-item-active"
@@ -271,14 +269,14 @@ const AppSidebar: React.FC = () => {
               <img
                 className="dark:hidden"
                 src="/images/logo/logo-black-red.png"
-                alt="Logo"
+                alt="Lunova"
                 width={150}
                 height={40}
               />
               <img
                 className="hidden dark:block"
                 src="/images/logo/logo-black-red.png"
-                alt="Logo"
+                alt="Lunova"
                 width={150}
                 height={40}
               />
@@ -286,7 +284,7 @@ const AppSidebar: React.FC = () => {
           ) : (
             <img
               src="/images/logo/logo-icon.svg"
-              alt="Logo"
+              alt="Lunova"
               width={32}
               height={32}
             />
@@ -312,23 +310,6 @@ const AppSidebar: React.FC = () => {
               </h2>
               {renderMenuItems(navItems, "main")}
             </div>
-            {/* Others bölümü şimdilik devre dışı — othersItems dolduğunda tekrar aktif et */}
-            {/* <div className="">
-              <h2
-                className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
-                  !isExpanded && !isHovered
-                    ? "lg:justify-center"
-                    : "justify-start"
-                }`}
-              >
-                {isExpanded || isHovered || isMobileOpen ? (
-                  "Others"
-                ) : (
-                  <HorizontaLDots />
-                )}
-              </h2>
-              {renderMenuItems(othersItems, "others")}
-            </div> */}
           </div>
         </nav>
         {isExpanded || isHovered || isMobileOpen ? <SidebarWidget /> : null}

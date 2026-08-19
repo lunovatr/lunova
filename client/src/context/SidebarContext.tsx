@@ -35,7 +35,11 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     const handleResize = () => {
-      const mobile = window.innerWidth < 768;
+      // 1024px = Tailwind "lg" — AppHeader/AppSidebar'ın kendi mobil/masaüstü
+      // ayrımı da bu eşiği kullanıyor (lg:translate-x-0, lg:hidden vb.).
+      // Önceden 768 kullanılıyordu; 768-1024 arasında header "mobil" davranıp
+      // toggleMobileSidebar() çağırırken bu context hâlâ "masaüstü" sanıyordu.
+      const mobile = window.innerWidth < 1024;
       setIsMobile(mobile);
       if (!mobile) {
         setIsMobileOpen(false);

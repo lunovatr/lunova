@@ -16,7 +16,6 @@ import { SkipToMain } from '@/components/skip-to-main'
 import { sidebarData } from './data/sidebar-data'
 import { NavGroup } from './nav-group'
 import { NavUser } from './nav-user'
-import { TeamSwitcher } from './team-switcher'
 import { useAuthGuard } from '@/hooks/use-auth-guard'
 import { Loader2 } from 'lucide-react'
 
@@ -51,18 +50,24 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
         <LayoutProvider>
           <SkipToMain />
           <AppSidebar>
-            {sidebarData.teams.length > 0 && (
-              <SidebarHeader>
-                <TeamSwitcher teams={sidebarData.teams} />
-              </SidebarHeader>
-            )}
+            <SidebarHeader>
+              <div className="flex items-center gap-2 px-2 py-1.5 group-data-[collapsible=icon]:hidden">
+                <img
+                  src="/images/logo/logo-black-red.png"
+                  alt="Lunova"
+                  width={120}
+                  height={32}
+                  className="h-7 w-auto dark:brightness-0 dark:invert"
+                />
+              </div>
+            </SidebarHeader>
             <SidebarContent>
               {sidebarData.navGroups.map((props) => (
                 <NavGroup key={props.title} {...props} />
               ))}
             </SidebarContent>
             <SidebarFooter>
-              <NavUser user={sidebarData.user} />
+              <NavUser />
             </SidebarFooter>
             <SidebarRail />
           </AppSidebar>

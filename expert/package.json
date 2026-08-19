@@ -1,7 +1,7 @@
 {
-  "name": "shadcn-admin",
-  "private": false,
-  "version": "2.1.0",
+  "name": "lunova-expert",
+  "private": true,
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,7 +13,6 @@
     "knip": "knip"
   },
   "dependencies": {
-    "@clerk/clerk-react": "^5.49.0",
     "@hookform/resolvers": "^5.2.2",
     "@js-temporal/polyfill": "^0.5.1",
     "@radix-ui/react-alert-dialog": "^1.1.15",

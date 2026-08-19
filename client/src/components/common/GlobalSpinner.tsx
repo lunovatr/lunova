@@ -2,29 +2,24 @@ import { useEffect } from 'react';
 import { useAppSelector } from '../../store/hooks';
 
 export default function GlobalSpinner() {
-  useEffect(() => {
-    // Yükleme sırasında scroll'u engelle
-    if (typeof document !== 'undefined') {
-      document.body.style.overflow = 'hidden';
-    }
-    
-    // Cleanup: component unmount olduğunda scroll'u tekrar aktif et
-    return () => {
-      if (typeof document !== 'undefined') {
-        document.body.style.overflow = 'unset';
-      }
-    };
-  }, []);
   const loading = useAppSelector((s) => s.auth.loading);
+
+  // GlobalSpinner App.tsx'te hep mount halinde (loading'e göre null döner),
+  // hiç unmount olmuyor — bu yüzden overflow'u "loading" değişince (dependency
+  // array'de) resetlemek gerekiyor; sadece unmount cleanup'ına güvenmek
+  // (önceki hâli) loading true->false geçişinde body'yi kalıcı olarak
+  // scroll'suz bırakıyordu (ilk girişten sonra ana sayfada scroll çalışmıyordu).
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.body.style.overflow = loading ? 'hidden' : 'unset';
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [loading]);
 
   if (!loading) return null;
 
-  // Yükleme sırasında scroll'u engelle
-  if (typeof document !== 'undefined') {
-    document.body.style.overflow = 'hidden';
-  }
-
-  // Component unmount olduğunda scroll'u tekrar aktif et
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30 dark:bg-black/50">
       <div className="flex items-center gap-3 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg">

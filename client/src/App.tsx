@@ -8,19 +8,9 @@ import SignUp from "./pages/AuthPages/SignUp";
 import ResetPassword from "./pages/AuthPages/ResetPassword";
 import ResetPasswordSent from "./pages/AuthPages/ResetPasswordSent";
 import NotFound from "./pages/OtherPage/NotFound";
+import TermsOfService from "./pages/Legal/TermsOfService";
+import PrivacyPolicy from "./pages/Legal/PrivacyPolicy";
 import UserProfiles from "./pages/UserProfiles";
-// import Videos from "./pages/UiElements/Videos";
-// import Images from "./pages/UiElements/Images";
-// import Alerts from "./pages/UiElements/Alerts";
-// import Badges from "./pages/UiElements/Badges";
-// import Avatars from "./pages/UiElements/Avatars";
-// import Buttons from "./pages/UiElements/Buttons";
-// import LineChart from "./pages/Charts/LineChart";
-// import BarChart from "./pages/Charts/BarChart";
-// import Calendar from "./pages/Calendar";
-// import BasicTables from "./pages/Tables/BasicTables";
-// import FormElements from "./pages/Forms/FormElements";
-// import Blank from "./pages/Blank";
 import Request from "./pages/Appointments/Request";
 import AppointmentsList from "./pages/Appointments/AppointmentsList";
 import AppLayout from "./layout/AppLayout";
@@ -80,26 +70,16 @@ export default function App() {
           <Route path="/reset-password" element={<AuthGuard><ResetPassword /></AuthGuard>} />
           <Route path="/reset-password-sent" element={<AuthGuard><ResetPasswordSent /></AuthGuard>} />
 
+          {/* Herkese açık hukuki sayfalar — auth durumundan bağımsız erişilebilir olmalı */}
+          <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+
           {/* Protected Routes */}
           <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
             <Route index path="/" element={<Home />} />
             <Route path="/profile" element={<UserProfiles />} />
             <Route path="/appointments/request" element={<Request />} />
             <Route path="/appointments" element={<AppointmentsList />} />
-
-            {/* Şimdilik devre dışı — ileride aktif edilecek */}
-            {/* <Route path="/calendar" element={<Calendar />} /> */}
-            {/* <Route path="/blank" element={<Blank />} /> */}
-            {/* <Route path="/form-elements" element={<FormElements />} /> */}
-            {/* <Route path="/basic-tables" element={<BasicTables />} /> */}
-            {/* <Route path="/alerts" element={<Alerts />} /> */}
-            {/* <Route path="/avatars" element={<Avatars />} /> */}
-            {/* <Route path="/badge" element={<Badges />} /> */}
-            {/* <Route path="/buttons" element={<Buttons />} /> */}
-            {/* <Route path="/images" element={<Images />} /> */}
-            {/* <Route path="/videos" element={<Videos />} /> */}
-            {/* <Route path="/line-chart" element={<LineChart />} /> */}
-            {/* <Route path="/bar-chart" element={<BarChart />} /> */}
           </Route>
 
           {/* Fallback Route */}
