@@ -48,10 +48,26 @@ class AnswerDetailSerializer(serializers.Serializer):
 
 class FormListSerializer(serializers.ModelSerializer):
     """Form listesi için kısa serializer"""
-    
+
+    has_responded = serializers.SerializerMethodField()
+
     class Meta:
         model = Form
-        fields = '__all__'
+        fields = [
+            'id', 'version', 'title', 'description', 'is_active', 'created_at',
+            'updated_at', 'instructions', 'disclaimer', 'stage', 'max_score',
+            'min_score', 'scoring_type', 'has_responded',
+        ]
+
+    def get_has_responded(self, obj):
+        """İstek yapan kullanıcı bu form (bu spesifik versiyon) için zaten
+        cevap göndermiş mi? Grup bazlı değil, tam form satırı bazlı - yeni bir
+        versiyon açıldığında bilinçli olarak 'doldurulmamış' sayılsın diye
+        (kullanıcı kararı, bkz. forms/versioning.py)."""
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        return FormResponse.objects.filter(form=obj, user=request.user).exists()
 
 
 class FormResponseClientDetailSerializer(serializers.ModelSerializer):
@@ -246,41 +262,60 @@ class AnswerSubmitSerializer(serializers.Serializer):
     """Form cevaplarını göndermek için serializer"""
     question_id = serializers.IntegerField()
     text_answer = serializers.CharField(required=False, allow_blank=True)
+    numeric_answer = serializers.FloatField(required=False, allow_null=True)
     selected_option_ids = serializers.ListField(
         child=serializers.IntegerField(),
         required=False
     )
-    
+
     def validate(self, data):
-        """Cevap tipine göre validasyon"""
+        """Cevap tipine göre validasyon - question_type'ın TÜM gerçek
+        seçeneklerini (Question.QUESTION_TYPES) kapsar. Önceden sadece
+        'text' ve var olmayan bir 'test' tipiyle 'multiple_choice' kontrol
+        ediliyordu; yes_no/single_choice/scale/number/date/textarea hiç
+        doğrulanmıyordu."""
         question_id = data.get('question_id')
         text_answer = data.get('text_answer')
+        numeric_answer = data.get('numeric_answer')
         selected_option_ids = data.get('selected_option_ids', [])
-        
+
         try:
             question = Question.objects.get(id=question_id)
         except Question.DoesNotExist:
             raise serializers.ValidationError(f"Question with id {question_id} does not exist")
-        
-        # Soru tipine göre validasyon
-        if question.question_type == 'text':
+
+        q_type = question.question_type
+
+        if q_type in ('text', 'textarea', 'date'):
             if not text_answer or text_answer.strip() == '':
-                raise serializers.ValidationError("Text answer is required for text questions")
+                raise serializers.ValidationError(f"Text answer is required for {q_type} questions")
             if selected_option_ids:
-                raise serializers.ValidationError("Text questions cannot have selected options")
-        
-        elif question.question_type in ['test', 'multiple_choice']:
+                raise serializers.ValidationError(f"{q_type} questions cannot have selected options")
+
+        elif q_type in ('yes_no', 'single_choice', 'multiple_choice'):
             if not selected_option_ids:
                 raise serializers.ValidationError("Selected options are required for choice questions")
+            if q_type in ('yes_no', 'single_choice') and len(selected_option_ids) != 1:
+                raise serializers.ValidationError(f"{q_type} questions require exactly one selected option")
             if text_answer:
                 raise serializers.ValidationError("Choice questions cannot have text answers")
-            
+
             # Seçilen seçeneklerin bu soruya ait olduğunu kontrol et
-            valid_option_ids = question.options.values_list('id', flat=True)
+            valid_option_ids = set(question.options.values_list('id', flat=True))
             for option_id in selected_option_ids:
                 if option_id not in valid_option_ids:
                     raise serializers.ValidationError(f"Invalid option id: {option_id}")
-        
+
+        elif q_type in ('scale', 'number'):
+            if numeric_answer is None:
+                raise serializers.ValidationError(f"Numeric answer is required for {q_type} questions")
+            if selected_option_ids:
+                raise serializers.ValidationError(f"{q_type} questions cannot have selected options")
+            if q_type == 'scale' and not (question.min_scale_value <= numeric_answer <= question.max_scale_value):
+                raise serializers.ValidationError(
+                    f"Scale answer must be between {question.min_scale_value} and {question.max_scale_value}"
+                )
+
         return data
 
 

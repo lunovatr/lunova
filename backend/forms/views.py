@@ -31,7 +31,7 @@ class FormListView(APIView):
         else:
             forms = Form.objects.filter(is_active=True)
 
-        serializer = FormListSerializer(forms, many=True)
+        serializer = FormListSerializer(forms, many=True, context={"request": request})
         return Response(serializer.data)
 
 
@@ -113,14 +113,27 @@ class FormSubmitView(APIView):
             form_id=form_id, user=request.user
         )
 
+        total_score = 0.0
         for a in answers:
             answer = Answer.objects.create(
                 form_response=response_obj,
                 question_id=a["question_id"],
                 text_answer=a.get("text_answer", ""),
+                numeric_answer=a.get("numeric_answer"),
             )
             if a.get("selected_option_ids"):
                 answer.selected_options.set(a["selected_option_ids"])
+            # calculate_score() seçilen seçeneklerin puanlarını okuduğu için
+            # selected_options.set() SONRASINDA çağrılmalı.
+            total_score += answer.calculate_score()
+            answer.save(update_fields=["answer_score"])
+
+        # FormResponse ilk oluşturulduğunda total_score henüz 0.0 (model
+        # varsayılanı) olduğu için save() içindeki risk_level/percentage_score
+        # hesaplaması o an anlamsız bir sonuç üretmişti - cevaplar puanlandıktan
+        # SONRA gerçek toplamla tekrar save() çağırmak zorunlu.
+        response_obj.total_score = total_score
+        response_obj.save()
 
         return Response(
             {"response_id": response_obj.id},
@@ -183,8 +196,10 @@ class FormClientResponsesView(APIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
         
-        # Expert kontrolü: eğer client_profile'ın expert'i varsa, mevcut expert ile eşleşmeli
-        if client_profile.expert and client_profile.expert != expert:
+        # Expert kontrolü: sadece bu danışana gerçekten atanmış uzman erişebilir.
+        # (Önceden client_profile.expert None olduğunda -yani danışana henüz
+        # kimse atanmamışken- HERHANGİ bir uzman erişebiliyordu - düzeltildi.)
+        if client_profile.expert != expert:
             return Response(
                 {"detail": "Bu danışana erişim yetkiniz yok."},
                 status=status.HTTP_403_FORBIDDEN
@@ -220,8 +235,10 @@ class FormClientResponseDetailView(APIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
         
-        # Expert kontrolü: eğer client_profile'ın expert'i varsa, mevcut expert ile eşleşmeli
-        if client_profile.expert and client_profile.expert != expert:
+        # Expert kontrolü: sadece bu danışana gerçekten atanmış uzman erişebilir.
+        # (Önceden client_profile.expert None olduğunda -yani danışana henüz
+        # kimse atanmamışken- HERHANGİ bir uzman erişebiliyordu - düzeltildi.)
+        if client_profile.expert != expert:
             return Response(
                 {"detail": "Bu danışana erişim yetkiniz yok."},
                 status=status.HTTP_403_FORBIDDEN

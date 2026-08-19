@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Appointment
-from zoom.services import create_zoom_meeting
+from zoom.services import create_zoom_meeting, create_mock_zoom_meeting
 from datetime import datetime
 from django.conf import settings
 from availability.models import WeeklyAvailability, AvailabilityException
@@ -93,11 +93,7 @@ class CreateAppointmentWithZoomSerializer(serializers.ModelSerializer):
                 )
             else:
                 # Development'ta mock veri kullan
-                zoom_info = {
-                    "start_url": "mock url",
-                    "join_url": "mock url",
-                    "id": f"mock_meeting_{appointment.id}"
-                }
+                zoom_info = create_mock_zoom_meeting(appointment.id)
             
             # Update appointment with Zoom details
             appointment.zoom_start_url = zoom_info.get('start_url')

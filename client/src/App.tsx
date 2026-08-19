@@ -13,6 +13,9 @@ import PrivacyPolicy from "./pages/Legal/PrivacyPolicy";
 import UserProfiles from "./pages/UserProfiles";
 import Request from "./pages/Appointments/Request";
 import AppointmentsList from "./pages/Appointments/AppointmentsList";
+import FormsList from "./pages/Forms/FormsList";
+import FormFill from "./pages/Forms/FormFill";
+import FormResponseDetail from "./pages/Forms/FormResponseDetail";
 import AppLayout from "./layout/AppLayout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
 import Home from "./pages/Dashboard/Home";
@@ -80,6 +83,9 @@ export default function App() {
             <Route path="/profile" element={<UserProfiles />} />
             <Route path="/appointments/request" element={<Request />} />
             <Route path="/appointments" element={<AppointmentsList />} />
+            <Route path="/forms" element={<FormsList />} />
+            <Route path="/forms/:id" element={<FormFill />} />
+            <Route path="/forms/responses/:id" element={<FormResponseDetail />} />
           </Route>
 
           {/* Fallback Route */}

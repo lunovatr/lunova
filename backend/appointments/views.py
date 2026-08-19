@@ -18,7 +18,7 @@ from .permissions import (
     IsAppointmentClientPermission
 )
 from accounts.models import UserRole
-from zoom.services import create_zoom_meeting
+from zoom.services import create_zoom_meeting, create_mock_zoom_meeting
 from datetime import datetime
 from django.utils import timezone
 from dateutil.relativedelta import relativedelta
@@ -272,11 +272,7 @@ class AppointmentDetailView(generics.RetrieveUpdateDestroyAPIView):
                         )
                     else:
                         # Development'ta mock veri kullan
-                        zoom_info = {
-                            "start_url": "mock url",
-                            "join_url": "mock url",
-                            "id": f"mock_meeting_{instance.id}"
-                        }
+                        zoom_info = create_mock_zoom_meeting(instance.id)
 
                     instance.zoom_start_url = zoom_info.get('start_url')
                     instance.zoom_join_url = zoom_info.get('join_url')

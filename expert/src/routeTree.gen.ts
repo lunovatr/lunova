@@ -14,6 +14,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedReservationsRouteImport } from './routes/_authenticated/reservations'
+import { Route as AuthenticatedClientFormsRouteImport } from './routes/_authenticated/client-forms'
 import { Route as AuthenticatedAvailabilityRouteImport } from './routes/_authenticated/availability'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as errors500RouteImport } from './routes/(errors)/500'
@@ -53,6 +54,12 @@ const AuthenticatedReservationsRoute =
   AuthenticatedReservationsRouteImport.update({
     id: '/reservations',
     path: '/reservations',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedClientFormsRoute =
+  AuthenticatedClientFormsRouteImport.update({
+    id: '/client-forms',
+    path: '/client-forms',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAvailabilityRoute =
@@ -151,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/availability': typeof AuthenticatedAvailabilityRoute
+  '/client-forms': typeof AuthenticatedClientFormsRoute
   '/reservations': typeof AuthenticatedReservationsRoute
   '/': typeof AuthenticatedIndexRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
@@ -172,6 +180,7 @@ export interface FileRoutesByTo {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/availability': typeof AuthenticatedAvailabilityRoute
+  '/client-forms': typeof AuthenticatedClientFormsRoute
   '/reservations': typeof AuthenticatedReservationsRoute
   '/': typeof AuthenticatedIndexRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
@@ -195,6 +204,7 @@ export interface FileRoutesById {
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
   '/_authenticated/availability': typeof AuthenticatedAvailabilityRoute
+  '/_authenticated/client-forms': typeof AuthenticatedClientFormsRoute
   '/_authenticated/reservations': typeof AuthenticatedReservationsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/errors/$error': typeof AuthenticatedErrorsErrorRoute
@@ -218,6 +228,7 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/availability'
+    | '/client-forms'
     | '/reservations'
     | '/'
     | '/errors/$error'
@@ -239,6 +250,7 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/availability'
+    | '/client-forms'
     | '/reservations'
     | '/'
     | '/errors/$error'
@@ -261,6 +273,7 @@ export interface FileRouteTypes {
     | '/(errors)/500'
     | '/(errors)/503'
     | '/_authenticated/availability'
+    | '/_authenticated/client-forms'
     | '/_authenticated/reservations'
     | '/_authenticated/'
     | '/_authenticated/errors/$error'
@@ -319,6 +332,13 @@ declare module '@tanstack/react-router' {
       path: '/reservations'
       fullPath: '/reservations'
       preLoaderRoute: typeof AuthenticatedReservationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/client-forms': {
+      id: '/_authenticated/client-forms'
+      path: '/client-forms'
+      fullPath: '/client-forms'
+      preLoaderRoute: typeof AuthenticatedClientFormsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/availability': {
@@ -446,6 +466,7 @@ const AuthenticatedSettingsRouteRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedSettingsRouteRoute: typeof AuthenticatedSettingsRouteRouteWithChildren
   AuthenticatedAvailabilityRoute: typeof AuthenticatedAvailabilityRoute
+  AuthenticatedClientFormsRoute: typeof AuthenticatedClientFormsRoute
   AuthenticatedReservationsRoute: typeof AuthenticatedReservationsRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
@@ -456,6 +477,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSettingsRouteRoute: AuthenticatedSettingsRouteRouteWithChildren,
   AuthenticatedAvailabilityRoute: AuthenticatedAvailabilityRoute,
+  AuthenticatedClientFormsRoute: AuthenticatedClientFormsRoute,
   AuthenticatedReservationsRoute: AuthenticatedReservationsRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,

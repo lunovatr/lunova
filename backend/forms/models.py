@@ -1,9 +1,16 @@
+import uuid
+
 from django.db import models
 from django.conf import settings
 
 
 class Form(models.Model):
     """Form modeli - kullanıcılara gösterilecek formlar"""
+    group_key = models.UUIDField(
+        default=uuid.uuid4, editable=False, verbose_name="Versiyon Grubu",
+        help_text="Aynı formun tüm versiyonlarını birbirine bağlayan sabit kimlik."
+    )
+    version = models.PositiveIntegerField(default=1, verbose_name="Versiyon")
     title = models.CharField(max_length=200, verbose_name="Form Başlığı")
     description = models.TextField(blank=True, verbose_name="Form Açıklaması")
     is_active = models.BooleanField(default=True, verbose_name="Aktif mi?")
@@ -32,6 +39,15 @@ class Form(models.Model):
         verbose_name = "Form"
         verbose_name_plural = "Formlar"
         ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['group_key', 'version'], name='forms_form_unique_group_version'
+            ),
+            models.UniqueConstraint(
+                fields=['group_key'], condition=models.Q(is_active=True),
+                name='forms_form_one_active_per_group'
+            ),
+        ]
     
     def __str__(self):
         return self.title
@@ -147,7 +163,10 @@ class FormResponse(models.Model):
     def save(self, *args, **kwargs):
         # Auto-calculate risk level based on form type and score
         if self.form and self.total_score is not None:
-            self.risk_level = self.form.calculate_risk_level(self.total_score)
+            # calculate_risk_level(), scoring_type='none' olan formlar için None
+            # döner; risk_level alanı null=True olmadığı için `or ''` olmadan bu
+            # forma verilen HER cevap IntegrityError ile çöker.
+            self.risk_level = self.form.calculate_risk_level(self.total_score) or ''
             
             # Calculate percentage score
             if self.form.max_score and self.form.max_score > 0:

@@ -7,6 +7,7 @@ import {
   ChevronDownIcon,
   GridIcon,
   HorizontaLDots,
+  ListIcon,
   UserCircleIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
@@ -39,6 +40,11 @@ const navItems: NavItem[] = [
     icon: <CalenderIcon />,
     name: "Randevularım",
     path: "/appointments",
+  },
+  {
+    icon: <ListIcon />,
+    name: "Formlar",
+    path: "/forms",
   },
 ];
 

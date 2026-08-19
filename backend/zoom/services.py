@@ -47,4 +47,19 @@ def create_zoom_meeting(topic, start_time=None, duration=45):
     )
 
     response.raise_for_status()
-    return response.json()  # içinde start_url ve join_url var 
+    return response.json()  # içinde start_url ve join_url var
+
+
+def create_mock_zoom_meeting(appointment_id):
+    """Production dışı ortamlarda gerçek Zoom API'si çağrılmadan kullanılan
+    placeholder toplantı bilgisi. Geçerli bir https://zoom.us/j/... formatında
+    URL döner (literal "mock url" string'i yerine) — frontend window.open() ile
+    doğrudan açtığında React Router'ın kendi 404 sayfasına düşmez, gerçek
+    Zoom sitesine gider."""
+    meeting_id = str(appointment_id).zfill(10)
+    join_url = f"https://zoom.us/j/{meeting_id}"
+    return {
+        "start_url": join_url,
+        "join_url": join_url,
+        "id": meeting_id,
+    } 

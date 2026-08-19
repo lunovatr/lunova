@@ -2,6 +2,16 @@
 
 > Bu dosya `client/src` kaynak kodu ve `package.json` doğrudan okunarak doğrulanmıştır. Önceki taslak; Redux thunk isimlerini, paket versiyonlarını ve `.env` dosyalarının varlığını yanlış tahmin etmişti — burada düzeltildi. Genel sistem bilgisi için kök [claude.md](../claude.md)'ye bakın (dokümantasyon bakım kuralları da orada — kısaca: `client/` içinde yaptığın HER değişiklikten sonra hem bu dosya hem kök `claude.md` güncellenmeli, token maliyeti gerekçesiyle atlanmaz).
 
+> ## 🔧 Son Değişiklikler (2026-08-19, 11. tur) — Yeni Özellik: Formlar Sekmesi
+> Kullanıcı, backend'de zaten olgun olan `forms/` klinik form modülünün üzerine sıfırdan bir danışan arayüzü istedi (backend + expert tarafındaki paralel değişiklikler için bkz. kök [claude.md](../claude.md) ve `expert/claude.md`'nin 11. tur girdileri — backend'de ayrıca kritik bir skorlama pipeline hatası bulunup düzeltildi, bu turun asıl riski oydu, client tarafı sadece bu düzeltilmiş API'yi tüketiyor).
+> - **Yeni `types/forms.types.ts`**: backend `forms/{views,serializers}.py`'nin döndürdüğü şekillerle birebir - `FormListItem` (`has_responded` dahil), `FormDetail`/`FormQuestion` (dikkat: `FormDetailView`'ın `options` alanı soru tipine göre şekil değiştiriyor - `single_choice`/`multiple_choice`/`yes_no`'da gerçek seçenek listesi, diğerlerinde tek elemanlı bir "tip tanımlayıcı" - render mantığı bu yüzden her zaman `question_type`'a göre dallanıyor, `options` içeriğine güvenmiyor), `FormResponseDetail`/`AnswerDetail` (client'ın kendi cevabını gördüğü, skor/risk İÇERMEYEN şekil).
+> - **Yeni `pages/Forms/FormsList.tsx`**: `GET /api/v1/forms/` ve `GET /api/v1/forms/me/form-responses/` paralel çekilip "Doldurulacak Formlar" (`!has_responded`) / "Doldurduğum Formlar" iki ayrı liste halinde gösteriliyor. `AppointmentsList.tsx`'teki established loading/error state deseni takip edildi.
+> - **Yeni `pages/Forms/FormFill.tsx`**: `GET /api/v1/forms/:id/` ile soruları çekiyor; `has_responded=true` ise (zaten doldurulmuş - **revizyon yok**, tekrar dolduramaz) `me/form-responses/` listesinden eşleşen cevabı bulup `/forms/responses/:id`'ye yönlendiriyor. Her `question_type` için ayrı input (`yes_no`/`single_choice`→radio, `multiple_choice`→checkbox, `scale`→range slider + `scale_labels`, `number`→number input, `date`→date input, `text`/`textarea`→metin), zorunlu alan client-side kontrolü, `POST /api/v1/forms/submit/` ile gönderim (backend'in `AnswerSubmitSerializer`'ının tip bazlı doğrulama kurallarıyla birebir eşleşen payload şekli - bkz. backend/claude.md 11. tur).
+> - **Yeni `pages/Forms/FormResponseDetail.tsx`**: `GET /api/v1/forms/me/form-responses/:id/`, tamamen salt-okunur (hiç input yok) - skor/risk zaten backend tarafından client'a hiç döndürülmüyor (bilinçli tasarım, `FormResponseClientDetailSerializer`).
+> - **`App.tsx`**: `/forms`, `/forms/:id`, `/forms/responses/:id` route'ları `RequireAuth` bloğuna eklendi. Client app'e zaten sadece `role=client` girebildiği için (backend `X-Frontend-Type` kontrolü) ek bir rol koruması gerekmedi.
+> - **`layout/AppSidebar.tsx`**: `navItems`'a "Formlar" (`ListIcon`, `/forms`) eklendi.
+> - **Doğrulama**: `npx tsc --noEmit` + `npx vite build` temiz (dist temizlendi). Backend tarafı (skorlama/versiyonlama) Django shell + gerçek HTTP istekleriyle uçtan uca test edildi (bkz. backend/claude.md) ama **client'ın kendisi gerçek bir tarayıcıda tıklanarak test edilmedi** (ortamda hâlâ tarayıcı otomasyon aracı yok) - bir sonraki oturumda danışan olarak giriş yapıp gerçek bir form doldurma + salt-okunur görüntüleme akışının manuel doğrulanması öneriliyor.
+
 > ## 🔧 Son Değişiklikler (2026-08-19, 8. tur) — Ana Sayfa Scroll Bug'ı, Zoom 15dk Kısıtı, Takvim Rengi Lejantı
 > Kullanıcının bildirdiği somut bir bug + bir yeni özellik. Tam detay için kök [claude.md](../claude.md)'nin 8. tur girdisine bakın.
 > - **`components/common/GlobalSpinner.tsx`**: ilk login sonrası ana sayfada scroll çalışmıyordu. Kök neden: `document.body.style.overflow = 'hidden'` mount-only bir effect'te set ediliyor, sadece unmount cleanup'ında resetleniyordu — ama bu component `App.tsx`'te kalıcı mount'lu (hiç unmount olmuyor). Effect artık `[loading]`'e bağımlı; loading `false` olur olmaz overflow anında `'unset'`e dönüyor.
@@ -22,50 +32,19 @@
 > - **Doğrulama**: `npx tsc --noEmit` temiz, `npx vite build` başarılı (dist temizlendi). **Gerçek tarayıcıda tıklanarak hiçbiri test edilmedi** (ortamda hâlâ tarayıcı otomasyon aracı yok) — bir sonraki oturumda mobil genişlikte sidebar/header ve yeni ana sayfa widget'larının manuel kontrolü öneriliyor.
 > - **Fark edilen, ele alınmayan follow-up**: sidebar daraltılmış hâldeki ikon (`public/images/logo/logo-icon.svg`) hâlâ TailAdmin'in jenerik ikonu — elimizde uygun bir icon-only Lunova asset'i yok, otomatik kırpma denenmedi (kötü sonuç riski). `README.md` bu turun kapsamı dışında bırakıldı.
 
-> ## 🔧 Son Değişiklikler (2026-08-19, 6. tur) — Profil Kartlarında Gizli Toast Bug'ı
-> Kullanıcı şikayeti: profil kartlarından (Kimlik/İletişim/Süreç) birini düzenleyip kaydedince hiçbir bildirim çıkmıyor, düzenleme modalı da kapanmıyordu. Kapsam: sadece `src/components/common/ToastContainer.tsx` (tek satır değişiklik).
-> - **Kök neden**: `src/components/ui/modal/index.tsx` → `Modal`, tam ekranı kaplayan bulanık backdrop'la `z-99999` kullanıyor. `ToastContainer.tsx` ise `z-50` ile render ediliyordu. `UserMetaCard.tsx`/`UserContactCard.tsx`/`UserSupportCard.tsx`'teki `handleSave()` hata aldığında (örn. bir CSRF/ağ/validasyon hatası) `closeModal()`'a hiç uğramıyor (bu doğru davranış — sadece BAŞARIDA modal kapanıyor), ama `showToast(message, "error")` gerçekten çağrılıyor olsa da toast, hâlâ açık duran modalın backdrop'ının arkasında kalıp görünmüyordu. Kullanıcı gözünden "hiçbir şey olmadı" — aslında bir hata oluşuyordu, sadece bildirim gizliydi.
-> - **Düzeltme**: `ToastContainer.tsx`'teki `z-50` → `z-999999` (`index.css`'te zaten tanımlı en üst custom z-index tonu, Modal'ın `z-99999`'undan yüksek). `ToastContainer` tek/paylaşılan bir bileşen olduğu için bu düzeltme, onu kullanan diğer yerlerde de (`pages/Appointments/AppointmentsList.tsx`, `AppointmentForm.tsx`, `Request.tsx`) aynı gizli-toast riskini kapatıyor.
-> - **Doğrulama**: `npx tsc --noEmit` temiz. Ayrıca bu vesileyle backend'in CSRF zinciri (kök [claude.md](../claude.md)'nin 6. tur girdisine bakın) gerçekçi bir `curl` senaryosuyla (login → `csrftoken` cookie → üç kartın gerçek payload şekilleriyle `PATCH /accounts/profile/` → `200`; header'sız aynı istek → temiz `403`) yeniden ve daha sıkı doğrulandı — sonuç: backend tarafı sağlam, bu turun asıl bulgusu (toast z-index'i) CSRF'ten bağımsız, saf bir frontend CSS/stacking-context hatasıydı. **Toast'ın düzeltmeden sonra gerçek bir tarayıcıda modalın önünde göründüğü tıklanarak doğrulanmadı** (ortamda tarayıcı otomasyon aracı yok) — statik bir z-index karşılaştırması olduğu için yüksek güvenle doğru kabul ediliyor, ama bir sonraki oturumda/tarayıcıda gözle teyit önerilir.
-> - **Fark edilen, kritik olmayan bir isimlendirme notu**: `UserSupportCard.tsx` dosyasının içindeki bileşen adı aslında `UserTreatmentCard`; `UserContactCard.tsx` ise `pages/UserProfiles.tsx`'te `UserInfoCard` diye import ediliyor. Üçü de doğru render ediliyor, fonksiyonel bug yok — sadece dosya adı/bileşen adı/import alias'ı tutarsızlığı, düşük öncelik.
-
-> ## 🔧 Son Değişiklikler (2026-08-17, 5. tur) — CSRF Token Desteği
-> Backend artık POST/PATCH/DELETE'lerde gerçek CSRF token doğrulaması yapıyor (kök [claude.md](../claude.md)'deki 5. tur changelog'una bakın). Kapsam: sadece `src/lib/api.ts`.
-> - **`src/lib/api.ts`**: axios instance'ına `xsrfCookieName:'csrftoken'`, `xsrfHeaderName:'X-CSRFToken'`, `withXSRFToken:true` eklendi. İlk ikisi axios'un varsayılan (Angular konvansiyonu `XSRF-TOKEN`/`X-XSRF-TOKEN`) isimlerini Django'nunkiyle eşleştiriyor; `withXSRFToken:true` ZORUNLU — axios kaynak kodu (`node_modules/axios/dist/node/axios.cjs`) okunarak doğrulandı: bu olmadan axios, XSRF header'ını sadece same-origin isteklerde otomatik ekliyor, backend burada her zaman farklı bir portta/subdomain'de olduğu için header hiç gönderilmezdi.
-> - **Doğrulama**: `npx tsc --noEmit` temiz. Backend tarafı `curl` ile (gerçek `Origin: http://localhost:5174` header'ı simüle edilerek) sıkı doğrulandı, ama axios'un bu config'le gerçek bir tarayıcıda `csrftoken` cookie'sini okuyup `X-CSRFToken` header'ına doğru şekilde koyduğu **tıklanarak test edilmedi** (ortamda tarayıcı otomasyon aracı yok). Bir sonraki oturumda login olup bir POST/PATCH (örn. profil kaydetme, randevu talebi) deneyip başarılı olduğunu gözlemlemek önerilir — 403 CSRF hatası alınırsa DevTools → Network'te `X-CSRFToken` header'ının gerçekten gittiğine bakılmalı.
-
-> ## 🔧 Son Değişiklikler (2026-08-17, 4. tur) — ExpertAvailability Randevu Formu Yönlendirme Düzeltmesi
-> Bir önceki turda "sıradaki iş" adayı olarak not edilen madde bu turda kapatıldı (kök [claude.md](../claude.md)'deki 4. tur changelog'una bakın, orada backend tarafındaki eşdeğer kalıp — `AvailabilityExceptionView.delete()` — de düzeltildi). Kapsam: sadece `src/pages/Appointments/ExpertAvailability.tsx`.
-> - **`src/pages/Appointments/ExpertAvailability.tsx`**: `AppointmentForm`'a geçilen `navigate={() => {}}` no-op kaldırıldı. Bileşene `useNavigate()` (`react-router`) eklendi — bu, projede zaten `AppointmentsList.tsx` ve auth formlarında kullanılan established pattern. Randevu talebi başarıyla gönderildiğinde artık `AppointmentForm.tsx`'in `setTimeout(() => navigate("/appointments"), 2000)` çağrısı gerçekten çalışıyor.
-> - **Doğrulama**: `npx tsc --noEmit` temiz; Router bağlamının (`App.tsx`'te `BrowserRouter`) ve `/appointments` route'unun mevcut olduğu, aynı `useNavigate` deseninin `AppointmentsList.tsx`'te zaten çalıştığı kod okunarak teyit edildi. **Bu ortamda bir tarayıcı otomasyon aracı olmadığı için gerçek tarayıcıda tıklanarak uçtan uca test edilmedi** — bir sonraki oturumda bu akışın (kategori/tarih seç → uzman aç → slot seç → randevu talebi gönder → `/appointments`'a yönlendiğini gözlemle) manuel doğrulanması önerilir.
-
-> ## 🔧 Son Değişiklikler (2026-08-17, 3. tur) — Access Token Refresh
-> **`src/lib/api.ts`**: Projede daha önce **hiç axios interceptor'ı yoktu** (aşağıdaki "🔌 API Client" bölümündeki eski iddianın aksine, bu artık geçerli değil). Artık bir response interceptor'ı var: 401 alan istekler önce sessizce `POST /api/v1/accounts/token/refresh/` ile oturumu yenilemeyi dener (httpOnly `refresh_token` cookie'siyle), başarılıysa orijinal isteği bir kez daha yapar; refresh de başarısız olursa (oturum gerçekten 1 saatten uzun süredir hareketsiz kalmış) kullanıcıyı `/signin`'e yönlendirir. Eşzamanlı 401'ler tek bir refresh çağrısını paylaşır (single-flight `refreshPromise`). Detay ve tasarım gerekçesi (neden 1 saat, Zoom seansları) için kök [claude.md](../claude.md)'ye bakın.
-
-> ## 🔧 Son Değişiklikler (2026-08-17, devam) — Profil Düzenleme + Yerel Ortam
-> Kullanıcının bildirdiği "profil kaydından sonra sayfa beyaz kalıyor" şikâyeti araştırıldı. Tam detay için kök [claude.md](../claude.md)'deki changelog'a bakın; özet:
-> - **`src/mappers/profileMapper.ts`**: `mapProfileToUpdatePayload()` içinde `profile.substances_used.map(...)` null-check'siz çağrılıyordu. `?? []` eklendi.
-> - **`src/components/common/ErrorBoundary.tsx`** (yeni) + `src/main.tsx`: Projede hiç React ErrorBoundary yoktu (kök nedenlerden biri — herhangi bir render hatası tüm SPA'yı unmount edip gerçek "beyaz sayfa" üretiyordu). Artık `App` bu boundary ile sarmalı. **Tek, en üst seviye bir boundary — sayfa bazlı değil**, bir sonraki oturumda kritik sayfalar (Appointments, Profile) için ayrı, daha küçük kapsamlı boundary'ler eklenmesi değerlendirilebilir.
-> - **`src/components/UserProfile/UserMetaCard.tsx`, `UserContactCard.tsx`, `UserSupportCard.tsx`**: `handleSave` önceden başarı/hata durumunda hiçbir görsel geri bildirim vermiyordu (`console.error`'a düşüyordu). `useToast`/`ToastContainer` (zaten `pages/Appointments/*` içinde kullanılan established pattern) ile eklendi. `dispatch(fetchProfile())` artık `await` ediliyor.
-> - **`backend/accounts/serializers/profile_update_serializers.py`**: `timezone` alanı `BaseUserUpdateSerializer`'a eklendi — `UserContactCard.tsx` bu alanı zaten gönderiyordu ama backend sessizce yok sayıyordu, hiç kalıcı olmuyordu.
+> ## 📜 Daha Eski Turlar (2026-08-19, 6. tur ve öncesi) — arşivlendi
+> Kök `CLAUDE.md`'nin "son 3 tur ayrıntılı tutulur" kuralı burada da uygulandı. Net sonuçları aşağıdaki "⚠️ Gerçek Eksikler" listesinde ✅ maddeleri olarak duruyor (toast z-index bug'ı [6. tur], CSRF token desteği [5. tur], ExpertAvailability navigate no-op [4. tur], access token refresh [3. tur], profil düzenleme + ErrorBoundary [devam turu], randevu tip düzeltmesi + iptal aksiyonları [Randevu Zinciri turu]). Tam ayrıntı `git log -p -- client/CLAUDE.md` ile geri getirilebilir.
 >
-> **Bu turda TESPİT EDİLİP kod DEĞİŞTİRİLMEDEN bırakılan sorunlar** (aynı denetimde bulundu, "sıradaki iş" adayları — öncelik sırası kök claude.md'de):
-> - ✅ **[4. TURDA DÜZELTİLDİ]** ~~`src/pages/Appointments/ExpertAvailability.tsx:296` → `AppointmentForm`'a `navigate={() => {}}` (no-op) geçiyor~~ — bkz. yukarıdaki "4. tur" changelog girişi.
-> - `src/components/UserProfile/UserDocumentsCard.tsx` → `handleDeleteDocument` tamamen stub (`console.log("Henüz silme desteklenmiyor…")`), silme butonu kullanıcıya hiçbir geri bildirim vermeden çalışmıyormuş gibi davranıyor. Aynı dosyada `handleDownload` hatası da sessiz — bu dosyada, kardeş kartlardan farklı olarak `useToast` hiç kullanılmıyor.
-> - `src/store/authSlice.ts` → `fetchProfile.rejected` sadece `state.error`'ı set ediyor, `userProfile`/`isAuthenticated`'a dokunmuyor — 15 dk'lık access token süresi dolduğunda (backend'de hâlâ düzeltilmemiş bir sorun) eski profil verisi sessizce ekranda kalmaya devam ediyor, küçük bir kırmızı banner dışında kullanıcıyı uyaran yok.
-> - `src/pages/Appointments/AppointmentsList.tsx:50` ve `Request.tsx:50` → API response'u şekil kontrolü yapmadan doğrudan `.map()`'e veriliyor (`substances_used` bug'ıyla aynı aile) — artık yeni ErrorBoundary bunu yakalıyor ama kök neden düzeltilmedi.
-> - `components/UserProfile/UploadDocumentModal.tsx` (doğrulandı, hâlâ mevcut) → fotoğraf yükleme sonrası 2 sn gecikmeyle `dispatch(fetchMe())` çağırıyor; `App.tsx`'teki `RequireAuth`, `auth.loading===true` iken TÜM `AppLayout`'u (overlay değil, tam replace) `GlobalSpinner` ile değiştiriyor — rutin bir fotoğraf yüklemesi kısa süreliğine tüm korumalı uygulamayı kayboluyor gösteriyor. Kullanıcı talimatı gereği bucket/upload akışına bu turda dokunulmadı.
+> <details><summary>Silinen turların başlıkları (arşiv referansı için)</summary>
 >
-> **Yerel ortam**: `client/node_modules` bu turda kuruldu, `npx tsc --noEmit` temiz. `.env` artık diskte var (gitignore'da, `client/claude.md`'nin altındaki ".env yok" notu — bkz. aşağı — artık kısmen eski).
-
-> ## 🔧 Son Değişiklikler (2026-08-17) — Randevu Zinciri
-> - **`types/appointment.ts`**: `Appointment.expert`/`.client` tipi düzeltildi — artık gerçek backend şekliyle uyumlu: düz `number` (User id) + ayrı `expert_name`/`client_name` string alanları. Önceki tip (`PersonRef` nesnesi) yanlıştı; `AppointmentsTable.tsx` içinde bunu telafi eden `as any` hackleri kaldırıldı.
-> - **`components/tables/Appointments/AppointmentsTable.tsx`** ve **`pages/Appointments/AppointmentsList.tsx`**: Randevu listesinde daha önce **hiçbir iptal/geri çekme aksiyonu yoktu** (sadece "Zoom'a Katıl" butonu vardı) — eklendi:
->   - `confirmed` durumundaki randevu için "İptal Talebi Gönder" → `PATCH /appointments/{id}/status/ {status: 'cancel_requested'}`
->   - `waiting_approval` durumundaki (henüz uzman onayı almamış) kendi talebi için "Talebi Geri Çek" → `PATCH .../status/ {status: 'cancelled'}` (bu geçiş için backend'de yeni izin kuralı eklendi, bkz. [backend/claude.md](../backend/claude.md))
->   - Yeni `onStatusChange` prop'u opsiyonel — geriye dönük uyumlu.
-> - Değişmedi/dokunulmadı: randevu OLUŞTURMA akışı (`Request.tsx`/`ExpertAvailability.tsx`/`AppointmentForm.tsx`) zaten `expert_user_id` (doğru, global User id) kullanıyordu — incelendi, hatasız bulundu, dokunulmadı.
-> - Test edilemedi: bu ortamda `node_modules` kurulu ama `typescript` paketi eksikti (`tsc` binary'si yok) — değişiklikler dikkatli manuel inceleme ile doğrulandı, `npm run build`/canlı tarayıcı testi henüz yapılmadı.
+> - 2026-08-19, 6. tur — Profil Kartlarında Gizli Toast Bug'ı
+> - 2026-08-17, 5. tur — CSRF Token Desteği
+> - 2026-08-17, 4. tur — ExpertAvailability Randevu Formu Yönlendirme Düzeltmesi
+> - 2026-08-17, 3. tur — Access Token Refresh
+> - 2026-08-17, devam — Profil Düzenleme + Yerel Ortam
+> - 2026-08-17 — Randevu Zinciri
+>
+> </details>
 
 ## 📋 Hızlı Başlangıç
 
@@ -101,12 +80,15 @@ client/src/
 ├── layout/       → AppHeader, AppLayout, AppSidebar, Backdrop, SidebarWidget
 ├── lib/          → api.ts (TEK dosya)
 ├── mappers/      → profileMapper.ts
-├── pages/        → Appointments, AuthPages, Dashboard, Legal, OtherPage, UserProfiles
-│                   ("Blank"/"Calendar"/"Charts"/"Forms"/"Tables"/"UiElements" YOK —
-│                    7. turda TailAdmin şablon leftover'ı olarak silindi; "Legal" yeni,
-│                    içeriksiz /terms+/privacy altyapısı)
+├── pages/        → Appointments, AuthPages, Dashboard, Forms, Legal, OtherPage, UserProfiles
+│                   ("Blank"/"Calendar"/"Charts"/"Tables"/"UiElements" YOK —
+│                    7. turda TailAdmin şablon leftover'ı olarak silindi; "Legal" 7. turda,
+│                    içeriksiz /terms+/privacy altyapısı; "Forms" 11. turda YENİ EKLENDİ —
+│                    DİKKAT: eski, silinmiş TailAdmin "Forms" şablon sayfasıyla (jenerik
+│                    UI-kit demo'suydu) İSİM ÇAKIŞIYOR ama tamamen farklı/gerçek bir özellik,
+│                    klinik form doldurma/görüntüleme - bkz. 11. tur changelog)
 ├── store/        → authReducer.ts (KULLANILMIYOR — bkz. aşağı), authSlice.ts, hooks.ts, index.ts
-└── types/        → appointment.ts, auth.ts, profile.payload.ts, profile.types.ts
+└── types/        → appointment.ts, auth.ts, forms.types.ts (11. tur, YENİ), profile.payload.ts, profile.types.ts
 ```
 
 `components/dashboard/` (7. turda yeni) → `WelcomeCard.tsx`, `UpcomingAppointmentsCard.tsx`, `MiniCalendarCard.tsx` — `pages/Dashboard/Home.tsx`'in gerçek veri kullanan widget'ları, `components/ecommerce/*`'in yerine geçti.
@@ -173,4 +155,4 @@ Test dosyası yok (`*.test.*`/`*.spec.*` → 0 sonuç), `package.json` scriptler
 13. **[7. turda eklendi, içeriksiz]** `pages/Legal/{TermsOfService,PrivacyPolicy}.tsx` sadece altyapı — gerçek Kullanım Şartları/Gizlilik Politikası metni kullanıcı tarafından eklenecek.
 
 ---
-**Son Güncelleme**: 2026-08-19, 8. tur (ana sayfa scroll bug'ı `GlobalSpinner.tsx`'te düzeltildi, Zoom butonlarına 15dk ön koşul eklendi, mini takvime renk lejantı eklendi — `tsc`/`vite build` temiz, gerçek tarayıcı testi bekliyor)
+**Son Güncelleme**: 2026-08-19, 11. tur (Yeni "Formlar" sekmesi eklendi — `pages/Forms/{FormsList,FormFill,FormResponseDetail}.tsx` + `types/forms.types.ts`, backend'in düzeltilmiş skorlama pipeline'ını tüketiyor — `tsc`/`vite build` temiz, gerçek tarayıcı testi bekliyor)
