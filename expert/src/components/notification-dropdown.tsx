@@ -63,7 +63,12 @@ export function NotificationDropdown() {
       }
     }
 
-    if (notification.appointment_id) {
+    if (notification.notification_type === 'message' && notification.related_user_id) {
+      navigate({
+        to: '/messages',
+        search: { clientId: notification.related_user_id },
+      })
+    } else if (notification.appointment_id) {
       navigate({
         to: '/reservations',
         search: { appointmentId: notification.appointment_id },

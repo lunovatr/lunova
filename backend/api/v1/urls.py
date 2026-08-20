@@ -7,4 +7,5 @@ urlpatterns = [
     path('forms/', include('forms.urls')),
     path('availability/', include('availability.urls')),
     path('notifications/', include('notifications.urls')),
+    path('messaging/', include('messaging.urls')),
 ]

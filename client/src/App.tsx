@@ -17,6 +17,7 @@ import AppointmentDetail from "./pages/Appointments/AppointmentDetail";
 import FormsList from "./pages/Forms/FormsList";
 import FormFill from "./pages/Forms/FormFill";
 import FormResponseDetail from "./pages/Forms/FormResponseDetail";
+import Messages from "./pages/Messages/Messages";
 import AppLayout from "./layout/AppLayout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
 import Home from "./pages/Dashboard/Home";
@@ -88,6 +89,7 @@ export default function App() {
             <Route path="/forms" element={<FormsList />} />
             <Route path="/forms/:id" element={<FormFill />} />
             <Route path="/forms/responses/:id" element={<FormResponseDetail />} />
+            <Route path="/messages" element={<Messages />} />
           </Route>
 
           {/* Fallback Route */}

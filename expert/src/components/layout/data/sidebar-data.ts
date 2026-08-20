@@ -1,4 +1,4 @@
-import { Palette, Settings, UserCog, CalendarCheck, CalendarClock, UserRoundPen, ClipboardList } from 'lucide-react'
+import { Palette, Settings, UserCog, CalendarCheck, CalendarClock, UserRoundPen, ClipboardList, MessageSquareText } from 'lucide-react'
 import { type SidebarData } from '../types'
 
 export const sidebarData: SidebarData = {
@@ -20,6 +20,11 @@ export const sidebarData: SidebarData = {
           title: 'Danışan Formları',
           url: '/client-forms',
           icon: ClipboardList,
+        },
+        {
+          title: 'Notlar',
+          url: '/messages',
+          icon: MessageSquareText,
         },
       ],
     },

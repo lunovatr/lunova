@@ -60,7 +60,12 @@ export default function NotificationDropdown() {
       }
     }
 
-    if (notification.appointment_id) {
+    if (notification.notification_type === "message") {
+      // Client'ın her zaman tek bir karşı tarafı (kendi uzmanı) olduğu için
+      // hedef sabit /messages - expert tarafının aksine bir clientId seçimine
+      // gerek yok.
+      navigate("/messages");
+    } else if (notification.appointment_id) {
       navigate(`/appointments/${notification.appointment_id}`);
     }
   };

@@ -5,15 +5,17 @@ from django.db import models
 class Notification(models.Model):
     """Kullanıcıya özel bildirimler.
 
-    Şu an tek üretici kaynak randevu hatırlatmaları (bkz. services.py ->
-    sync_appointment_reminders), ama notification_type + generic appointment
-    FK yapısı, ileride mesajlaşma gibi başka bildirim türlerinin de aynı
-    modele (appointment=None, farklı bir notification_type ile) eklenebilmesi
-    için bilinçli olarak genel tutuldu.
+    İki üretici kaynak var: randevu hatırlatmaları (bkz. services.py ->
+    sync_appointment_reminders, appointment FK'sini kullanır) ve messaging
+    app'inden gelen yeni not bildirimleri (bkz. messaging/views.py, ilgili
+    konuşmanın karşı tarafını işaretlemek için related_user FK'sini kullanır).
+    notification_type + bu iki generic FK yapısı ileride başka bildirim
+    türlerinin eklenebilmesi için bilinçli olarak genel tutuldu.
     """
 
     TYPE_CHOICES = [
         ('appointment_reminder', 'Randevu Hatırlatması'),
+        ('message', 'Yeni Not'),
     ]
 
     user = models.ForeignKey(
@@ -34,6 +36,16 @@ class Notification(models.Model):
         blank=True,
         on_delete=models.CASCADE,
         related_name='notifications',
+    )
+    # 'message' tipi için: bildirime tıklanınca hangi konuşmaya/kullanıcıya
+    # gidileceğini belirten genel amaçlı işaretçi (appointment FK'sinin
+    # 'message' türü için karşılığı - appointment_reminder bunu kullanmaz).
+    related_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='+',
     )
     is_read = models.BooleanField(default=False)
     read_at = models.DateTimeField(null=True, blank=True)

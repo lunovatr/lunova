@@ -54,6 +54,10 @@ class ClientProfileSerializer(serializers.ModelSerializer):
             return None
 
         return {
+            # User.id (ExpertProfile.id DEĞİL) - messaging app'i konuşma
+            # eşleşmesini her yerde User.id üzerinden kurduğu için (bkz.
+            # backend/messaging/views.py), client bu id'yi doğrudan kullanır.
+            "id": obj.expert.user_id,
             "full_name": obj.expert.user.get_full_name(),
             "title": obj.expert.title,
         }

@@ -121,6 +121,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'availability',     # Müsaitlik
     'notifications',    # Bildirimler
+    'messaging',        # Uzman-danışan not/mesaj sistemi
 ]
 
 MIDDLEWARE = [

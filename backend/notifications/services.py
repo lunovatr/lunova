@@ -69,3 +69,36 @@ def cleanup_old_read_notifications(user):
     Notification.objects.filter(
         user=user, is_read=True, read_at__lt=cutoff
     ).delete()
+
+
+def create_message_notification(message):
+    """messaging.Message oluşturulduktan hemen sonra çağrılır - alıcı için
+    bir 'yeni not' bildirimi oluşturur.
+
+    `message` parametresi bilinçli olarak type-hint'siz/duck-typed bırakıldı
+    (sadece .id, .body, .sender_id, .sender, .conversation kullanılıyor) -
+    messaging app'inin notifications'ı import etmesi gerekiyor (bildirim
+    oluşturmak için), bu yüzden ters yönde bir import (notifications ->
+    messaging) döngüsel bağımlılık yaratır.
+
+    `dedupe_key=f"message:{message.id}"` sayesinde idempotent - aynı mesaj
+    için tekrar çağrılırsa (örn. bir retry) ikinci bir bildirim oluşmaz.
+    """
+    conversation = message.conversation
+    recipient_id = (
+        conversation.client_id
+        if message.sender_id == conversation.expert_id
+        else conversation.expert_id
+    )
+    preview = message.body if len(message.body) <= 80 else message.body[:77] + "..."
+
+    Notification.objects.get_or_create(
+        user_id=recipient_id,
+        dedupe_key=f"message:{message.id}",
+        defaults={
+            'notification_type': 'message',
+            'title': f"Yeni not: {message.sender.get_full_name()}",
+            'body': preview,
+            'related_user_id': message.sender_id,
+        },
+    )
