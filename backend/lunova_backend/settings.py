@@ -120,6 +120,7 @@ INSTALLED_APPS = [
     'forms',            # Formlar
     'rest_framework_simplejwt.token_blacklist',
     'availability',     # Müsaitlik
+    'notifications',    # Bildirimler
 ]
 
 MIDDLEWARE = [

@@ -11,6 +11,7 @@ import { TopNav } from '@/components/layout/top-nav'
 import { Search } from '@/components/search'
 import { ConfigDrawer } from '@/components/config-drawer'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { NotificationDropdown } from '@/components/notification-dropdown'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { getProfile } from './api'
 import { ExpertProfile } from './types'
@@ -87,6 +88,7 @@ export function ProfileView() {
           <Search />
           <ThemeSwitch />
           <ConfigDrawer />
+          <NotificationDropdown />
           <ProfileDropdown />
         </div>
       </Header>

@@ -179,23 +179,20 @@ class FormClientResponsesView(APIView):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         expert = get_object_or_404(ExpertProfile, user=request.user)
-        
-        # client_id hem ClientProfile.id hem de User.id olabilir
-        # Önce ClientProfile.id olarak dene
-        try:
-            client_profile = ClientProfile.objects.get(id=client_id)
-            user_id = client_profile.user_id
-        except ClientProfile.DoesNotExist:
-            # Eğer ClientProfile.id değilse, User.id olarak dene
-            try:
-                client_profile = ClientProfile.objects.get(user_id=client_id)
-                user_id = client_id
-            except ClientProfile.DoesNotExist:
-                return Response(
-                    {"detail": "No ClientProfile matches the given query."},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-        
+
+        # client_id her zaman User.id'dir (bkz. accounts.ClientListView ve
+        # expert/src/features/client-forms/api.ts - tek gerçek çağıran taraf
+        # her zaman user_id gönderiyor). Önceden burada "önce ClientProfile.id
+        # olarak dene, olmazsa User.id'ye düş" şeklinde belirsiz bir sıralı
+        # deneme vardı - User.id, TAMAMEN ALAKASIZ bir ClientProfile'ın kendi
+        # PK'sıyla sayısal olarak çakışırsa (iki ayrı auto-increment dizisi,
+        # gerçekten olabiliyor) bu, yanlış danışanın profiline sessizce
+        # eşleşmeye yol açıyordu - en iyi ihtimalle yanlış bir 403, en kötü
+        # ihtimalle (çakışan profil AYNI uzmana aitse) yanlış danışanın
+        # verisini doğru danışanmış gibi döndürmek. `get_object_or_404` ile
+        # doğrudan `user_id` üzerinden aramak bu belirsizliği ortadan kaldırır.
+        client_profile = get_object_or_404(ClientProfile, user_id=client_id)
+
         # Expert kontrolü: sadece bu danışana gerçekten atanmış uzman erişebilir.
         # (Önceden client_profile.expert None olduğunda -yani danışana henüz
         # kimse atanmamışken- HERHANGİ bir uzman erişebiliyordu - düzeltildi.)
@@ -205,7 +202,7 @@ class FormClientResponsesView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        responses = FormResponse.objects.filter(user_id=user_id)
+        responses = FormResponse.objects.filter(user_id=client_id)
         serializer = FormResponseExpertSummarySerializer(responses, many=True)
         return Response(serializer.data)
 
@@ -218,23 +215,11 @@ class FormClientResponseDetailView(APIView):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         expert = get_object_or_404(ExpertProfile, user=request.user)
-        
-        # client_id hem ClientProfile.id hem de User.id olabilir
-        # Önce ClientProfile.id olarak dene
-        try:
-            client_profile = ClientProfile.objects.get(id=client_id)
-            user_id = client_profile.user_id
-        except ClientProfile.DoesNotExist:
-            # Eğer ClientProfile.id değilse, User.id olarak dene
-            try:
-                client_profile = ClientProfile.objects.get(user_id=client_id)
-                user_id = client_id
-            except ClientProfile.DoesNotExist:
-                return Response(
-                    {"detail": "No ClientProfile matches the given query."},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-        
+
+        # client_id her zaman User.id'dir - bkz. FormClientResponsesView'daki
+        # aynı düzeltmenin gerekçesi (üstteki yorum).
+        client_profile = get_object_or_404(ClientProfile, user_id=client_id)
+
         # Expert kontrolü: sadece bu danışana gerçekten atanmış uzman erişebilir.
         # (Önceden client_profile.expert None olduğunda -yani danışana henüz
         # kimse atanmamışken- HERHANGİ bir uzman erişebiliyordu - düzeltildi.)
@@ -245,7 +230,7 @@ class FormClientResponseDetailView(APIView):
             )
 
         response_obj = get_object_or_404(
-            FormResponse, id=response_id, user_id=user_id
+            FormResponse, id=response_id, user_id=client_id
         )
         # Expert kullanıcılar için detaylı serializer - cevaplar + scoring + interpretation + recommendations
         serializer = FormResponseExpertDetailSerializer(response_obj)

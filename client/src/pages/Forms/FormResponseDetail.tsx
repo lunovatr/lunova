@@ -86,7 +86,10 @@ export default function FormResponseDetail() {
     <>
       <PageMeta title={response.form.title} description="Doldurulmuş form cevabı (salt okunur)" />
       <div className="mx-auto w-full max-w-screen-md">
-        <PageBreadCrumb pageTitle={response.form.title} />
+        <PageBreadCrumb
+          pageTitle={response.form.title}
+          items={[{ label: "Formlar", to: "/forms" }]}
+        />
 
         <div className="mt-8 space-y-6">
           <div className="overflow-hidden rounded-xl border border-gray-200 bg-white p-6 dark:border-white/[0.05] dark:bg-white/[0.03]">

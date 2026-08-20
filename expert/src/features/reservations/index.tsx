@@ -1,6 +1,7 @@
 // src/features/reservations/index.tsx
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearch } from '@tanstack/react-router'
 import { useAppointments } from './use-appointments'
 import { CreateAppointmentModal } from './components/create-appointment-modal'
 import { AppointmentDetailDialog } from './components/appointment-detail-dialog'
@@ -8,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
+import { NotificationDropdown } from '@/components/notification-dropdown'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
@@ -18,9 +20,19 @@ import { AppointmentsTable } from './components/appointments-table'
 import { Skeleton } from '@/components/ui/skeleton'
 
 export function Reservations() {
+  const { appointmentId } = useSearch({ from: '/_authenticated/reservations' })
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<number | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
+
+  // Bildirim dropdown'ından ?appointmentId=... ile gelindiyse detay dialog'unu
+  // otomatik aç (bkz. NotificationDropdown).
+  useEffect(() => {
+    if (appointmentId) {
+      setSelectedAppointmentId(appointmentId)
+      setDetailOpen(true)
+    }
+  }, [appointmentId])
 
   const {
     upcomingAppointments,
@@ -45,6 +57,7 @@ export function Reservations() {
         <div className='ms-auto flex items-center space-x-4'>
           <Search />
           <ThemeSwitch />
+          <NotificationDropdown />
           <ProfileDropdown />
         </div>
       </Header>

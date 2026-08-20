@@ -1,5 +1,5 @@
 import api from '@/lib/api'
-import type { MyClient, FormResponseSummary, FormResponseDetail } from './types'
+import type { MyClient, FormSummary, FormResponseSummary, FormResponseDetail } from './types'
 
 /**
  * Uzmana atanmış danışanları getirir (GET /accounts/clients/).
@@ -13,6 +13,21 @@ export const getMyClients = async (): Promise<MyClient[]> => {
   } catch (error: any) {
     const message =
       error.response?.data?.detail || 'Danışan listesi alınamadı.'
+    throw new Error(message)
+  }
+}
+
+/**
+ * Sistemdeki aktif formların listesini getirir (GET /api/v1/forms/).
+ * Danışan x form matrisinin sütunları için kullanılır - danışan/skor bilgisi
+ * içermez, sadece form kimliği + başlığı.
+ */
+export const getForms = async (): Promise<FormSummary[]> => {
+  try {
+    const { data } = await api.get('/api/v1/forms/')
+    return data
+  } catch (error: any) {
+    const message = error.response?.data?.detail || 'Form listesi alınamadı.'
     throw new Error(message)
   }
 }

@@ -29,6 +29,7 @@ import { Separator } from '@/components/ui/separator'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { NotificationDropdown } from '@/components/notification-dropdown'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getProfile, updateProfile, uploadDocument, deleteDocument } from './api'
@@ -316,6 +317,7 @@ export function ProfileForm() {
       <Header>
         <div className='ms-auto flex items-center space-x-4'>
           <ThemeSwitch />
+          <NotificationDropdown />
           <ProfileDropdown />
         </div>
       </Header>

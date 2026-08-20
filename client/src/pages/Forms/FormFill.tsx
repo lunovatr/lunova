@@ -7,9 +7,12 @@ import Button from "../../components/ui/button/Button";
 import api from "../../lib/api";
 import { useToast } from "../../hooks/useToast";
 import ToastContainer from "../../components/common/ToastContainer";
+import { Modal } from "../../components/ui/modal";
+import { useModal } from "../../hooks/useModal";
 import type {
   AnswerSubmitPayload,
   FormDetail,
+  FormQuestion,
   FormResponseSummary,
   QuestionType,
 } from "../../types/forms.types";
@@ -29,6 +32,13 @@ function requiresNumeric(type: QuestionType) {
 function requiresOptions(type: QuestionType) {
   return type === "yes_no" || type === "single_choice" || type === "multiple_choice";
 }
+function isAnswered(question: FormQuestion, a: AnswerState | undefined) {
+  if (!a) return false;
+  if (requiresText(question.question_type)) return !!a.text_answer?.trim();
+  if (requiresNumeric(question.question_type)) return a.numeric_answer !== undefined;
+  if (requiresOptions(question.question_type)) return !!a.selected_option_ids?.length;
+  return false;
+}
 
 export default function FormFill() {
   const { id } = useParams<{ id: string }>();
@@ -40,6 +50,9 @@ export default function FormFill() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [missingQuestions, setMissingQuestions] = useState<FormQuestion[]>([]);
+  const missingModal = useModal();
+  const confirmModal = useModal();
 
   useEffect(() => {
     let cancelled = false;
@@ -48,6 +61,9 @@ export default function FormFill() {
       if (!id) return;
       setLoading(true);
       setError(null);
+      // Form değişince (aynı bileşen yeniden mount olmadan farklı bir
+      // formun id'sine geçilse bile) önceki formdan kalan cevaplar taşınmasın.
+      setAnswers({});
       try {
         const detailRes = await api.get<FormDetail>(`/api/v1/forms/${id}/`);
         if (cancelled) return;
@@ -86,23 +102,36 @@ export default function FormFill() {
     setAnswers((prev) => ({ ...prev, [questionId]: { ...prev[questionId], ...value } }));
   };
 
-  const handleSubmit = async () => {
+  // Çoklu seçim (checkbox) toggle'ı bilerek fonksiyonel setState kullanıyor:
+  // `next` her zaman en güncel state'ten türetiliyor, render sırasında
+  // yakalanmış (potansiyel olarak bayat) bir değişkenden değil - bu sayede
+  // bir seçeneği işaretlemek diğer seçili seçenekleri asla ezmez.
+  const toggleOption = (questionId: number, optionId: number) => {
+    setAnswers((prev) => {
+      const current = prev[questionId]?.selected_option_ids ?? [];
+      const next = current.includes(optionId)
+        ? current.filter((existingId) => existingId !== optionId)
+        : [...current, optionId];
+      return { ...prev, [questionId]: { ...prev[questionId], selected_option_ids: next } };
+    });
+  };
+
+  const handleSubmitClick = () => {
     if (!form) return;
 
-    const missing = form.questions.filter((q) => {
-      if (!q.is_required) return false;
-      const a = answers[q.id];
-      if (!a) return true;
-      if (requiresText(q.question_type)) return !a.text_answer?.trim();
-      if (requiresNumeric(q.question_type)) return a.numeric_answer === undefined;
-      if (requiresOptions(q.question_type)) return !a.selected_option_ids?.length;
-      return false;
-    });
-
+    const missing = form.questions.filter((q) => !isAnswered(q, answers[q.id]));
     if (missing.length > 0) {
-      showToast("Lütfen zorunlu tüm soruları cevaplayın.", "warning");
+      setMissingQuestions(missing.slice().sort((a, b) => a.order - b.order));
+      missingModal.openModal();
       return;
     }
+
+    confirmModal.openModal();
+  };
+
+  const handleConfirmSubmit = async () => {
+    confirmModal.closeModal();
+    if (!form) return;
 
     const payloadAnswers: AnswerSubmitPayload[] = form.questions
       .filter((q) => answers[q.id])
@@ -159,7 +188,10 @@ export default function FormFill() {
       <PageMeta title={form.title} description={form.description} />
       <ToastContainer toasts={toasts} removeToast={removeToast} />
       <div className="mx-auto w-full max-w-screen-md">
-        <PageBreadCrumb pageTitle={form.title} />
+        <PageBreadCrumb
+          pageTitle={form.title}
+          items={[{ label: "Formlar", to: "/forms" }]}
+        />
 
         <div className="mt-8 space-y-6">
           <div className="overflow-hidden rounded-xl border border-gray-200 bg-white p-6 dark:border-white/[0.05] dark:bg-white/[0.03]">
@@ -167,7 +199,7 @@ export default function FormFill() {
               <p className="mb-2 text-sm text-gray-600 dark:text-gray-300">{form.description}</p>
             )}
             <p className="text-xs text-gray-400 dark:text-gray-500">
-              Bu form bir kez doldurulur, gönderdikten sonra değiştirilemez.
+              Bu form bir kez doldurulur, gönderdikten sonra değiştirilemez. Tüm sorular zorunludur.
             </p>
           </div>
 
@@ -182,37 +214,50 @@ export default function FormFill() {
                 >
                   <label className="mb-3 block font-medium text-gray-900 dark:text-white">
                     {q.question_text}
-                    {q.is_required && <span className="ml-1 text-red-500">*</span>}
+                    <span className="ml-1 text-red-500">*</span>
                   </label>
 
                   {(q.question_type === "yes_no" ||
                     q.question_type === "single_choice") && (
                     <div className="space-y-2">
-                      {q.options.map((opt) => (
-                        <label
-                          key={opt.id}
-                          className="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 p-3 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-                        >
-                          <input
-                            type="radio"
-                            name={`q-${q.id}`}
-                            checked={answers[q.id]?.selected_option_ids?.[0] === opt.id}
-                            onChange={() => setAnswer(q.id, { selected_option_ids: [opt.id!] })}
-                            className="h-4 w-4"
-                          />
-                          <span className="text-gray-700 dark:text-gray-300">
-                            {opt.option_text ?? opt.text}
-                          </span>
-                        </label>
-                      ))}
+                      {q.options.map((opt, idx) => {
+                        // Backend, gerçek bir QuestionOption kaydı yoksa (bkz.
+                        // FormDetailView'ın yes_no fallback dalı) `id`'siz,
+                        // sadece `value`/`text` içeren bir yer tutucu döner.
+                        // `opt.id` bu durumda TÜM seçenekler için `undefined`
+                        // olur - ham `opt.id` ile karşılaştırmak hepsini aynı
+                        // anda "seçili" gösterip native radio davranışıyla
+                        // sessizce son seçeneğe kilitlenmesine yol açıyordu.
+                        // `idx` her zaman benzersiz olduğu için son çare.
+                        const optionKey = opt.id ?? opt.value ?? idx;
+                        const checked =
+                          answers[q.id]?.selected_option_ids?.[0] === optionKey;
+                        return (
+                          <label
+                            key={optionKey}
+                            className="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 p-3 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
+                          >
+                            <input
+                              type="radio"
+                              name={`q-${q.id}`}
+                              checked={checked}
+                              onChange={() => setAnswer(q.id, { selected_option_ids: [optionKey] })}
+                              className="h-4 w-4"
+                            />
+                            <span className="text-gray-700 dark:text-gray-300">
+                              {opt.option_text ?? opt.text}
+                            </span>
+                          </label>
+                        );
+                      })}
                     </div>
                   )}
 
                   {q.question_type === "multiple_choice" && (
                     <div className="space-y-2">
                       {q.options.map((opt) => {
-                        const selected = answers[q.id]?.selected_option_ids ?? [];
-                        const checked = selected.includes(opt.id!);
+                        const checked =
+                          answers[q.id]?.selected_option_ids?.includes(opt.id!) ?? false;
                         return (
                           <label
                             key={opt.id}
@@ -221,12 +266,7 @@ export default function FormFill() {
                             <input
                               type="checkbox"
                               checked={checked}
-                              onChange={() => {
-                                const next = checked
-                                  ? selected.filter((id) => id !== opt.id)
-                                  : [...selected, opt.id!];
-                                setAnswer(q.id, { selected_option_ids: next });
-                              }}
+                              onChange={() => toggleOption(q.id, opt.id!)}
                               className="h-4 w-4"
                             />
                             <span className="text-gray-700 dark:text-gray-300">
@@ -304,12 +344,59 @@ export default function FormFill() {
           </div>
 
           <div className="flex justify-end">
-            <Button onClick={handleSubmit} disabled={submitting}>
+            <Button onClick={handleSubmitClick} disabled={submitting}>
               {submitting ? "Gönderiliyor..." : "Formu Gönder"}
             </Button>
           </div>
         </div>
       </div>
+
+      <Modal
+        isOpen={missingModal.isOpen}
+        onClose={missingModal.closeModal}
+        className="max-w-[500px] m-4"
+      >
+        <div className="relative w-full rounded-3xl bg-white p-6 dark:bg-gray-900">
+          <h4 className="mb-2 text-lg font-semibold text-gray-800 dark:text-white/90">
+            Eksik sorular var
+          </h4>
+          <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
+            Formu gönderebilmek için lütfen aşağıdaki soruları yanıtlayınız:
+          </p>
+          <ul className="mb-6 max-h-60 list-disc space-y-1 overflow-y-auto pl-5 text-sm text-gray-700 dark:text-gray-300">
+            {missingQuestions.map((q) => (
+              <li key={q.id}>{q.question_text}</li>
+            ))}
+          </ul>
+          <div className="flex justify-end">
+            <Button onClick={missingModal.closeModal}>Tamam</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={confirmModal.isOpen}
+        onClose={confirmModal.closeModal}
+        className="max-w-[440px] m-4"
+      >
+        <div className="relative w-full rounded-3xl bg-white p-6 dark:bg-gray-900">
+          <h4 className="mb-2 text-lg font-semibold text-gray-800 dark:text-white/90">
+            Formu Gönder
+          </h4>
+          <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
+            Formunuzu göndereceksiniz, emin misiniz? Gönderdikten sonra cevaplarınızı
+            değiştiremezsiniz.
+          </p>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={confirmModal.closeModal} disabled={submitting}>
+              Vazgeç
+            </Button>
+            <Button onClick={handleConfirmSubmit} disabled={submitting}>
+              {submitting ? "Gönderiliyor..." : "Evet, Gönder"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }

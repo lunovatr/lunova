@@ -14,6 +14,14 @@ export interface MyClient {
   email: string
 }
 
+// Danışan x form matrisinin sütun başlıkları için - GET /api/v1/forms/'un
+// döndürdüğü ama burada kullanılmayan diğer alanlar (description, scoring_type
+// vb.) bilinçli olarak dışarıda bırakıldı.
+export interface FormSummary {
+  id: number
+  title: string
+}
+
 export type QuestionType =
   | 'text'
   | 'yes_no'

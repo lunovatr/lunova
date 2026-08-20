@@ -6,4 +6,5 @@ urlpatterns = [
     path('appointments/', include('appointments.urls')),
     path('forms/', include('forms.urls')),
     path('availability/', include('availability.urls')),
+    path('notifications/', include('notifications.urls')),
 ]
