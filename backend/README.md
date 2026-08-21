@@ -60,7 +60,11 @@ python accounts/tests/feed_accounts.py
 python availability/tests/feed_availability.py
 python appointments/tests/feed_appointments.py
 python forms/tests/feed_forms.py
+python messaging/tests/feed_messaging.py
+python notifications/tests/feed_notifications.py
 ```
+
+> 💡 **Alternatif**: `python feed_db.py` (backend kökünde) yukarıdaki hepsini doğru sırayla tek komutla çalıştırır (`--list` ile sırayı, `--apps a,b` ile alt kümeyi görebilirsin). `accounts` feed'i ayrıca ekip üyeleri için isimlendirilmiş test hesapları oluşturur (`<isim>@mail.com` uzman + `danisan_<isim>@mail.com` eşleşmiş danışan, şifre: `password123`).
 
 ### 5. Geliştirme Sunucusunu Başlatma
 Kurulum tamamlandıktan sonra geliştirme sunucusunu başlatın:

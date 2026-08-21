@@ -115,6 +115,23 @@ SUPPORT_GOALS = [
     "İlişki sorunlarını çözmek ve daha mutlu bir yaşam sürmek.",
 ]
 
+# ==============================================================================
+# 1b. İsimlendirilmiş Ekip Hesapları (gerçek ekip üyeleri test edebilsin diye)
+# ==============================================================================
+# Her isim için BİR uzman (<isim>@mail.com) + o uzmana ATANMIŞ bir danışan
+# (danisan_<isim>@mail.com) çifti oluşturulur - ekip üyeleri kendi isimleriyle
+# giriş yapıp uzman/danışan iki tarafı da tek bir eşleşmiş çift üzerinden test
+# edebilsin (özellikle Notlar/mesajlaşma özelliği bir eşleşmiş çift gerektirir).
+# Diğer test kullanıcılarıyla aynı domain (mail.com) ve aynı şifre kullanılır.
+NAMED_TEAM_MEMBERS = [
+    "selin", "selen", "onur", "ece", "eslem", "gokcen", "niga", "mustafa", "yusuf",
+]
+NAMED_TEAM_SURNAMES = [
+    "Yılmaz", "Kaya", "Demir", "Çelik", "Şahin", "Yıldız", "Aydın", "Arslan", "Doğan",
+]
+TEAM_EMAIL_DOMAIN = "mail.com"
+TEAM_PASSWORD = "password123"
+
 
 # ==============================================================================
 # 2. Besleme Fonksiyonları
@@ -392,6 +409,120 @@ def seed_client_profiles(count=100):
     print(f"\r\033[K-- {count} Danışan Profili Oluşturuldu --")
 
 
+def seed_named_team_accounts():
+    """Ekip üyeleri için isimlendirilmiş, tahmin edilebilir test hesapları.
+
+    NAMED_TEAM_MEMBERS'taki her isim için bir uzman + o uzmana ATANMIŞ bir
+    danışan (aynı isim, "danisan_" önekiyle) oluşturulur. Uzmanlar bilinçli
+    olarak approval_status=True ile oluşturulur (ekip ekstra bir admin onay
+    adımına takılmadan test edebilsin). Fonksiyon idempotent: zaten var olan
+    bir hesabı/profili tekrar oluşturmaz, sadece eksik olanı tamamlar.
+    """
+    print(f"\n-- {len(NAMED_TEAM_MEMBERS)} İsimlendirilmiş Ekip Hesabı (uzman + danışan çifti) Oluşturuluyor --")
+
+    services = list(Service.objects.all())
+    universities = list(University.objects.all())
+    degree_levels = list(DegreeLevel.objects.all())
+    majors = list(Major.objects.all())
+    specializations = list(Specialization.objects.all())
+    languages = list(Language.objects.all())
+    approach_methods = list(ApproachMethod.objects.all())
+    target_groups = list(TargetGroup.objects.all())
+    session_types = list(SessionType.objects.all())
+    addiction_types = list(AddictionType.objects.all())
+
+    def set_random_m2m(manager, items, k=3):
+        if items:
+            manager.set(random.sample(items, min(k, len(items))))
+
+    for i, name in enumerate(NAMED_TEAM_MEMBERS):
+        surname = NAMED_TEAM_SURNAMES[i % len(NAMED_TEAM_SURNAMES)]
+        first_name = name.capitalize()
+
+        # --- Uzman tarafı ---
+        expert_email = f"{name}@{TEAM_EMAIL_DOMAIN}"
+        expert_user = User.objects.filter(email=expert_email).first()
+        if expert_user and ExpertProfile.objects.filter(user=expert_user).exists():
+            print(f"  ○ Ekip uzmanı zaten mevcut: {expert_email}")
+            expert_profile = ExpertProfile.objects.get(user=expert_user)
+        else:
+            if not expert_user:
+                today = date.today()
+                birth_date = today - timedelta(days=random.randint(28 * 365, 55 * 365))
+                id_number = ''.join(random.choices('123456789', k=1) + random.choices('0123456789', k=10))
+                expert_user = User.objects.create_user(
+                    email=expert_email,
+                    password=TEAM_PASSWORD,
+                    first_name=first_name,
+                    last_name=surname,
+                    role=UserRole.EXPERT,
+                    birth_date=birth_date,
+                    gender=random.choice(GenderChoices.choices)[0],
+                    id_number=id_number,
+                    phone_number=f"+90{random.randint(5000000000, 5999999999)}"
+                )
+            expert_profile = ExpertProfile.objects.create(
+                user=expert_user,
+                about=random.choice(ABOUT_TEXTS),
+                approval_status=True,
+                title=f"{random.choice(['Uzman', 'Klinik'])} {random.choice(['Psikolog', 'Terapist'])}",
+                experience_years=random.randint(3, 20),
+                session_price=random.uniform(300, 1500),
+                availability_status="available",
+                rating_average=random.uniform(4.0, 5.0),
+                rating_count=random.randint(10, 200),
+                university=random.choice(universities) if universities else None,
+                degree_level=random.choice(degree_levels) if degree_levels else None,
+                major=random.choice(majors) if majors else None,
+            )
+            set_random_m2m(expert_profile.services, services)
+            set_random_m2m(expert_profile.specializations, specializations)
+            set_random_m2m(expert_profile.languages, languages)
+            set_random_m2m(expert_profile.approach_methods, approach_methods)
+            set_random_m2m(expert_profile.target_groups, target_groups)
+            set_random_m2m(expert_profile.session_types, session_types)
+            print(f"  ✓ Ekip uzmanı oluşturuldu: {expert_email} ({first_name} {surname})")
+
+        # --- Danışan tarafı (yukarıdaki uzmana ATANMIŞ) ---
+        client_email = f"danisan_{name}@{TEAM_EMAIL_DOMAIN}"
+        client_user = User.objects.filter(email=client_email).first()
+        if client_user and ClientProfile.objects.filter(user=client_user).exists():
+            print(f"  ○ Ekip danışanı zaten mevcut: {client_email}")
+            client_profile = ClientProfile.objects.get(user=client_user)
+            if client_profile.expert_id != expert_profile.id:
+                client_profile.expert = expert_profile
+                client_profile.save(update_fields=["expert"])
+        else:
+            if not client_user:
+                today = date.today()
+                birth_date = today - timedelta(days=random.randint(20 * 365, 60 * 365))
+                id_number = ''.join(random.choices('123456789', k=1) + random.choices('0123456789', k=10))
+                client_user = User.objects.create_user(
+                    email=client_email,
+                    password=TEAM_PASSWORD,
+                    first_name=first_name,
+                    last_name=surname,
+                    role=UserRole.CLIENT,
+                    birth_date=birth_date,
+                    gender=random.choice(GenderChoices.choices)[0],
+                    id_number=id_number,
+                    phone_number=f"+90{random.randint(5000000000, 5999999999)}"
+                )
+            client_profile = ClientProfile.objects.create(
+                user=client_user,
+                expert=expert_profile,
+                received_service_before=random.choice([True, False]),
+                support_goal=random.choice(SUPPORT_GOALS),
+                onboarding_complete=True,
+                is_active_in_treatment=True,
+            )
+            if addiction_types:
+                client_profile.substances_used.set(random.sample(addiction_types, min(2, len(addiction_types))))
+            print(f"  ✓ Ekip danışanı oluşturuldu: {client_email} ({first_name} {surname}) -> uzman: {expert_email}")
+
+    print(f"-- Ekip Hesapları Tamamlandı ({len(NAMED_TEAM_MEMBERS)} çift, şifre: {TEAM_PASSWORD}) --")
+
+
 def seed_mock_documents_varied(count=150):
     """
     Kullanıcılara rastgele tiplerde dokümanlar yükler:
@@ -464,6 +595,7 @@ def main():
         # 2. Kullanıcı/Profil modellerini besle
         seed_admin_user()
         seed_expert_profiles(count=15)  # Uzman sayısını artırdım
+        seed_named_team_accounts()      # Ekip için isimlendirilmiş uzman+danışan çiftleri (bkz. NAMED_TEAM_MEMBERS)
         seed_client_profiles(count=80)  # Danışan sayısını artırdım
         # seed_mock_documents_varied(count=150)
 

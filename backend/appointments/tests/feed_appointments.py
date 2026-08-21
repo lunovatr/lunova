@@ -53,6 +53,147 @@ TIME_SLOTS = [
 ]
 
 
+# ==============================================================================
+# İsimlendirilmiş Ekip Çiftleri İçin Randevu Senaryoları
+# ==============================================================================
+# accounts/tests/feed_accounts.py::seed_named_team_accounts() tarafından
+# oluşturulan <isim>@mail.com / danisan_<isim>@mail.com çiftleri için, aşağıdaki
+# rastgele genel besleme fonksiyonlarının ÜSTÜNE, bilinçli olarak seçilmiş
+# randevu senaryoları eklenir. Amaç: messaging/tests/feed_messaging.py'nin
+# danışan mesaj kotasını (bkz. messaging/services.py::get_client_remaining_quota
+# - kota, çiftin en son TAMAMLANMIŞ randevusunun bitiş zamanından itibaren
+# sayılır) ve notifications/tests/feed_notifications.py'nin "3 gün içinde
+# yaklaşan randevu" hatırlatmasını gerçek/öngörülebilir veri üzerinden
+# gösterebilmesi. Her senaryo notes alanına "[Ekip Senaryosu]" etiketi koyar -
+# bu hem script'in idempotent olmasını (yeniden çalıştırılınca aynı senaryu
+# tekrar eklenmez) hem admin panelinde ayırt edilebilir olmayı sağlar.
+NAMED_TEAM_MEMBERS = [
+    "selin", "selen", "onur", "ece", "eslem", "gokcen", "niga", "mustafa", "yusuf",
+]
+TEAM_EMAIL_DOMAIN = "mail.com"
+SCENARIO_TAG = "[Ekip Senaryosu]"
+
+# completed_days_ago: None ise hiç tamamlanmış seans yok (kota penceresi baştan
+#   itibaren sayılır) - varsa o kadar gün önce tamamlanmış bir seans oluşturulur.
+# extra_completed_days_ago: ikinci, daha eski bir tamamlanmış seans (çok seanslı
+#   geçmiş anlatısı için - kota hesabına etkisi yok, en son seans zaten geçerli).
+# upcoming_confirmed_in_days: notifications'ın "3 gün içinde yaklaşan randevu"
+#   penceresini test etmek için yakın gelecekte onaylanmış bir randevu.
+# future_confirmed_in_days: hatırlatma penceresinin (3 gün) DIŞINDA, sadece
+#   takvimde görünürlük için uzak gelecekte onaylanmış bir randevu.
+# waiting_approval: henüz hiç seans yapılmamış, danışanın yeni randevu talep
+#   ettiği (onay bekleyen) bir ilişkinin başlangıcını simüle eder.
+NAMED_PAIR_APPOINTMENT_SCENARIOS = {
+    "selin":   {"completed_days_ago": None, "upcoming_confirmed_in_days": 2},
+    "selen":   {"completed_days_ago": 14, "upcoming_confirmed_in_days": 1},
+    "onur":    {"completed_days_ago": 5},
+    "ece":     {"waiting_approval_in_days": 4},
+    "eslem":   {"completed_days_ago": 3, "extra_completed_days_ago": 30},
+    "gokcen":  {"completed_days_ago": 20, "future_confirmed_in_days": 10},
+    "niga":    {"completed_days_ago": 1},
+    # NOT: upcoming_confirmed_in_days bilinçli olarak sadece 1-2 kullanılıyor
+    # (3 değil) - notifications/services.py'deki "now <= appt_dt <= now+3gün"
+    # penceresi, tam 3 gün sonrası + sabit bir saat kombinasyonunda script'in
+    # çalıştırıldığı saate göre pencerenin dışına düşebiliyor (gün ortasında
+    # çalıştırılırsa saat karşılaştırması sınırın az ötesine geçebilir) - 1-2
+    # gün, script hangi saatte çalıştırılırsa çalıştırılsın güvenle içeride kalır.
+    "mustafa": {"completed_days_ago": 7, "upcoming_confirmed_in_days": 2},
+    "yusuf":   {"completed_days_ago": 2, "upcoming_confirmed_in_days": 1},
+}
+
+
+def _tagged_note():
+    base = random.choice(APPOINTMENT_NOTES)
+    return f"{SCENARIO_TAG} {base}"
+
+
+def _create_scenario_appointment(expert, client, appointment_date, appointment_time, status, is_confirmed, with_zoom=False):
+    already_exists = Appointment.objects.filter(
+        expert=expert, client=client, status=status, notes__startswith=SCENARIO_TAG,
+        date=appointment_date,
+    ).exists()
+    if already_exists:
+        return None
+
+    zoom_data = generate_zoom_data() if with_zoom else {}
+    appointment = Appointment.objects.create(
+        expert=expert,
+        client=client,
+        date=appointment_date,
+        time=appointment_time,
+        duration=45,
+        status=status,
+        is_confirmed=is_confirmed,
+        notes=_tagged_note(),
+        **zoom_data,
+    )
+    return appointment
+
+
+def seed_named_team_appointments():
+    """İsimlendirilmiş ekip çiftleri (bkz. NAMED_PAIR_APPOINTMENT_SCENARIOS)
+    için, mesaj kotası ve bildirim hatırlatmalarını anlamlı kılacak randevu
+    senaryolarını oluşturur. accounts feed'i çalıştırılmamışsa (isimlendirilmiş
+    hesaplar yoksa) o çifti sessizce atlar."""
+    print(f"🌱 {len(NAMED_PAIR_APPOINTMENT_SCENARIOS)} isimlendirilmiş ekip çifti için randevu senaryoları oluşturuluyor...")
+    today = date.today()
+    created = 0
+
+    for name, scenario in NAMED_PAIR_APPOINTMENT_SCENARIOS.items():
+        expert = User.objects.filter(email=f"{name}@{TEAM_EMAIL_DOMAIN}", role=UserRole.EXPERT).first()
+        client = User.objects.filter(email=f"danisan_{name}@{TEAM_EMAIL_DOMAIN}", role=UserRole.CLIENT).first()
+        if not expert or not client:
+            print(f"  ⚠️ '{name}' için ekip hesapları bulunamadı - önce accounts/tests/feed_accounts.py çalıştırılmalı. Atlanıyor.")
+            continue
+
+        if scenario.get("completed_days_ago") is not None:
+            appt_date = today - timedelta(days=scenario["completed_days_ago"])
+            appt = _create_scenario_appointment(
+                expert, client, appt_date, time(10, 0), "completed", True, with_zoom=True
+            )
+            if appt:
+                created += 1
+                print(f"  ✓ [{name}] tamamlanmış seans: {appt_date}")
+
+        if scenario.get("extra_completed_days_ago") is not None:
+            appt_date = today - timedelta(days=scenario["extra_completed_days_ago"])
+            appt = _create_scenario_appointment(
+                expert, client, appt_date, time(11, 0), "completed", True, with_zoom=True
+            )
+            if appt:
+                created += 1
+                print(f"  ✓ [{name}] (ek) daha eski tamamlanmış seans: {appt_date}")
+
+        if scenario.get("upcoming_confirmed_in_days") is not None:
+            appt_date = today + timedelta(days=scenario["upcoming_confirmed_in_days"])
+            appt = _create_scenario_appointment(
+                expert, client, appt_date, time(15, 0), "confirmed", True, with_zoom=True
+            )
+            if appt:
+                created += 1
+                print(f"  ✓ [{name}] yakın zamanda onaylı randevu (bildirim testi): {appt_date}")
+
+        if scenario.get("future_confirmed_in_days") is not None:
+            appt_date = today + timedelta(days=scenario["future_confirmed_in_days"])
+            appt = _create_scenario_appointment(
+                expert, client, appt_date, time(13, 0), "confirmed", True, with_zoom=True
+            )
+            if appt:
+                created += 1
+                print(f"  ✓ [{name}] uzak gelecekte onaylı randevu (takvim görünürlüğü): {appt_date}")
+
+        if scenario.get("waiting_approval_in_days") is not None:
+            appt_date = today + timedelta(days=scenario["waiting_approval_in_days"])
+            appt = _create_scenario_appointment(
+                expert, client, appt_date, time(9, 30), "waiting_approval", False
+            )
+            if appt:
+                created += 1
+                print(f"  ✓ [{name}] onay bekleyen ilk randevu talebi: {appt_date}")
+
+    print(f"✅ Ekip randevu senaryoları tamamlandı. Yeni oluşturulan: {created}")
+
+
 def get_experts_and_clients():
     """Get all experts and clients from database"""
     experts = list(User.objects.filter(role=UserRole.EXPERT))
@@ -373,6 +514,11 @@ def main():
         # Get experts and clients
         experts, clients = get_experts_and_clients()
         print(f"Found {len(experts)} experts and {len(clients)} clients")
+
+        # İsimlendirilmiş ekip çiftleri için hedefli senaryolar (genel rastgele
+        # beslemeden ÖNCE - mesaj kotası/bildirim testleri buna dayanıyor)
+        seed_named_team_appointments()
+        print("-" * 30)
 
         # Seed different types of appointments
         seed_pending_appointments(experts, clients, 40)
