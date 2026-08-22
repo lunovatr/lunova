@@ -24,12 +24,14 @@ class DocumentSerializer(serializers.ModelSerializer):
             "access_url",
             "uploaded_at",
             "updated_at",
+            "status",
             "verified",
             "verified_at",
         ]
         read_only_fields = [
             "uploaded_at",
             "updated_at",
+            "status",
             "verified",
             "verified_at",
         ]

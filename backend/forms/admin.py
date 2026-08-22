@@ -120,11 +120,15 @@ class FormAdmin(VersionForkAdminMixin, admin.ModelAdmin):
     yeni bir versiyon açılır (bkz. VersionForkAdminMixin).
     """
     version_kind = 'form'
-    list_display = ['title', 'version', 'is_active', 'scoring_type', 'stage']
+    list_display = ['title', 'version', 'is_active', 'scoring_type', 'stage', 'response_count']
     list_filter = ['scoring_type', 'is_active', 'stage']
     search_fields = ['title']
     readonly_fields = ['group_key', 'version']
     inlines = [QuestionInline]
+
+    def response_count(self, obj):
+        return obj.responses.count()
+    response_count.short_description = 'Cevap Sayısı'
 
     def _equivalent(self, obj, id_map, new_form):
         return new_form
@@ -170,6 +174,7 @@ class QuestionOptionAdmin(VersionForkAdminMixin, admin.ModelAdmin):
     version_kind = 'option'
     list_display = ['option_text', 'question', 'score_value', 'order']
     list_filter = ['question__form']
+    search_fields = ['option_text', 'question__question_text']
 
     def _equivalent(self, obj, id_map, new_form):
         return QuestionOption.objects.get(pk=id_map['options'][obj.id])
@@ -193,13 +198,21 @@ class FormResponseAdmin(admin.ModelAdmin):
     Admin sadece formun doldurulduğu bilgisini görür.
     Puan, Risk Seviyesi, Yorum gibi alanlar tamamen gizlendi.
     """
-    list_display = ['user', 'form', 'submitted_at']  # total_score ve risk_level ÇIKARILDI
+    # form artık "Başlık (vN)" olarak görünüyor (bkz. Form.__str__), ama ayrı
+    # bir sıralanabilir 'form_version' kolonu da ekliyoruz - liste görünümünde
+    # versiyona göre sıralama/tarama kolaylaşsın diye.
+    list_display = ['user', 'form', 'form_version', 'submitted_at']  # total_score ve risk_level ÇIKARILDI
     list_filter = ['form', 'submitted_at']
-    search_fields = ['user__username', 'form__title']
+    search_fields = ['user__username', 'user__email', 'form__title']
 
-    # Detay sayfasında sadece kimin ne zaman doldurduğu görünür.
-    fields = ['user', 'form', 'submitted_at']
-    readonly_fields = ['user', 'form', 'submitted_at']
+    # Detay sayfasında sadece kimin ne zaman, formun hangi versiyonunu doldurduğu görünür.
+    fields = ['user', 'form', 'form_version', 'submitted_at']
+    readonly_fields = ['user', 'form', 'form_version', 'submitted_at']
+
+    def form_version(self, obj):
+        return obj.form.version
+    form_version.short_description = 'Form Versiyonu'
+    form_version.admin_order_field = 'form__version'
 
     def has_add_permission(self, request):
         return False

@@ -180,6 +180,12 @@ class DocumentType(models.TextChoices):
     OTHER = "other", "Diğer"
 
 
+class DocumentStatus(models.TextChoices):
+    PENDING = "pending", "Onay Bekliyor"
+    APPROVED = "approved", "Onaylandı"
+    REJECTED = "rejected", "Reddedildi"
+
+
 def upload_document_path(instance, filename):
     user = instance.user
     doc_type = instance.type
@@ -202,9 +208,21 @@ class Document(models.Model):
     is_primary = models.BooleanField("Birincil mi?", default=False)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    # `status` asıl doğruluk kaynağıdır (bkz. accounts/services.py::review_document).
+    # `verified`/`verified_at` eski API tüketicileriyle (bu iki alanı zaten okuyan
+    # var olan frontend kodu) geriye dönük uyumluluk için korunuyor ve review_document
+    # tarafından status ile senkron tutuluyor - status=approved <=> verified=True.
+    status = models.CharField(
+        max_length=16, choices=DocumentStatus.choices, default=DocumentStatus.PENDING,
+        verbose_name="Onay Durumu",
+    )
     verified = models.BooleanField(default=False)
     verified_at = models.DateTimeField(null=True, blank=True)
-    is_current = models.BooleanField(default=True)
+    # Kullanıcının kendi "silme" işlemi bunu False'a çeker (bkz.
+    # accounts/views/document_views.py::DocumentDeleteView) - gerçek bir
+    # DELETE değil, aktif/pasif anahtarı. Dosya storage'da kalır, admin
+    # panelinde görünmeye ve yeniden aktifleştirilmeye devam eder.
+    is_current = models.BooleanField(default=True, verbose_name="Aktif mi?")
 
     def __str__(self):
         return f"{self.user.get_full_name()} - {self.get_type_display()}"

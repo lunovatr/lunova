@@ -194,7 +194,10 @@ export default function FormFill() {
         />
 
         <div className="mt-8 space-y-6">
-          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white p-6 dark:border-white/[0.05] dark:bg-white/[0.03]">
+          <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-white p-6 dark:border-white/[0.05] dark:bg-white/[0.03]">
+            <span className="absolute right-3 top-3 text-[11px] text-gray-300 dark:text-gray-600">
+              v{form.version}
+            </span>
             {form.description && (
               <p className="mb-2 text-sm text-gray-600 dark:text-gray-300">{form.description}</p>
             )}

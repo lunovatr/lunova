@@ -1,11 +1,13 @@
 // Shared Notification type for client frontend
 //
 // Backend kaynağı: backend/notifications/{models,serializers,views}.py
-// İki üretici tür var: 'appointment_reminder' (yaklaşan, onaylanmış randevular
-// için otomatik oluşturulur, appointment_id dolu olur) ve 'message' (messaging
+// Üç üretici tür var: 'appointment_reminder' (yaklaşan, onaylanmış randevular
+// için otomatik oluşturulur, appointment_id dolu olur), 'message' (messaging
 // app'inden yeni bir not gönderildiğinde oluşturulur, related_user_id ilgili
-// konuşmanın karşı tarafını taşır).
-export type NotificationType = "appointment_reminder" | "message";
+// konuşmanın karşı tarafını taşır) ve 'document_status' (admin bir belgeyi
+// onayladığında/reddettiğinde oluşturulur - hiçbir ek id taşımaz, tıklanınca
+// sabit olarak kullanıcının kendi profil sayfasına yönlendirilir).
+export type NotificationType = "appointment_reminder" | "message" | "document_status";
 
 export interface NotificationItem {
   id: number;

@@ -11,6 +11,7 @@ export interface ProfileDocument {
   access_url: string;
   uploaded_at: string;
   updated_at: string;
+  status: 'pending' | 'approved' | 'rejected';
   verified: boolean;
   verified_at: string | null;
 }

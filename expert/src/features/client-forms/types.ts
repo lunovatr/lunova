@@ -34,7 +34,7 @@ export type QuestionType =
 
 export interface FormResponseSummary {
   id: number
-  form: { id: number; title: string; stage: number }
+  form: { id: number; title: string; stage: number; version: number }
   submitted_at: string
   total_score: number
   risk_level: string
@@ -78,7 +78,7 @@ export interface ExpertAnswerDetail {
 
 export interface FormResponseDetail {
   id: number
-  form: { id: number; title: string; stage: number; scoring_type: string }
+  form: { id: number; title: string; stage: number; scoring_type: string; version: number }
   submitted_at: string
   total_score: number
   risk_level: string

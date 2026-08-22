@@ -64,6 +64,7 @@ export interface FormQuestion {
 
 export interface FormDetail {
   id: number;
+  version: number;
   title: string;
   description: string;
   is_active: boolean;
@@ -86,7 +87,7 @@ export interface FormSubmitPayload {
 
 export interface FormResponseSummary {
   id: number;
-  form: { id: number; title: string; stage: number };
+  form: { id: number; title: string; stage: number; version: number };
   submitted_at: string;
 }
 
@@ -113,7 +114,7 @@ export interface AnswerDetail {
 
 export interface FormResponseDetail {
   id: number;
-  form: { id: number; title: string; stage: number };
+  form: { id: number; title: string; stage: number; version: number };
   submitted_at: string;
   questions: AnsweredQuestion[];
   answers: AnswerDetail[];

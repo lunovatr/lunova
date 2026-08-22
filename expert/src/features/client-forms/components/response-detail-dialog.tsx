@@ -56,7 +56,14 @@ export function ResponseDetailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='max-h-[85vh] overflow-y-auto sm:max-w-2xl'>
         <DialogHeader>
-          <DialogTitle>{detail?.form.title ?? 'Form Cevabı'}</DialogTitle>
+          <DialogTitle className='flex items-center gap-2'>
+            {detail?.form.title ?? 'Form Cevabı'}
+            {detail && (
+              <span className='text-muted-foreground text-xs font-normal'>
+                v{detail.form.version}
+              </span>
+            )}
+          </DialogTitle>
         </DialogHeader>
 
         {loading ? (

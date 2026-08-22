@@ -3,11 +3,16 @@ from .models import Form, Question, QuestionOption, FormResponse, Answer
 
 
 class FormMinimalSerializer(serializers.ModelSerializer):
-    """Client-safe minimal form info."""
+    """Client-safe minimal form info.
+
+    `version` dahil - client/expert/admin'in "bu cevap formun hangi
+    versiyonuyla verildi" sorusunu cevaplayabilmesi için (FormResponse.form
+    FK'si zaten fork edilmiş TAM O ANKİ Form satırına işaret ediyor, bkz.
+    forms/versioning.py - burada sadece bunu API'de görünür kılıyoruz)."""
 
     class Meta:
         model = Form
-        fields = ['id', 'title', 'stage']
+        fields = ['id', 'title', 'stage', 'version']
 
 
 class FormResponseClientSummarySerializer(serializers.ModelSerializer):
@@ -250,12 +255,16 @@ class QuestionSerializer(serializers.ModelSerializer):
 
 
 class FormSerializer(serializers.ModelSerializer):
-    """Form detayları için serializer - soruları da içerir"""
+    """Form detayları için serializer - soruları da içerir.
+
+    `version` FormDetailView (doldurma ekranı) tarafından kullanılır - client
+    formu doldururken hangi versiyonu doldurduğunu köşede küçük bir yazıyla
+    görebilsin diye eklendi."""
     questions = QuestionSerializer(many=True, read_only=True)
-    
+
     class Meta:
         model = Form
-        fields = ['id', 'title', 'description', 'is_active', 'created_at', 'questions']
+        fields = ['id', 'version', 'title', 'description', 'is_active', 'created_at', 'questions']
 
 
 class AnswerSubmitSerializer(serializers.Serializer):

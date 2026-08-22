@@ -140,6 +140,16 @@ export const DOCUMENT_TYPE_LABEL: Record<DocumentType, string> = {
   [DocumentType.OTHER]: 'Diğer Belgeler',
 }
 
+// Backend kaynağı: accounts/models.py::DocumentStatus - `verified` boolean'ı
+// artık türetilmiş/salt-okunur bir alan, asıl kaynak `status`.
+export type DocumentReviewStatus = 'pending' | 'approved' | 'rejected'
+
+export const DOCUMENT_STATUS_LABEL: Record<DocumentReviewStatus, string> = {
+  pending: 'Onay Bekliyor',
+  approved: 'Onaylandı',
+  rejected: 'Reddedildi',
+}
+
 // Helper fonksiyonlar
 export const getUniversityName = (id: number | null): string => {
   if (!id) return '-'
