@@ -63,10 +63,25 @@ interface AvailabilityResponse {
     calendar: CalendarDay[];
 }
 
+export interface ActiveSlotSelection {
+    expertUserId: number;
+    slotId: string;
+}
+
 interface ExpertAvailabilityProps {
     expert_user_id: number;
     start_date: string;
     end_date: string;
+    // Tek seferde tüm uzmanlar arasında EN FAZLA bir slot seçili olabilsin diye
+    // bu state Request.tsx'te (ortak ata) tutuluyor, buraya prop olarak geliyor -
+    // başka bir uzmanın slotuna tıklanınca bu bileşenin seçimi otomatik temizlenir.
+    activeSelection: ActiveSlotSelection | null;
+    onSelectionChange: (selection: ActiveSlotSelection | null) => void;
+    // Randevu talebi gönderilirken (AppointmentForm submit ediyorken) TÜM
+    // uzmanlardaki slotların tıklanması devre dışı kalsın diye - görsel bir
+    // değişiklik yok, sadece handleSlotClick no-op oluyor.
+    isSubmittingAppointment: boolean;
+    onSubmittingAppointmentChange: (submitting: boolean) => void;
 }
 
 // GÜNCELLENDİ: Slotları daima 1 saatlik dilimlere böler
@@ -120,6 +135,10 @@ const ExpertAvailability: React.FC<ExpertAvailabilityProps> = ({
     expert_user_id,
     start_date,
     end_date,
+    activeSelection,
+    onSelectionChange,
+    isSubmittingAppointment,
+    onSubmittingAppointmentChange,
 }) => {
     const { showToast } = useToast();
     const navigate = useNavigate();
@@ -127,11 +146,16 @@ const ExpertAvailability: React.FC<ExpertAvailabilityProps> = ({
     // State Yönetimi
     const [loading, setLoading] = useState<boolean>(false);
     const [slots, setSlots] = useState<ProcessedSlot[]>([]);
-    
-    // Seçim State'leri
-    const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
-    const [selectedSlotDetails, setSelectedSlotDetails] = useState<ProcessedSlot | null>(null);
-    
+
+    // Seçim - bu bileşenin kendi local state'i DEĞİL, ortak (Request.tsx'teki)
+    // activeSelection'dan türetiliyor - böylece başka bir uzmanın slotu seçilince
+    // burası otomatik olarak "seçili değil" durumuna döner.
+    const isThisExpertActive = activeSelection?.expertUserId === expert_user_id;
+    const selectedSlotId = isThisExpertActive ? activeSelection!.slotId : null;
+    const selectedSlotDetails = isThisExpertActive
+        ? slots.find((s) => s.slot_id === activeSelection!.slotId) ?? null
+        : null;
+
     // Notlar
     const [notes, setNotes] = useState("");
 
@@ -229,12 +253,15 @@ const ExpertAvailability: React.FC<ExpertAvailabilityProps> = ({
 
     // Slot Seçimi
     const handleSlotClick = (slot: ProcessedSlot) => {
+        // Bir randevu talebi gönderiliyorken (herhangi bir uzmanın formu submit
+        // ediliyorken) hiçbir slot seçimi değişmesin - görsel olarak hiçbir şey
+        // değişmiyor, sadece tıklama etkisiz kalıyor.
+        if (isSubmittingAppointment) return;
+
         if (selectedSlotId === slot.slot_id) {
-            setSelectedSlotId(null);
-            setSelectedSlotDetails(null);
+            onSelectionChange(null);
         } else {
-            setSelectedSlotId(slot.slot_id);
-            setSelectedSlotDetails(slot);
+            onSelectionChange({ expertUserId: expert_user_id, slotId: slot.slot_id });
             showToast(`${slot.start_time} - ${slot.end_time} seçildi.`, "success");
         }
     };
@@ -292,10 +319,12 @@ const ExpertAvailability: React.FC<ExpertAvailabilityProps> = ({
                         selectedDate={selectedSlotDetails.date}
                         startTime={selectedSlotDetails.start_time}
                         endTime={selectedSlotDetails.end_time}
-                        slotMinutes={60} 
+                        slotMinutes={60}
                         notes={notes}
                         setNotes={setNotes}
                         navigate={navigate}
+                        isSubmitting={isSubmittingAppointment}
+                        onSubmittingChange={onSubmittingAppointmentChange}
                     />
                 </div>
             )}

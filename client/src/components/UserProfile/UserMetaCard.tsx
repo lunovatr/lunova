@@ -25,6 +25,7 @@ export default function UserMetaCard() {
   
   // Local state'i yeni ProfileResponse tipine göre yönetiyoruz
   const [formData, setFormData] = useState<Partial<ProfileResponse>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (storeUser) {
@@ -33,6 +34,7 @@ export default function UserMetaCard() {
   }, [storeUser, isOpen]);
 
   const handleSave = async () => {
+    setIsSaving(true);
     try {
       // Backend beklentisine göre user_data içindeki alanları gönderiyoruz
       const updateData = {
@@ -43,7 +45,7 @@ export default function UserMetaCard() {
         }
         // id_number JSON örneğinde yoktu ama gerekirse user_data altına eklenebilir
       };
-      
+
       await api.patch('/api/v1/accounts/profile/', updateData);
       await dispatch(fetchProfile());
       closeModal();
@@ -56,6 +58,8 @@ export default function UserMetaCard() {
         error?.response?.data?.message ||
         "Kimlik bilgileri güncellenemedi. Lütfen tekrar deneyin.";
       showToast(message, "error");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -187,8 +191,8 @@ export default function UserMetaCard() {
             </div>
 
             <div className="flex items-center gap-3 px-2 mt-6 lg:justify-end">
-              <Button size="sm" variant="outline" onClick={closeModal}>İptal</Button>
-              <Button size="sm" onClick={handleSave}>Değişiklikleri Kaydet</Button>
+              <Button size="sm" variant="outline" onClick={closeModal} disabled={isSaving}>İptal</Button>
+              <Button size="sm" onClick={handleSave} isLoading={isSaving}>Değişiklikleri Kaydet</Button>
             </div>
           </form>
         </div>

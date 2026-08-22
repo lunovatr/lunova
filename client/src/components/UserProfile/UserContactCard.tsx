@@ -20,6 +20,7 @@ export default function UserSupportCard() {
   
   // Form datayı ProfileResponse tipinde tutuyoruz
   const [formData, setFormData] = useState<Partial<ProfileUpdatePayload>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (storeUser) {
@@ -28,6 +29,7 @@ export default function UserSupportCard() {
   }, [storeUser, isOpen]);
 
   const handleSave = async () => {
+    setIsSaving(true);
     try {
       const updateData = {
         user_data: {
@@ -37,7 +39,7 @@ export default function UserSupportCard() {
         },
         emergency_contacts: formData.emergency_contacts
       };
-      
+
       await api.patch('/api/v1/accounts/profile/', updateData);
       await dispatch(fetchProfile());
       closeModal();
@@ -50,6 +52,8 @@ export default function UserSupportCard() {
         error?.response?.data?.message ||
         "İletişim bilgileri güncellenemedi. Lütfen tekrar deneyin.";
       showToast(message, "error");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -318,8 +322,8 @@ export default function UserSupportCard() {
             </div>
 
             <div className="flex items-center gap-3 px-2 mt-6 lg:justify-end">
-              <Button size="sm" variant="outline" onClick={closeModal}>Vazgeç</Button>
-              <Button size="sm" onClick={handleSave}>Kaydet</Button>
+              <Button size="sm" variant="outline" onClick={closeModal} disabled={isSaving}>Vazgeç</Button>
+              <Button size="sm" onClick={handleSave} isLoading={isSaving}>Kaydet</Button>
             </div>
           </form>
         </div>
