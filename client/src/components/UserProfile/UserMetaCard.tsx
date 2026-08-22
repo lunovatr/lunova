@@ -64,7 +64,7 @@ export default function UserMetaCard() {
   
   // Fotoğrafı documents dizisi içinden 'profile_photo' tipine göre buluyoruz
   const profileDoc = storeUser?.documents?.find(doc => doc.type === 'profile_photo');
-  const profilePicture = profileDoc?.access_url || "/default-avatar.png";
+  const profilePicture = profileDoc?.access_url || "/default-avatar.svg";
 
   return (
     <>
@@ -81,7 +81,14 @@ export default function UserMetaCard() {
                 src={profilePicture} 
                 alt={fullName}
                 className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-110" 
-                onError={(e) => { (e.target as HTMLImageElement).src = "/default-avatar.png"; }}
+                onError={(e) => {
+                  // Bir kez başarısız olduktan sonra tekrar tetiklenmesin - aksi halde
+                  // fallback görseli de yüklenemezse sonsuz bir hata döngüsüne girer
+                  // (bu tam olarak default-avatar dosyası eksikken yaşanan bug'dı).
+                  const img = e.target as HTMLImageElement;
+                  img.onerror = null;
+                  img.src = "/default-avatar.svg";
+                }}
               />
               {/* Üzerine gelince bir efekt eklemek istersen (opsiyonel) */}
               <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">

@@ -29,7 +29,16 @@ export default function UserDropdown() {
         className="flex items-center text-gray-700 dropdown-toggle dark:text-gray-400"
       >
         <span className="mr-3 overflow-hidden rounded-full h-11 w-11">
-          <img src={auth.user?.profile_photo || "/default-avatar.png"} alt={fullName} />
+          <img
+            src={auth.user?.profile_photo || "/default-avatar.svg"}
+            alt={fullName}
+            onError={(e) => {
+              // Bir kez başarısız olduktan sonra tekrar tetiklenmesin - aksi halde
+              // fallback görseli de yüklenemezse sonsuz bir hata döngüsüne girer.
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = "/default-avatar.svg";
+            }}
+          />
         </span>
 
         <span className="block mr-1 font-medium text-theme-sm">

@@ -30,14 +30,33 @@ export default function UploadDocumentModal({ isOpen, onClose, isProfilePhoto }:
     }
 
     setLoading(true);
-    const formData = new FormData();
-    formData.append("file", selectedFile);
-    formData.append("type", documentType);
+    setUploadError(null);
 
     try {
-      await api.post("/api/v1/accounts/documents/upload/", formData, {
-        headers: { 'Content-Type': undefined },
+      // 1. Backend'den presigned upload URL al (dosya henüz backend'e gitmiyor).
+      const presignRes = await api.post("/api/v1/accounts/documents/presign-upload/", {
+        type: documentType,
       });
+      const { file_key, upload } = presignRes.data;
+
+      // 2. Dosyayı doğrudan storage'a (presigned URL'e) yükle - backend'i bypass eder.
+      const uploadRes = await fetch(upload.url, {
+        method: upload.method || "PUT",
+        body: selectedFile,
+        headers: { "Content-Type": selectedFile.type },
+      });
+      if (!uploadRes.ok) {
+        throw new Error(`Dosya depolamaya yüklenemedi (durum: ${uploadRes.status}).`);
+      }
+
+      // 3. Yükleme kaydını finalize et (Document satırı burada oluşuyor).
+      await api.post("/api/v1/accounts/documents/", {
+        type: documentType,
+        file_key,
+        original_filename: selectedFile.name,
+        is_primary: false,
+      });
+
       dispatch(fetchProfile());
       handleClose(); // Başarılıysa temizle ve kapat
       // backend'te işlem tamamlanmadan hemen me/ çağırırsan güncellemeyi yakalayamazsın. store'u güncelleyelim biz.
@@ -57,18 +76,25 @@ export default function UploadDocumentModal({ isOpen, onClose, isProfilePhoto }:
         return;
       }
 
-      // 2. Validasyon Hataları (Senin gösterdiğin 'file' array yapısı)
-      if (errorData?.file && Array.isArray(errorData.file) && errorData.file.length > 0) {
-        setUploadError(errorData.file[0]);
+      // 2. Validasyon Hataları (finalize serializer'ının döndürdüğü gerçek alan adları)
+      if (errorData?.file_key && Array.isArray(errorData.file_key) && errorData.file_key.length > 0) {
+        setUploadError(errorData.file_key[0]);
       }
       else if (errorData?.type && Array.isArray(errorData.type) && errorData.type.length > 0) {
         setUploadError(errorData.type[0]);
       }
-      // 3. Diğer Hatalar
+      // 3. presign adımının döndürdüğü düz {"detail": "..."} hataları
+      else if (typeof errorData?.detail === "string") {
+        setUploadError(errorData.detail);
+      }
+      // 4. Diğer Hatalar (örn. storage PUT başarısızlığı)
+      else if (error.message) {
+        setUploadError(error.message);
+      }
       else {
         setUploadError("Yükleme sırasında teknik bir sorun oluştu.");
       }
-      
+
       console.error("Hata Detayı:", status, errorData);
     } finally {
       setLoading(false);
