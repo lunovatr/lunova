@@ -65,6 +65,10 @@ export default function NotificationDropdown() {
       // hedef sabit /messages - expert tarafının aksine bir clientId seçimine
       // gerek yok.
       navigate("/messages");
+    } else if (notification.notification_type === "document_status") {
+      // Belge onay/red kararı her zaman kullanıcının KENDİ belgesiyle ilgili -
+      // ek bir id taşımaz, hedef sabit olarak profil sayfasındaki "Dosyalarım" kartı.
+      navigate("/profile");
     } else if (notification.appointment_id) {
       navigate(`/appointments/${notification.appointment_id}`);
     }

@@ -50,7 +50,11 @@ class Form(models.Model):
         ]
     
     def __str__(self):
-        return self.title
+        # Versiyon numarası dahil - aynı group_key'e ait fork'lanmış versiyonlar
+        # AYNI title'ı taşır, versiyon eklenmezse admin'deki hiçbir dropdown/FK
+        # gösteriminde (QuestionAdmin.form filtresi, FormResponse.form vb.)
+        # birbirinden ayırt edilemezler.
+        return f"{self.title} (v{self.version})"
 
     def calculate_risk_level(self, score):
         """Calculate risk level based on score and form type"""

@@ -19,7 +19,22 @@ const DOCUMENT_URL = '/api/v1/accounts/documents/'
 const handleApiError = (error: any, message = 'İşlem başarısız oldu', showToast = true) => {
   console.error('Profile API Error:', error)
 
-  const errorData = error.response?.data as ProfileApiError
+  const rawErrorData = error.response?.data
+
+  // DRF'in ValidationError'ı düz bir string ile fırlatıldığında (örn.
+  // DocumentDeleteView'daki iş kuralı ihlalleri) {"detail": ...} DEĞİL, ham
+  // bir dizi ["mesaj"] döner - bu, aşağıdaki genel "obje" dalına düşerse
+  // (diziler de typeof === 'object'dir) yanlışlıkla "0: mesaj" gibi bir
+  // index önekiyle gösterilir, bu yüzden özel olarak en başta ele alınıyor.
+  if (Array.isArray(rawErrorData) && rawErrorData.length > 0) {
+    const detail = String(rawErrorData[0])
+    if (showToast) {
+      toast.error(detail)
+    }
+    throw new Error(detail)
+  }
+
+  const errorData = rawErrorData as ProfileApiError
 
   let detail = message
   if (errorData?.detail) {
@@ -149,9 +164,10 @@ export const deleteDocument = async (uid: string): Promise<any> => {
   try {
     const DELETE_URL = `${DOCUMENT_URL}${uid}/`
     const res = await api.delete(DELETE_URL)
+    toast.success('Belge silindi.')
     return res.data
   } catch (err: any) {
-    handleApiError(err, 'Dosya bulunamadı.')
+    handleApiError(err, 'Belge silinemedi.')
     throw err
   }
 }

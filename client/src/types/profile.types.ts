@@ -88,14 +88,29 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentTypes, string> = {
   other: 'Diğer Belge',
 };
 
+// Backend kaynağı: accounts/models.py::DocumentStatus - 'verified' boolean'ı
+// artık türetilmiş/salt-okunur bir alan, asıl kaynak `status`.
+export type DocumentReviewStatus = 'pending' | 'approved' | 'rejected';
+
+export const DOCUMENT_STATUS_LABELS: Record<DocumentReviewStatus, string> = {
+  pending: 'Onay Bekliyor',
+  approved: 'Onaylandı',
+  rejected: 'Reddedildi',
+};
+
 export interface Document {
   is_current: boolean; // BooleanField
+  is_primary: boolean;
   uid: string;
   type: DocumentTypes;
-  filename: string;
+  // Backend alanı `original_filename` (DocumentSerializer) - önceden burada
+  // yanlışlıkla `filename` yazıyordu, bu yüzden UserDocumentsCard.tsx'te
+  // dosya adı satırı hep `undefined` gösteriyordu (sessiz bir bug).
+  original_filename: string;
   access_url: string;
   uploaded_at: string;
   updated_at: string;
+  status: DocumentReviewStatus;
   verified: boolean;
   verified_at: string | null;
   file: string | null; // hata dönüşlerinde bu var. şimdilik devam.

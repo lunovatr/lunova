@@ -68,6 +68,10 @@ export function NotificationDropdown() {
         to: '/messages',
         search: { clientId: notification.related_user_id },
       })
+    } else if (notification.notification_type === 'document_status') {
+      // Belge onay/red kararı her zaman uzmanın KENDİ belgesiyle ilgili -
+      // ek bir id taşımaz, hedef sabit olarak kendi profil sayfası.
+      navigate({ to: '/profile' })
     } else if (notification.appointment_id) {
       navigate({
         to: '/reservations',

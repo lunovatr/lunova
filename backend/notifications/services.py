@@ -102,3 +102,37 @@ def create_message_notification(message):
             'related_user_id': message.sender_id,
         },
     )
+
+
+def create_document_status_notification(document):
+    """accounts.Document onaylandığında/reddedildiğinde belge sahibine bir
+    bildirim üretir - create_message_notification ile aynı 'duck-typed
+    parametre' deseni (sadece .status/.uid/.user_id/.get_type_display()/
+    .original_filename okunuyor, accounts modeline type-hint bağımlılığı yok).
+
+    get_or_create DEĞİL update_or_create kullanılıyor: aynı belge birden
+    fazla kez incelenirse (örn. reddedilip sonra tekrar onaylanırsa) var olan
+    bildirim satırı güncellenir ve is_read sıfırlanır - kullanıcı en güncel
+    kararı kaçırmaz (appointment_reminder/message'ın aksine burada 'ilk karar
+    kalıcıdır' varsayımı geçerli değil, admin fikrini değiştirebilir).
+    status='pending' için hiçbir bildirim üretilmez (henüz bir karar yok).
+    """
+    if document.status == 'approved':
+        title = f"Belgeniz onaylandı: {document.get_type_display()}"
+    elif document.status == 'rejected':
+        title = f"Belgeniz reddedildi: {document.get_type_display()}"
+    else:
+        return None
+
+    notification, _ = Notification.objects.update_or_create(
+        user_id=document.user_id,
+        dedupe_key=f"document_status:{document.uid}",
+        defaults={
+            'notification_type': 'document_status',
+            'title': title,
+            'body': document.original_filename,
+            'is_read': False,
+            'read_at': None,
+        },
+    )
+    return notification

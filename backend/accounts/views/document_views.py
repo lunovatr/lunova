@@ -1,20 +1,17 @@
 # accounts/views/document_views.py
-import logging
 import uuid
-from django.db import transaction
 from accounts.serializers.document_serializers import DocumentSerializer
 from accounts.models import Document, DocumentType
 from accounts.storage import storage
 from rest_framework.generics import ListCreateAPIView, DestroyAPIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import ValidationError  
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
 
 
 permission_classes = [IsAuthenticated]
-logger = logging.getLogger(__name__)
 
 class DocumentListCreateView(ListCreateAPIView):
     permission_classes = [IsAuthenticated]
@@ -91,30 +88,21 @@ class DocumentDeleteView(DestroyAPIView):
         )
     
     def perform_destroy(self, instance):
-        # Business rules
-        if instance.verified:
-            raise ValidationError("Verified document cannot be deleted.")
+        """"Silme" burada bir DEACTIVATE - dosya storage'dan hiç kaldırılmıyor,
+        sadece is_current=False'a çekiliyor (kullanıcının kendi belge
+        listesinden ve profil yanıtından kaybolur, bkz. get_queryset() /
+        profileSerializers.py, ama admin panelinde is_current=Pasif olarak
+        görünmeye ve yeniden aktifleştirilmeye devam eder). `status` (onay/red
+        kararı) buna dokunulmadan korunur - admin geçmişi görebilir, istenirse
+        yeniden aktifleştirebilir.
 
+        Onaylanmış belgeler ÖNCEDEN burada engelleniyordu (kullanıcı talebiyle
+        21. turda kaldırıldı) - o kısıtlama "silme" gerçek/geri dönüşsüz bir
+        DELETE olduğu döneme aitti; artık geri alınabilir bir deactivate
+        olduğu için gerekçesi kalmadı."""
         if instance.is_primary:
-            raise ValidationError("Primary document cannot be deleted.")
+            raise ValidationError("Birincil belge silinemez.")
 
-        file_key = instance.file_key
-
-        # DB state (atomic)
-        with transaction.atomic():
-            instance.is_current = False
-            instance.is_primary = False
-            instance.save(update_fields=["is_current", "is_primary"])
-
-        # Storage delete (side-effect)
-        try:
-            storage.delete(file_key)
-        except Exception as exc:
-            logger.error(
-                "Storage delete failed",
-                extra={
-                    "file_key": file_key,
-                    "document_uid": str(instance.uid),
-                    "error": str(exc)
-                }
-            )
+        instance.is_current = False
+        instance.is_primary = False
+        instance.save(update_fields=["is_current", "is_primary", "updated_at"])

@@ -59,10 +59,18 @@ export default function UploadDocumentModal({ isOpen, onClose, isProfilePhoto }:
 
       dispatch(fetchProfile());
       handleClose(); // Başarılıysa temizle ve kapat
-      // backend'te işlem tamamlanmadan hemen me/ çağırırsan güncellemeyi yakalayamazsın. store'u güncelleyelim biz.
-      console.log("Dosya yüklendi, profil güncelleniyor...");
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      await dispatch(fetchMe());
+
+      // fetchMe() sadece header'daki avatarı besleyen user.profile_photo alanını
+      // dolduruyor (fetchProfile zaten documents listesini güncelliyor) - AYRICA
+      // fetchMe.pending, RequireAuth'un tüm AppLayout'u tam ekran GlobalSpinner'a
+      // çevirmesine sebep oluyor (bkz. store/authSlice.ts + App.tsx). Bu yüzden
+      // sadece gerçekten profil fotoğrafı değiştiyse tetikleniyor - diğer belge
+      // tiplerinde (CV/diploma/vb.) sayfa "yenileniyormuş" gibi hissettirmiyor.
+      if (documentType === 'profile_photo') {
+        // backend'te işlem tamamlanmadan hemen me/ çağırırsan güncellemeyi yakalayamazsın.
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        await dispatch(fetchMe());
+      }
 
     } catch (error: any) {
       const status = error.response?.status;
@@ -129,8 +137,8 @@ export default function UploadDocumentModal({ isOpen, onClose, isProfilePhoto }:
           <div className="px-2 space-y-5">
             <div>
               <Label>Dosya Tipi</Label>
-              <select 
-                  className={`w-full mt-1.5 p-3 rounded-xl border border-gray-200 dark:border-gray-800 text-sm focus:ring-2 focus:bg-slate-950 outline-none dark:text-white dark:bg-gray-800 ${
+              <select
+                  className={`w-full mt-1.5 p-3 rounded-xl border border-gray-200 dark:border-gray-800 text-sm bg-white text-gray-800 focus:ring-2 outline-none dark:text-white dark:bg-gray-800 ${
                     isProfilePhoto ? "bg-gray-100 cursor-not-allowed opacity-70" : ""
                   }`}
                   value={documentType}

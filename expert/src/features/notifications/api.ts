@@ -1,11 +1,14 @@
 import api from '@/lib/api'
 
 // Backend kaynağı: backend/notifications/{models,serializers,views}.py
-// İki üretici tür var: 'appointment_reminder' (yaklaşan, onaylanmış randevular
-// için otomatik oluşturulur, appointment_id dolu olur) ve 'message' (messaging
+// Üç üretici tür var: 'appointment_reminder' (yaklaşan, onaylanmış randevular
+// için otomatik oluşturulur, appointment_id dolu olur), 'message' (messaging
 // app'inden yeni bir not gönderildiğinde oluşturulur, related_user_id ilgili
-// danışanın User.id'sini taşır).
-export type NotificationType = 'appointment_reminder' | 'message'
+// danışanın User.id'sini taşır) ve 'document_status' (admin bir belgeyi
+// onayladığında/reddettiğinde oluşturulur - uzman kendi belgelerini
+// [diploma/CV/onam formu] yüklediği için bu bildirimin alıcısı da olabilir;
+// ek bir id taşımaz, tıklanınca sabit olarak kendi profil sayfasına gider).
+export type NotificationType = 'appointment_reminder' | 'message' | 'document_status'
 
 export interface NotificationItem {
   id: number

@@ -7,7 +7,7 @@ import PageMeta from "../../components/common/PageMeta";
 import ComponentCard from '../../components/common/ComponentCard';
 import ToastContainer from "../../components/common/ToastContainer";
 import { useToast } from "../../hooks/useToast";
-import ExpertAvailability from "./ExpertAvailability";
+import ExpertAvailability, { ActiveSlotSelection } from "./ExpertAvailability";
 
 // Sabitler
 const categories = [
@@ -32,8 +32,16 @@ export default function Request() {
   const [category, setCategory] = useState<string>("");
   const [date, setDate] = useState<string>("");
   const [experts, setExperts] = useState<any[]>([]);
-  const [openExpertId, setOpenExpertId] = useState<number | null>(null);
   const [globalLoading, setGlobalLoading] = useState(false);
+  // Tüm uzmanlar arasında EN FAZLA bir slot seçili olabilsin diye ortak (tek)
+  // bir state - hangi uzmanın hangi slotu seçili, burada tutuluyor. Bir uzmanın
+  // slotuna tıklanınca bu state güncellenir, diğer tüm ExpertAvailability
+  // bileşenleri kendi seçimlerinin artık aktif olmadığını buradan anlar.
+  const [activeSelection, setActiveSelection] = useState<ActiveSlotSelection | null>(null);
+  // Randevu talebi gönderilirken TÜM uzmanlardaki slot tıklamalarını devre dışı
+  // bırakmak için ortak bir bayrak (görsel bir değişiklik yapmıyor, sadece
+  // ExpertAvailability'deki handleSlotClick'i no-op'a çeviriyor).
+  const [isSubmittingAppointment, setIsSubmittingAppointment] = useState(false);
 
   // Uzmanları kategori ve tarih'e göre getir
   const fetchAvailableExperts = useCallback(async (categorySlug: string, selectedDate: string) => {
@@ -63,6 +71,7 @@ export default function Request() {
     const slug = e.target.value;
     setCategory(slug);
     setExperts([]);
+    setActiveSelection(null);
     if (slug && date) {
       fetchAvailableExperts(slug, date);
     }
@@ -72,13 +81,10 @@ export default function Request() {
     const selectedDate = e.target.value;
     setDate(selectedDate);
     setExperts([]);
+    setActiveSelection(null);
     if (category && selectedDate) {
       fetchAvailableExperts(category, selectedDate);
     }
-  };
-
-  const handleExpertClick = (expertId: number) => {
-    setOpenExpertId((prev) => (prev === expertId ? null : expertId));
   };
 
   return (
@@ -155,52 +161,30 @@ export default function Request() {
         ) : experts.length > 0 ? (
           <ComponentCard title="Uzman Seçimi">
             <div className="grid grid-cols-1 gap-4">
-              {experts.map((expert) => {
-                const isOpen = openExpertId === expert.expert_user_id;
-
-                return (
-                  <div
-                    key={expert.expert_user_id}
-                    // onClick'i buradan kaldırdık. Artık sadece dış kapsayıcı.
-                    className={`border rounded-lg transition-all duration-200 ${
-                      isOpen ? "border-blue-500 shadow-sm" : "border-gray-200 hover:shadow-md"
-                    }`}
-                  >
-                    {/* 1. BAŞLIK KISMI (Header) - Tıklama eylemi sadece burada olacak */}
-                    <div 
-                      onClick={() => handleExpertClick(expert.expert_user_id)}
-                      className="cursor-pointer p-4 flex items-center justify-between"
-                    >
-                      <h4 className="font-semibold text-lg text-gray-800 dark:text-white">
-                        {expert.name}
-                      </h4>
-                      
-                      {/* Görsel ipucu (Opsiyonel: Ok simgesi eklenebilir) */}
-                      <svg
-                          className={`w-5 h-5 text-gray-500 transition-transform ${
-                              isOpen ? "rotate-180" : ""
-                          }`}
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                      >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
-
-                    {/* 2. İÇERİK KISMI (Body) - Tıklama eyleminden BAĞIMSIZ */}
-                    {isOpen && (
-                      <div className="px-4 pb-4 cursor-default"> {/* cursor-default: Tıklanabilir hissini kaldırır */}
-                        <ExpertAvailability
-                          expert_user_id={expert.expert_user_id}
-                          start_date={date}
-                          end_date={date}
-                        />
-                      </div>
-                    )}
+              {experts.map((expert) => (
+                <div
+                  key={expert.expert_user_id}
+                  className="border border-gray-200 rounded-lg"
+                >
+                  <div className="p-4">
+                    <h4 className="font-semibold text-lg text-gray-800 dark:text-white">
+                      {expert.name}
+                    </h4>
                   </div>
-                );
-              })}
+
+                  <div className="px-4 pb-4">
+                    <ExpertAvailability
+                      expert_user_id={expert.expert_user_id}
+                      start_date={date}
+                      end_date={date}
+                      activeSelection={activeSelection}
+                      onSelectionChange={setActiveSelection}
+                      isSubmittingAppointment={isSubmittingAppointment}
+                      onSubmittingAppointmentChange={setIsSubmittingAppointment}
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
           </ComponentCard>
         ) : null}

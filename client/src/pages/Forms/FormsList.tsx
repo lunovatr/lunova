@@ -127,6 +127,8 @@ export default function FormsList() {
                               month: "long",
                               year: "numeric",
                             })}
+                            {" · "}
+                            <span className="text-gray-400 dark:text-gray-500">v{response.form.version}</span>
                           </div>
                         </div>
                         <Badge color="success">Dolduruldu</Badge>

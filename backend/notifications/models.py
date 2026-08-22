@@ -5,17 +5,21 @@ from django.db import models
 class Notification(models.Model):
     """Kullanıcıya özel bildirimler.
 
-    İki üretici kaynak var: randevu hatırlatmaları (bkz. services.py ->
-    sync_appointment_reminders, appointment FK'sini kullanır) ve messaging
+    Üç üretici kaynak var: randevu hatırlatmaları (bkz. services.py ->
+    sync_appointment_reminders, appointment FK'sini kullanır), messaging
     app'inden gelen yeni not bildirimleri (bkz. messaging/views.py, ilgili
-    konuşmanın karşı tarafını işaretlemek için related_user FK'sini kullanır).
-    notification_type + bu iki generic FK yapısı ileride başka bildirim
-    türlerinin eklenebilmesi için bilinçli olarak genel tutuldu.
+    konuşmanın karşı tarafını işaretlemek için related_user FK'sini kullanır)
+    ve accounts.Document onay/red kararları (bkz. accounts/services.py ->
+    review_document, hiçbir FK kullanmaz - belge sahibi zaten `user` alanının
+    kendisidir, tıklanınca frontend sabit olarak kullanıcının kendi profil
+    sayfasına yönlendirir). notification_type + generic FK yapısı ileride
+    başka bildirim türlerinin eklenebilmesi için bilinçli olarak genel tutuldu.
     """
 
     TYPE_CHOICES = [
         ('appointment_reminder', 'Randevu Hatırlatması'),
         ('message', 'Yeni Not'),
+        ('document_status', 'Belge Durumu'),
     ]
 
     user = models.ForeignKey(

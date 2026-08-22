@@ -16,6 +16,7 @@ export default function SignInForm() {
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [registeredSuccess, setRegisteredSuccess] = useState<string | null>(null);
   const [formData, setFormData] = useState({ email: "", password: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
@@ -55,11 +56,12 @@ export default function SignInForm() {
       return;
     }
     setErrors({});
+    setIsSubmitting(true);
 
     try {
       // HTTP-only cookie ile login işlemi
       await api.post('/api/v1/accounts/login/', formData);
-      
+
       // Login başarılı, fetchMe ile kullanıcı bilgilerini al
       try {
         await dispatch(fetchMe());
@@ -106,6 +108,8 @@ export default function SignInForm() {
         // Diğer hatalar
         setGeneralError('Giriş yapılamadı. Lütfen daha sonra tekrar deneyin.');
       }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -189,7 +193,19 @@ export default function SignInForm() {
                 </div>
 
                 <div>
-                  <button type="submit" className="flex items-center justify-center w-full px-4 py-3 text-sm font-medium text-white transition rounded-lg bg-brand-500 shadow-theme-xs hover:bg-brand-600">Giriş Yap</button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex items-center justify-center w-full gap-2 px-4 py-3 text-sm font-medium text-white transition rounded-lg bg-brand-500 shadow-theme-xs hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {isSubmitting && (
+                      <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                    )}
+                    {isSubmitting ? "Giriş yapılıyor..." : "Giriş Yap"}
+                  </button>
                 </div>
               </div>
             </form>

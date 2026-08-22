@@ -19,6 +19,7 @@ export default function UserTreatmentCard() {
   const { isOpen, openModal, closeModal } = useModal();
   
   const [formData, setFormData] = useState<Partial<ProfileUpdatePayload>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (storeUser) {
@@ -42,13 +43,14 @@ export default function UserTreatmentCard() {
   };
 
   const handleSave = async () => {
+    setIsSaving(true);
     try {
       const updateData = {
         support_goal: formData.support_goal,
         received_service_before: formData.received_service_before,
         substances_used: formData.substances_used, // ID listesini gönderiyoruz
       };
-      
+
       await api.patch('/api/v1/accounts/profile/', updateData);
       await dispatch(fetchProfile());
       closeModal();
@@ -61,6 +63,8 @@ export default function UserTreatmentCard() {
         error?.response?.data?.message ||
         "Süreç bilgileri güncellenemedi. Lütfen tekrar deneyin.";
       showToast(message, "error");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -192,8 +196,8 @@ export default function UserTreatmentCard() {
             </div>
 
             <div className="flex items-center gap-3 px-2 mt-8 lg:justify-end">
-              <Button size="sm" variant="outline" onClick={closeModal}>İptal</Button>
-              <Button size="sm" onClick={handleSave}>Değişiklikleri Kaydet</Button>
+              <Button size="sm" variant="outline" onClick={closeModal} disabled={isSaving}>İptal</Button>
+              <Button size="sm" onClick={handleSave} isLoading={isSaving}>Değişiklikleri Kaydet</Button>
             </div>
           </form>
         </div>

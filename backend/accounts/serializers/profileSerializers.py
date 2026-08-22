@@ -31,6 +31,12 @@ class ClientProfileSerializer(serializers.ModelSerializer):
     user = UserProfileSerializer(read_only=True)
     substances_used = AddictionTypeSerializer(many=True, read_only=True)
     emergency_contacts = EmergencyContactSerializer(many=True, read_only=True)
+    # source="user.documents" (bir Manager) + DRF'in ListSerializer.to_representation()'ı
+    # bir Manager gördüğünde otomatik .all() çağırması sayesinde, ProfileView.get_object()'teki
+    # Prefetch(queryset=Document.objects.filter(is_current=True)) burada AYNEN devreye giriyor -
+    # yani "silinmiş" (is_current=False) belgeler zaten hiç görünmüyor, EK bir filtreleme
+    # (örn. bir SerializerMethodField ile .filter() çağırmak) hem gereksiz hem de prefetch
+    # cache'ini bypass edip fazladan bir DB sorgusuna sebep olurdu.
     documents = DocumentSerializer(source="user.documents", many=True, read_only=True)
 
     expert = serializers.SerializerMethodField()
@@ -73,6 +79,7 @@ class ExpertProfileSerializer(serializers.ModelSerializer):
     target_groups = serializers.StringRelatedField(many=True)
     session_types = serializers.StringRelatedField(many=True)
 
+    # Bkz. ClientProfileSerializer.documents - aynı gerekçe (Prefetch zaten filtreliyor).
     documents = DocumentSerializer(source="user.documents", many=True, read_only=True)
 
     university = serializers.StringRelatedField()
