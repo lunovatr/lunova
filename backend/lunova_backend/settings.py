@@ -122,6 +122,7 @@ INSTALLED_APPS = [
     'availability',     # Müsaitlik
     'notifications',    # Bildirimler
     'messaging',        # Uzman-danışan not/mesaj sistemi
+    'mailer',           # Mail gönderme servisi
 ]
 
 MIDDLEWARE = [
@@ -197,7 +198,7 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOW_CREDENTIALS = True
-SESSION_COOKIE_SECURE = True    # Prod’da HTTPS zorunlu
+SESSION_COOKIE_SECURE = True    # Prod'da HTTPS zorunlu
 SESSION_COOKIE_SAMESITE = None  # Cross-site cookie için None
 CSRF_COOKIE_SECURE = True
 # [2026-08-17'de değiştirildi] None -> Lax: tüm frontend'ler backend ile aynı "site"

@@ -19,12 +19,12 @@ from django.conf import settings
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
-from django.core.mail import send_mail
 from django.contrib.auth.password_validation import validate_password
 from django.middleware.csrf import get_token
 from django.db.models import Q
 from ..models import UserRole, ExpertProfile, ClientProfile, Document, DocumentType
 from accounts.serializers.document_serializers import DocumentSerializer
+from mailer.services import send_password_reset_email
 
 User = get_user_model()
 
@@ -374,26 +374,23 @@ class PasswordResetRequestView(APIView):
 
         frontend_url = f"{base_url}/reset-password?uid={uid}&token={token}"
 
-        # Send email or print to console
-        subject = "Lunova Şifre Sıfırlama İsteği"
-        message = f"Şifrenizi sıfırlamak için aşağıdaki bağlantıyı kullanabilirsiniz:\n\n{frontend_url}\n\nLunova Ekibi"
+        # Gönderim mailer app'i üzerinden yapılır (mailer.services.send_email,
+        # settings.ENVIRONMENT != 'Production' iken gerçekten SMTP'ye gitmez,
+        # konsola loglar - bkz. mailer/services.py).
+        try:
+            send_password_reset_email(email, frontend_url)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        if settings.ENVIRONMENT == 'Production':
-            try:
-                send_mail(subject, message, settings.EMAIL_HOST_USER, [email])
-            except Exception as e:
-                import logging
-                logging.exception("Password reset mail gönderilemedi")
-                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        else:
+        if settings.ENVIRONMENT != 'Production':
             print(f"\nPassword reset link for {email}:")
             print(f"\n\tDevelopment: {frontend_url}")
             print("\nDev. bağlantısını postman ile password göndererek  test edebilirsiniz.")
             print("Postman body örneği:")
-            
+
             print(f'{{\n\t"uid": "{uid}",\n\t"token": "{token}",\n\t"new_password": "yenisifre123",\n\t"new_password_confirm": "yenisifre123"\n}}')
-            
-            
+
+
             # Aynı linkin production'da nasıl görüneceğini göster
             if user.role == UserRole.EXPERT:
                 prod_base = "https://uzman.lunova.tr"
@@ -401,7 +398,7 @@ class PasswordResetRequestView(APIView):
                 prod_base = "https://danisan.lunova.tr"
             elif user.role == UserRole.ADMIN:
                 prod_base = "https://lunova.tr"
-            
+
             production_url = f"{prod_base}/reset-password?uid={uid}&token={token}"
             print("\nProd linki sadece bağlantı domain kontrolü içindir. Çalışması beklenemez.")
             print(f"\n\tProduction:  {production_url}\n")
