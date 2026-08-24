@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ subject }}</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f4f5f7; font-family:Arial, Helvetica, sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f5f7; padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px; background-color:#ffffff; border-radius:8px; overflow:hidden;">
+          <tr>
+            <td style="background-color:#1d4ed8; padding:20px 32px;">
+              <span style="font-size:20px; font-weight:bold; color:#ffffff; letter-spacing:0.5px;">Lunova</span>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px;">
+              <h1 style="margin:0 0 16px; font-size:18px; line-height:1.4; color:#111827;">{{ heading }}</h1>
+              {% for paragraph in intro_paragraphs %}
+              <p style="margin:0 0 14px; font-size:14px; line-height:1.6; color:#374151;">{{ paragraph }}</p>
+              {% endfor %}
+              {% if details %}
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb; border-radius:6px; margin:8px 0 20px;">
+                {% for row in details %}
+                <tr>
+                  <td style="padding:8px 16px; font-size:13px; color:#6b7280; white-space:nowrap;">{{ row.label }}</td>
+                  <td style="padding:8px 16px; font-size:13px; color:#111827; font-weight:bold; width:100%;">{{ row.value }}</td>
+                </tr>
+                {% endfor %}
+              </table>
+              {% endif %}
+              {% if cta_url %}
+              <table role="presentation" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="border-radius:6px; background-color:#1d4ed8;">
+                    <a href="{{ cta_url }}" style="display:inline-block; padding:12px 24px; font-size:14px; color:#ffffff; text-decoration:none; font-weight:bold;">{{ cta_text }}</a>
+                  </td>
+                </tr>
+              </table>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 32px; background-color:#f9fafb; border-top:1px solid #e5e7eb;">
+              <p style="margin:0; font-size:12px; color:#9ca3af;">Bu e-posta Lunova tarafından otomatik olarak gönderilmiştir.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

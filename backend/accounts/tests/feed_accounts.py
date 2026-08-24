@@ -124,13 +124,36 @@ SUPPORT_GOALS = [
 # edebilsin (özellikle Notlar/mesajlaşma özelliği bir eşleşmiş çift gerektirir).
 # Diğer test kullanıcılarıyla aynı domain (mail.com) ve aynı şifre kullanılır.
 NAMED_TEAM_MEMBERS = [
-    "selin", "selen", "onur", "ece", "eslem", "gokcen", "niga", "mustafa", "yusuf",
+    "selin", "selen", "onur", "ece", "eslem", "gokcen", "niga", "mustafa", "yusuf", "samet",
 ]
 NAMED_TEAM_SURNAMES = [
-    "Yılmaz", "Kaya", "Demir", "Çelik", "Şahin", "Yıldız", "Aydın", "Arslan", "Doğan",
+    "Yılmaz", "Kaya", "Demir", "Çelik", "Şahin", "Yıldız", "Aydın", "Arslan", "Doğan", "Koç",
 ]
 TEAM_EMAIL_DOMAIN = "mail.com"
 TEAM_PASSWORD = "password123"
+
+# Gerçek ekip mailleri (2026-08-24, kullanıcı isteğiyle) - kullanıcı test yaparken
+# ekip arkadaşlarını gerçek @lunova.tr adresleriyle ulaşılabilir tutmak istedi.
+# Her isim için "role" (expert|client) HANGİ taraftaki hesabın gerçek ad/soyad/
+# mail alacağını belirler - diğer taraf (eşleşmiş çift) eskisi gibi sahte/otomatik
+# üretilen isimle kalır (gerçek bir kimlik DEĞİL, sadece test amaçlı eşleşme).
+# İkiye bölünmüş ekip: yusuf/eslem/onur UZMAN tarafında, samet/selen/selin/ece
+# DANIŞAN tarafında gerçek kimlikleriyle test ediyor (bir sonraki aşamada bu
+# roller ters çevrilecek). Listede olmayan isimler (gokcen, niga, mustafa)
+# eskisi gibi tamamen otomatik/sahte kalır.
+# ÖNEMLİ: appointments/tests/feed_appointments.py ve messaging/tests/feed_messaging.py
+# bu sözlüğün KOPYASINI ayrıca tutuyor (diğer feed script'leriyle aynı "bağımsız
+# çalıştırılabilir" deseni - bilinçli olarak import edilmiyor) - burada bir isim/
+# rol eklenir/değişirse oradaki kopyalar da elle güncellenmeli.
+NAMED_TEAM_REAL_INFO = {
+    "yusuf": {"first_name": "Yusuf Kasım", "last_name": "Akçakaya", "email": "yakcakaya@lunova.tr", "role": "expert"},
+    "eslem": {"first_name": "Eslem Sude", "last_name": "Ballı", "email": "esballi@lunova.tr", "role": "expert"},
+    "onur": {"first_name": "Onur", "last_name": "İçli", "email": "oicli@lunova.tr", "role": "expert"},
+    "samet": {"first_name": "Samet", "last_name": "Gültekin", "email": "sgultekin@lunova.tr", "role": "client"},
+    "selen": {"first_name": "Selen", "last_name": "Darcan", "email": "sdarcan@lunova.tr", "role": "client"},
+    "selin": {"first_name": "Selin", "last_name": "Teke", "email": "steke@lunova.tr", "role": "client"},
+    "ece": {"first_name": "Ece", "last_name": "Telli", "email": "etelli@lunova.tr", "role": "client"},
+}
 
 
 # ==============================================================================
@@ -439,8 +462,12 @@ def seed_named_team_accounts():
         surname = NAMED_TEAM_SURNAMES[i % len(NAMED_TEAM_SURNAMES)]
         first_name = name.capitalize()
 
-        # --- Uzman tarafı ---
-        expert_email = f"{name}@{TEAM_EMAIL_DOMAIN}"
+        # --- Uzman tarafı --- (role="expert" ise gerçek bilgiyi kullan, yoksa otomatik üretilen isim/mail)
+        real_info = NAMED_TEAM_REAL_INFO.get(name)
+        expert_real_info = real_info if (real_info and real_info["role"] == "expert") else None
+        expert_first_name = expert_real_info["first_name"] if expert_real_info else first_name
+        expert_last_name = expert_real_info["last_name"] if expert_real_info else surname
+        expert_email = expert_real_info["email"] if expert_real_info else f"{name}@{TEAM_EMAIL_DOMAIN}"
         expert_user = User.objects.filter(email=expert_email).first()
         if expert_user and ExpertProfile.objects.filter(user=expert_user).exists():
             print(f"  ○ Ekip uzmanı zaten mevcut: {expert_email}")
@@ -453,8 +480,8 @@ def seed_named_team_accounts():
                 expert_user = User.objects.create_user(
                     email=expert_email,
                     password=TEAM_PASSWORD,
-                    first_name=first_name,
-                    last_name=surname,
+                    first_name=expert_first_name,
+                    last_name=expert_last_name,
                     role=UserRole.EXPERT,
                     birth_date=birth_date,
                     gender=random.choice(GenderChoices.choices)[0],
@@ -481,10 +508,13 @@ def seed_named_team_accounts():
             set_random_m2m(expert_profile.approach_methods, approach_methods)
             set_random_m2m(expert_profile.target_groups, target_groups)
             set_random_m2m(expert_profile.session_types, session_types)
-            print(f"  ✓ Ekip uzmanı oluşturuldu: {expert_email} ({first_name} {surname})")
+            print(f"  ✓ Ekip uzmanı oluşturuldu: {expert_email} ({expert_first_name} {expert_last_name})")
 
-        # --- Danışan tarafı (yukarıdaki uzmana ATANMIŞ) ---
-        client_email = f"danisan_{name}@{TEAM_EMAIL_DOMAIN}"
+        # --- Danışan tarafı (yukarıdaki uzmana ATANMIŞ) --- (role="client" ise gerçek bilgiyi kullan)
+        client_real_info = real_info if (real_info and real_info["role"] == "client") else None
+        client_first_name = client_real_info["first_name"] if client_real_info else first_name
+        client_last_name = client_real_info["last_name"] if client_real_info else surname
+        client_email = client_real_info["email"] if client_real_info else f"danisan_{name}@{TEAM_EMAIL_DOMAIN}"
         client_user = User.objects.filter(email=client_email).first()
         if client_user and ClientProfile.objects.filter(user=client_user).exists():
             print(f"  ○ Ekip danışanı zaten mevcut: {client_email}")
@@ -500,8 +530,8 @@ def seed_named_team_accounts():
                 client_user = User.objects.create_user(
                     email=client_email,
                     password=TEAM_PASSWORD,
-                    first_name=first_name,
-                    last_name=surname,
+                    first_name=client_first_name,
+                    last_name=client_last_name,
                     role=UserRole.CLIENT,
                     birth_date=birth_date,
                     gender=random.choice(GenderChoices.choices)[0],
@@ -518,7 +548,7 @@ def seed_named_team_accounts():
             )
             if addiction_types:
                 client_profile.substances_used.set(random.sample(addiction_types, min(2, len(addiction_types))))
-            print(f"  ✓ Ekip danışanı oluşturuldu: {client_email} ({first_name} {surname}) -> uzman: {expert_email}")
+            print(f"  ✓ Ekip danışanı oluşturuldu: {client_email} ({client_first_name} {client_last_name}) -> uzman: {expert_email}")
 
     print(f"-- Ekip Hesapları Tamamlandı ({len(NAMED_TEAM_MEMBERS)} çift, şifre: {TEAM_PASSWORD}) --")
 

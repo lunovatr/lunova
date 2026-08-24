@@ -68,10 +68,41 @@ TIME_SLOTS = [
 # bu hem script'in idempotent olmasını (yeniden çalıştırılınca aynı senaryu
 # tekrar eklenmez) hem admin panelinde ayırt edilebilir olmayı sağlar.
 NAMED_TEAM_MEMBERS = [
-    "selin", "selen", "onur", "ece", "eslem", "gokcen", "niga", "mustafa", "yusuf",
+    "selin", "selen", "onur", "ece", "eslem", "gokcen", "niga", "mustafa", "yusuf", "samet",
 ]
 TEAM_EMAIL_DOMAIN = "mail.com"
 SCENARIO_TAG = "[Ekip Senaryosu]"
+
+# accounts/tests/feed_accounts.py::NAMED_TEAM_REAL_INFO ile SENKRON tutulmalı
+# (2026-08-24, kullanıcı isteğiyle) - her ismin "role"ü (expert|client) HANGİ
+# taraftaki hesabın gerçek @lunova.tr adresini taşıdığını belirler. Bilinçli
+# olarak import değil kopya (diğer feed script'leriyle aynı "bağımsız
+# çalıştırılabilir" deseni).
+NAMED_TEAM_REAL_EMAILS = {
+    "yusuf": "yakcakaya@lunova.tr",
+    "eslem": "esballi@lunova.tr",
+    "samet": "sgultekin@lunova.tr",
+    "selen": "sdarcan@lunova.tr",
+    "selin": "steke@lunova.tr",
+    "ece": "etelli@lunova.tr",
+    "onur": "oicli@lunova.tr",
+}
+NAMED_TEAM_ROLES = {
+    "yusuf": "expert", "eslem": "expert", "onur": "expert",
+    "samet": "client", "selen": "client", "selin": "client", "ece": "client",
+}
+
+
+def _expert_email_for(name):
+    if NAMED_TEAM_ROLES.get(name) == "expert":
+        return NAMED_TEAM_REAL_EMAILS.get(name, f"{name}@{TEAM_EMAIL_DOMAIN}")
+    return f"{name}@{TEAM_EMAIL_DOMAIN}"
+
+
+def _client_email_for(name):
+    if NAMED_TEAM_ROLES.get(name) == "client":
+        return NAMED_TEAM_REAL_EMAILS.get(name, f"danisan_{name}@{TEAM_EMAIL_DOMAIN}")
+    return f"danisan_{name}@{TEAM_EMAIL_DOMAIN}"
 
 # completed_days_ago: None ise hiç tamamlanmış seans yok (kota penceresi baştan
 #   itibaren sayılır) - varsa o kadar gün önce tamamlanmış bir seans oluşturulur.
@@ -140,8 +171,8 @@ def seed_named_team_appointments():
     created = 0
 
     for name, scenario in NAMED_PAIR_APPOINTMENT_SCENARIOS.items():
-        expert = User.objects.filter(email=f"{name}@{TEAM_EMAIL_DOMAIN}", role=UserRole.EXPERT).first()
-        client = User.objects.filter(email=f"danisan_{name}@{TEAM_EMAIL_DOMAIN}", role=UserRole.CLIENT).first()
+        expert = User.objects.filter(email=_expert_email_for(name), role=UserRole.EXPERT).first()
+        client = User.objects.filter(email=_client_email_for(name), role=UserRole.CLIENT).first()
         if not expert or not client:
             print(f"  ⚠️ '{name}' için ekip hesapları bulunamadı - önce accounts/tests/feed_accounts.py çalıştırılmalı. Atlanıyor.")
             continue

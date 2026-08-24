@@ -19,6 +19,7 @@ from .permissions import (
 )
 from accounts.models import UserRole
 from zoom.services import create_zoom_meeting, create_mock_zoom_meeting
+from mailer.services import send_appointment_confirmed_email, send_appointment_cancellation_email
 from datetime import datetime
 from django.utils import timezone
 from dateutil.relativedelta import relativedelta
@@ -285,6 +286,12 @@ class AppointmentDetailView(generics.RetrieveUpdateDestroyAPIView):
             instance.is_confirmed = False
 
         instance.save()
+
+        # Mail bildirimleri (asenkron, hata olursa sistemi bloklamaz/bozmaz - bkz. mailer/services.py)
+        if new_status == 'confirmed':
+            send_appointment_confirmed_email(instance)
+        elif new_status in ('cancel_requested', 'cancelled'):
+            send_appointment_cancellation_email(instance, actor=user)
 
         # Response serializer ile döndür
         response_serializer = AppointmentSerializer(instance)

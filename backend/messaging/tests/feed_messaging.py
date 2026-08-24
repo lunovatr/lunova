@@ -48,8 +48,39 @@ from notifications.services import create_message_notification
 
 TEAM_EMAIL_DOMAIN = "mail.com"
 NAMED_TEAM_MEMBERS = [
-    "selin", "selen", "onur", "ece", "eslem", "gokcen", "niga", "mustafa", "yusuf",
+    "selin", "selen", "onur", "ece", "eslem", "gokcen", "niga", "mustafa", "yusuf", "samet",
 ]
+
+# accounts/tests/feed_accounts.py::NAMED_TEAM_REAL_INFO ile SENKRON tutulmalı
+# (2026-08-24, kullanıcı isteğiyle) - her ismin "role"ü (expert|client) HANGİ
+# taraftaki hesabın gerçek @lunova.tr adresini taşıdığını belirler. Bilinçli
+# olarak import değil kopya (diğer feed script'leriyle aynı "bağımsız
+# çalıştırılabilir" deseni).
+NAMED_TEAM_REAL_EMAILS = {
+    "yusuf": "yakcakaya@lunova.tr",
+    "eslem": "esballi@lunova.tr",
+    "samet": "sgultekin@lunova.tr",
+    "selen": "sdarcan@lunova.tr",
+    "selin": "steke@lunova.tr",
+    "ece": "etelli@lunova.tr",
+    "onur": "oicli@lunova.tr",
+}
+NAMED_TEAM_ROLES = {
+    "yusuf": "expert", "eslem": "expert", "onur": "expert",
+    "samet": "client", "selen": "client", "selin": "client", "ece": "client",
+}
+
+
+def _expert_email_for(name):
+    if NAMED_TEAM_ROLES.get(name) == "expert":
+        return NAMED_TEAM_REAL_EMAILS.get(name, f"{name}@{TEAM_EMAIL_DOMAIN}")
+    return f"{name}@{TEAM_EMAIL_DOMAIN}"
+
+
+def _client_email_for(name):
+    if NAMED_TEAM_ROLES.get(name) == "client":
+        return NAMED_TEAM_REAL_EMAILS.get(name, f"danisan_{name}@{TEAM_EMAIL_DOMAIN}")
+    return f"danisan_{name}@{TEAM_EMAIL_DOMAIN}"
 
 CLIENT_MESSAGE_POOL = [
     "Merhaba, bugünkü seansımız için biraz erken başlayabilir miyiz? Sabah bir işim çıktı.",
@@ -228,8 +259,8 @@ def seed_named_team_conversations():
     print(f"🌱 {len([s for s in NAMED_PAIR_MESSAGE_SCENARIOS.values() if s])} isimlendirilmiş ekip çifti için örnek sohbetler oluşturuluyor...")
     created = 0
     for name, scenario in NAMED_PAIR_MESSAGE_SCENARIOS.items():
-        expert = User.objects.filter(email=f"{name}@{TEAM_EMAIL_DOMAIN}", role=UserRole.EXPERT).first()
-        client = User.objects.filter(email=f"danisan_{name}@{TEAM_EMAIL_DOMAIN}", role=UserRole.CLIENT).first()
+        expert = User.objects.filter(email=_expert_email_for(name), role=UserRole.EXPERT).first()
+        client = User.objects.filter(email=_client_email_for(name), role=UserRole.CLIENT).first()
         if not expert or not client:
             print(f"  ⚠️ '{name}' için ekip hesapları bulunamadı - önce accounts/tests/feed_accounts.py çalıştırılmalı. Atlanıyor.")
             continue
@@ -254,7 +285,7 @@ def seed_random_matched_conversations(sample_size=RANDOM_POOL_SAMPLE_SIZE):
     """Genel (rastgele oluşturulmuş, bir uzmana atanmış) danışan havuzundan
     rastgele bir alt küme için sade örnek konuşmalar - roster ekranlarının
     sadece ekip çiftleriyle sınırlı kalmaması için."""
-    named_client_emails = {f"danisan_{name}@{TEAM_EMAIL_DOMAIN}" for name in NAMED_TEAM_MEMBERS}
+    named_client_emails = {_client_email_for(name) for name in NAMED_TEAM_MEMBERS}
     candidates = list(
         ClientProfile.objects.filter(expert__isnull=False)
         .exclude(user__email__in=named_client_emails)

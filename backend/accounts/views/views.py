@@ -378,7 +378,7 @@ class PasswordResetRequestView(APIView):
         # settings.ENVIRONMENT != 'Production' iken gerçekten SMTP'ye gitmez,
         # konsola loglar - bkz. mailer/services.py).
         try:
-            send_password_reset_email(email, frontend_url)
+            send_password_reset_email(email, frontend_url, first_name=user.first_name)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

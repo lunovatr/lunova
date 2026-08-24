@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Appointment
 from zoom.services import create_zoom_meeting, create_mock_zoom_meeting
+from mailer.services import send_appointment_created_email
 from datetime import datetime
 from django.conf import settings
 from availability.models import WeeklyAvailability, AvailabilityException
@@ -104,7 +105,9 @@ class CreateAppointmentWithZoomSerializer(serializers.ModelSerializer):
         except Exception as e:
             # Log error but don't fail the appointment creation
             print(f"Zoom meeting creation failed for appointment {appointment.id}: {str(e)}")
-        
+
+        send_appointment_created_email(appointment)
+
         return appointment
 
 
@@ -247,9 +250,11 @@ class ClientCreateAppointmentSerializer(serializers.ModelSerializer):
         
         # 'expert' anahtarında User nesnesi mevcut.
         validated_data['status'] = 'waiting_approval'
-        
+
         appointment = Appointment.objects.create(**validated_data)
-        
+
+        send_appointment_created_email(appointment)
+
         return appointment
 
 
