@@ -46,6 +46,15 @@ function statusVariant(s: Appointment['status']): BadgeVariant {
   return 'secondary'
 }
 
+const PAYMENT_STATUS_LABELS: Record<'unpaid' | 'paid', string> = {
+  paid: 'Ödendi',
+  unpaid: 'Ödeme Bekliyor',
+}
+
+function paymentStatusVariant(s: 'unpaid' | 'paid'): BadgeVariant {
+  return s === 'paid' ? 'default' : 'secondary'
+}
+
 export function AppointmentsTable({ appointments, onUpdate, onAppointmentClick }: AppointmentsTableProps) {
   const [statusFilter, setStatusFilter] = useState<string>('all')
 
@@ -106,6 +115,7 @@ export function AppointmentsTable({ appointments, onUpdate, onAppointmentClick }
               <TableHead>Tarih & Saat</TableHead>
               <TableHead className='w-20'>Süre</TableHead>
               <TableHead>Durum</TableHead>
+              <TableHead>Ödeme</TableHead>
               <TableHead className='text-right'>İşlemler</TableHead>
             </TableRow>
           </TableHeader>
@@ -113,7 +123,7 @@ export function AppointmentsTable({ appointments, onUpdate, onAppointmentClick }
             {filtered.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={7}
                   className='py-10 text-center text-muted-foreground'
                 >
                   Randevu bulunamadı.
@@ -156,6 +166,13 @@ export function AppointmentsTable({ appointments, onUpdate, onAppointmentClick }
                       <Badge variant={statusVariant(app.status)}>
                         {STATUS_LABELS[app.status]}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {(app.payment_status === 'paid' || app.payment_status === 'unpaid') && (
+                        <Badge variant={paymentStatusVariant(app.payment_status)}>
+                          {PAYMENT_STATUS_LABELS[app.payment_status]}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className='text-right'>
                       <div

@@ -20,6 +20,8 @@ class Notification(models.Model):
         ('appointment_reminder', 'Randevu Hatırlatması'),
         ('message', 'Yeni Not'),
         ('document_status', 'Belge Durumu'),
+        ('payment_required', 'Ödeme Gerekiyor'),
+        ('payment_succeeded', 'Ödeme Alındı'),
     ]
 
     user = models.ForeignKey(

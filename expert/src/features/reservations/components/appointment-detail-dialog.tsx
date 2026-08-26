@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { format, parse, addMinutes } from 'date-fns'
 import { tr } from 'date-fns/locale'
-import { Check, Clock, CalendarClock, StickyNote, User, Video, X } from 'lucide-react'
+import { Check, Clock, CalendarClock, CreditCard, StickyNote, User, Video, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -42,6 +42,15 @@ function statusVariant(s: Appointment['status']): BadgeVariant {
   if (s === 'cancelled') return 'destructive'
   if (s === 'cancel_requested') return 'outline'
   return 'secondary'
+}
+
+const PAYMENT_STATUS_LABELS: Record<'unpaid' | 'paid', string> = {
+  paid: 'Ödendi',
+  unpaid: 'Ödeme Bekleniyor',
+}
+
+function paymentStatusVariant(s: 'unpaid' | 'paid'): BadgeVariant {
+  return s === 'paid' ? 'default' : 'secondary'
 }
 
 export function AppointmentDetailDialog({
@@ -145,6 +154,23 @@ export function AppointmentDetailDialog({
                 </Badge>
               </div>
             </div>
+
+            {(detail.payment_status === 'paid' || detail.payment_status === 'unpaid') && (
+              <div className='flex items-center gap-2'>
+                <CreditCard className='h-4 w-4 shrink-0 text-muted-foreground' />
+                <div className='flex items-center gap-2 text-sm'>
+                  <span className='text-muted-foreground'>Ödeme:</span>
+                  <Badge variant={paymentStatusVariant(detail.payment_status)}>
+                    {PAYMENT_STATUS_LABELS[detail.payment_status]}
+                  </Badge>
+                  {detail.payment_status === 'unpaid' && detail.session_price != null && (
+                    <span className='text-xs text-muted-foreground'>
+                      ({detail.session_price} {detail.session_currency ?? 'TRY'})
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
 
             {detail.notes && (
               <div className='flex items-start gap-2'>

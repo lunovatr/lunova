@@ -6,6 +6,7 @@ import {
   CalenderIcon,
   ChatIcon,
   ChevronDownIcon,
+  DollarLineIcon,
   GridIcon,
   HorizontaLDots,
   ListIcon,
@@ -41,6 +42,11 @@ const navItems: NavItem[] = [
     icon: <CalenderIcon />,
     name: "Randevularım",
     path: "/appointments",
+  },
+  {
+    icon: <DollarLineIcon />,
+    name: "Ödemeler",
+    path: "/payments",
   },
   {
     icon: <ListIcon />,

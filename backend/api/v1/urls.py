@@ -8,4 +8,5 @@ urlpatterns = [
     path('availability/', include('availability.urls')),
     path('notifications/', include('notifications.urls')),
     path('messaging/', include('messaging.urls')),
+    path('payments/', include('payments.urls')),
 ]

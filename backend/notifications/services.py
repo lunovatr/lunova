@@ -136,3 +136,67 @@ def create_document_status_notification(document):
         },
     )
     return notification
+
+
+def create_payment_required_notification(appointment):
+    """Bir randevu onaylandığında (ya da uzman tarafından oluşturulduğunda)
+    ödeme gerektiği ama henüz ödenmediği durumda DANIŞANA bir bildirim üretir -
+    appointments/views.py::status_update() ve appointments/serializers.py::
+    CreateAppointmentWithZoomSerializer.create() tarafından, payments.services.
+    resolve_appointment_payment() False dönünce çağrılır. Tıklanınca frontend
+    "Ödemeler" sayfasına (?appointmentId=) gider - appointment_reminder ile aynı
+    appointment FK'sini kullanıyor, yeni bir alan gerekmedi.
+    """
+    expert_name = appointment.expert.get_full_name()
+    Notification.objects.get_or_create(
+        user_id=appointment.client_id,
+        dedupe_key=f"payment_required:{appointment.id}",
+        defaults={
+            'notification_type': 'payment_required',
+            'title': "Ödeme bekleniyor",
+            'body': f"{expert_name} ile olan seansınız için ödeme yapmanız gerekiyor.",
+            'appointment': appointment,
+        },
+    )
+
+
+def create_payment_succeeded_notification(payment):
+    """Bir ödeme başarıyla tamamlandığında (Payment.status=SUCCEEDED) hem
+    danışana hem uzmana ayrı birer bildirim üretir - payments/services.py'nin
+    gerçek bir ödeme akışının tamamlandığı noktalarından (_mock_complete_checkout,
+    handle_checkout_callback'in DIRECT dalı, capture_preauth) çağrılır.
+    BİLİNÇLİ OLARAK ücretsiz ilk seans hakkının tüketildiği an ÇAĞRILMAZ (bkz.
+    payments/services.py::resolve_appointment_payment) - orada gerçek bir ödeme
+    yaşanmıyor, "ödemeniz alındı" bildirimi yanıltıcı olurdu.
+
+    `payment` parametresi diğer create_*_notification fonksiyonlarıyla aynı
+    "duck-typed, ilgili app'i import etmeyen leaf-app" deseninde (sadece
+    .id/.appointment okunuyor).
+    """
+    appointment = payment.appointment
+    if appointment is None:
+        return
+
+    client_name = appointment.client.get_full_name()
+    expert_name = appointment.expert.get_full_name()
+
+    Notification.objects.get_or_create(
+        user_id=appointment.client_id,
+        dedupe_key=f"payment_succeeded_client:{payment.id}",
+        defaults={
+            'notification_type': 'payment_succeeded',
+            'title': "Ödemeniz alındı",
+            'body': f"{expert_name} ile olan seansınız için ödemeniz tamamlandı.",
+            'appointment': appointment,
+        },
+    )
+    Notification.objects.get_or_create(
+        user_id=appointment.expert_id,
+        dedupe_key=f"payment_succeeded_expert:{payment.id}",
+        defaults={
+            'notification_type': 'payment_succeeded',
+            'title': "Danışan ödemesi alındı",
+            'body': f"{client_name} seansı için ödemesini tamamladı.",
+            'appointment': appointment,
+        },
+    )

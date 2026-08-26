@@ -2,7 +2,6 @@ from rest_framework import generics, permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from django.conf import settings
 from .models import Appointment
 from .serializers import (
     AppointmentSerializer,
@@ -17,9 +16,12 @@ from .permissions import (
     IsAppointmentExpertPermission,
     IsAppointmentClientPermission
 )
+from .services import grant_appointment_access_if_paid
 from accounts.models import UserRole
-from zoom.services import create_zoom_meeting, create_mock_zoom_meeting
-from mailer.services import send_appointment_confirmed_email, send_appointment_cancellation_email
+from mailer.services import (
+    send_appointment_confirmed_email, send_appointment_cancellation_email, send_payment_required_email,
+)
+from notifications.services import create_payment_required_notification
 from datetime import datetime
 from django.utils import timezone
 from dateutil.relativedelta import relativedelta
@@ -257,39 +259,22 @@ class AppointmentDetailView(generics.RetrieveUpdateDestroyAPIView):
         # Özel durum işlemleri
         if new_status == 'confirmed':
             instance.is_confirmed = True
-            # Zoom meeting oluştur (eğer yoksa)
-            if not instance.zoom_meeting_id:
-                try:
-                    meeting_datetime = datetime.combine(instance.date, instance.time)
-                    topic = f"Danışmanlık: {instance.client.get_full_name()} - Uzman {instance.expert.get_full_name()}"
-
-                    # Environment kontrolü
-                    if settings.ENVIRONMENT == 'Production':
-                        # Production'da gerçek Zoom meeting oluştur
-                        zoom_info = create_zoom_meeting(
-                            topic=topic,
-                            start_time=meeting_datetime,
-                            duration=instance.duration
-                        )
-                    else:
-                        # Development'ta mock veri kullan
-                        zoom_info = create_mock_zoom_meeting(instance.id)
-
-                    instance.zoom_start_url = zoom_info.get('start_url')
-                    instance.zoom_join_url = zoom_info.get('join_url')
-                    instance.zoom_meeting_id = str(zoom_info.get('id'))
-
-                except Exception as e:
-                    print(f"Zoom meeting creation failed for appointment {instance.id}: {str(e)}")
-
         elif new_status == 'cancelled':
             instance.is_confirmed = False
 
         instance.save()
 
-        # Mail bildirimleri (asenkron, hata olursa sistemi bloklamaz/bozmaz - bkz. mailer/services.py)
+        # Zoom erişimi + mail/bildirim (asenkron, hata olursa sistemi bloklamaz/bozmaz - bkz. mailer/services.py)
         if new_status == 'confirmed':
-            send_appointment_confirmed_email(instance)
+            # Ödeme (ya da kullanılmamış ücretsiz ilk seans hakkı) yoksa Zoom
+            # burada oluşturulmaz - bkz. appointments/services.py::grant_appointment_access_if_paid.
+            # Ödeme gerekiyorsa genel "onaylandı" maili yerine ödeme talebi
+            # maili + bildirimi gönderilir (28. tur).
+            if grant_appointment_access_if_paid(instance):
+                send_appointment_confirmed_email(instance)
+            else:
+                send_payment_required_email(instance)
+                create_payment_required_notification(instance)
         elif new_status in ('cancel_requested', 'cancelled'):
             send_appointment_cancellation_email(instance, actor=user)
 

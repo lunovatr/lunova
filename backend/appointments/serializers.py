@@ -1,9 +1,8 @@
 from rest_framework import serializers
 from .models import Appointment
-from zoom.services import create_zoom_meeting, create_mock_zoom_meeting
-from mailer.services import send_appointment_created_email
-from datetime import datetime
-from django.conf import settings
+from .services import grant_appointment_access_if_paid
+from mailer.services import send_appointment_created_email, send_payment_required_email
+from notifications.services import create_payment_required_notification
 from availability.models import WeeklyAvailability, AvailabilityException
 from accounts.models import ExpertProfile, User
 
@@ -11,6 +10,9 @@ from accounts.models import ExpertProfile, User
 class AppointmentSerializer(serializers.ModelSerializer):
     expert_name = serializers.CharField(source='expert.get_full_name', read_only=True)
     client_name = serializers.CharField(source='client.get_full_name', read_only=True)
+    payment_status = serializers.SerializerMethodField()
+    session_price = serializers.SerializerMethodField()
+    session_currency = serializers.SerializerMethodField()
 
     class Meta:
         model = Appointment
@@ -18,9 +20,30 @@ class AppointmentSerializer(serializers.ModelSerializer):
             'id', 'expert', 'client', 'expert_name', 'client_name',
             'date', 'time', 'duration', 'is_confirmed', 'notes', 'status',
             'zoom_start_url', 'zoom_join_url', 'zoom_meeting_id',
+            'payment_status', 'session_price', 'session_currency',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['zoom_start_url', 'zoom_join_url', 'zoom_meeting_id', 'created_at', 'updated_at']
+
+    def get_payment_status(self, obj):
+        """'not_applicable' (henüz confirmed/completed değil - ödeme sorusu
+        gündemde değil), 'unpaid' (ödeme bekleniyor) ya da 'paid' (ücretsiz ilk
+        seans dahil - amount=0 SUCCEEDED de 'paid' sayılır). bkz.
+        payments/services.py::has_appointment_been_paid - appointments,
+        payments'ı serbestçe import edebilir (tersi değil, bkz.
+        payments/services.py modül docstring'i)."""
+        if obj.status not in ('confirmed', 'completed'):
+            return 'not_applicable'
+        from payments.services import has_appointment_been_paid
+        return 'paid' if has_appointment_been_paid(obj) else 'unpaid'
+
+    def get_session_price(self, obj):
+        expert_profile = getattr(obj.expert, 'expertprofile', None)
+        return expert_profile.session_price if expert_profile else None
+
+    def get_session_currency(self, obj):
+        expert_profile = getattr(obj.expert, 'expertprofile', None)
+        return expert_profile.currency if expert_profile else None
 
 
 class CreateAppointmentWithZoomSerializer(serializers.ModelSerializer):
@@ -70,43 +93,18 @@ class CreateAppointmentWithZoomSerializer(serializers.ModelSerializer):
         return data
     
     def create(self, validated_data):
-        """Create appointment and automatically create Zoom meeting"""
+        """Create appointment; Zoom meeting is created only if the client has
+        already paid (or still has their free first session) - bkz.
+        appointments/services.py::grant_appointment_access_if_paid. Ödeme
+        gerekiyorsa (28. tur) genel "randevu oluşturuldu" maili yerine ödeme
+        talebi maili + bildirimi gönderilir."""
         appointment = Appointment.objects.create(**validated_data)
-        
-        # Create Zoom meeting for this appointment
-        try:
-            # Combine date and time for Zoom meeting
-            meeting_datetime = datetime.combine(
-                validated_data['date'], 
-                validated_data['time']
-            )
-            
-            # Create topic with expert and client names
-            topic = f"Danışmanlık: {validated_data['client'].get_full_name()} - Uzman {validated_data['expert'].get_full_name()}"
-            
-            # Environment kontrolü
-            if settings.ENVIRONMENT == 'Production':
-                # Production'da gerçek Zoom meeting oluştur
-                zoom_info = create_zoom_meeting(
-                    topic=topic,
-                    start_time=meeting_datetime,
-                    duration=validated_data.get('duration', 45)
-                )
-            else:
-                # Development'ta mock veri kullan
-                zoom_info = create_mock_zoom_meeting(appointment.id)
-            
-            # Update appointment with Zoom details
-            appointment.zoom_start_url = zoom_info.get('start_url')
-            appointment.zoom_join_url = zoom_info.get('join_url')
-            appointment.zoom_meeting_id = str(zoom_info.get('id'))
-            appointment.save()
-            
-        except Exception as e:
-            # Log error but don't fail the appointment creation
-            print(f"Zoom meeting creation failed for appointment {appointment.id}: {str(e)}")
 
-        send_appointment_created_email(appointment)
+        if grant_appointment_access_if_paid(appointment):
+            send_appointment_created_email(appointment)
+        else:
+            send_payment_required_email(appointment)
+            create_payment_required_notification(appointment)
 
         return appointment
 

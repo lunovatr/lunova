@@ -123,6 +123,7 @@ INSTALLED_APPS = [
     'notifications',    # Bildirimler
     'messaging',        # Uzman-danışan not/mesaj sistemi
     'mailer',           # Mail gönderme servisi
+    'payments',         # iyzico ödeme entegrasyonu
 ]
 
 MIDDLEWARE = [
@@ -332,3 +333,53 @@ DEFAULT_FROM_EMAIL = env.str('DEFAULT_FROM_EMAIL', default='noreply@lunova.com')
 ZOOM_CLIENT_ID = env.str('ZOOM_CLIENT_ID')
 ZOOM_CLIENT_SECRET = env.str('ZOOM_CLIENT_SECRET')
 ZOOM_ACCOUNT_ID = env.str('ZOOM_ACCOUNT_ID')
+
+# iyzico Payment Settings
+# IYZICO_MODE, hem ENVIRONMENT'tan hem STORAGE_PROVIDER'dan BAĞIMSIZ, kendi
+# üç-değerli bir switch - "mock" (gerçek iyzico'ya hiç ağ isteği gitmez,
+# local dev'de key gerekmez), "sandbox" (gerçek iyzico test ortamı - henüz
+# gerçek prod'a çıkmadığımız için "prod" olarak deploy edilen sunucu bile
+# şimdilik bu modda kalabilir), "production" (gerçek para). ENVIRONMENT'a
+# bindirilmedi çünkü mail/storage gibi diğer alt sistemler "Production" a
+# geçse bile ödeme tarafı hâlâ sandbox'ta "prova" aşamasında olabilir - bkz.
+# kök claude.md'deki ödeme mimarisi tartışması.
+IYZICO_MODE = env.str('IYZICO_MODE', default='mock').strip().lower()
+if IYZICO_MODE not in ('mock', 'sandbox', 'production'):
+    raise ImproperlyConfigured(
+        f"Geçersiz IYZICO_MODE='{IYZICO_MODE}'. İzin verilen değerler: 'mock', 'sandbox', 'production'."
+    )
+
+if IYZICO_MODE == 'sandbox':
+    IYZICO_API_KEY = env.str('IYZICO_SANDBOX_API_KEY', default='')
+    IYZICO_SECRET_KEY = env.str('IYZICO_SANDBOX_SECRET_KEY', default='')
+    # DİKKAT: şema (https://) OLMADAN, çıplak host - iyzipay SDK'sı bunu
+    # doğrudan http.client.HTTPSConnection(base_url)'e host argümanı olarak
+    # geçiyor (iyzipay_resource.py::connect()), bir URL değil. "https://" ile
+    # kaydedilirse "nonnumeric port" hatasıyla patlıyor (28. turda gerçek
+    # sandbox key'iyle test edilirken bulundu - bkz. backend/claude.md).
+    IYZICO_BASE_URL = 'sandbox-api.iyzipay.com'
+    if not IYZICO_API_KEY or not IYZICO_SECRET_KEY:
+        raise ImproperlyConfigured(
+            "IYZICO_MODE='sandbox' ama IYZICO_SANDBOX_API_KEY/IYZICO_SANDBOX_SECRET_KEY tanımlı değil."
+        )
+elif IYZICO_MODE == 'production':
+    IYZICO_API_KEY = env.str('IYZICO_PRODUCTION_API_KEY', default='')
+    IYZICO_SECRET_KEY = env.str('IYZICO_PRODUCTION_SECRET_KEY', default='')
+    IYZICO_BASE_URL = 'api.iyzipay.com'  # bkz. yukarıdaki sandbox dalındaki not - şema YOK
+    if not IYZICO_API_KEY or not IYZICO_SECRET_KEY:
+        raise ImproperlyConfigured(
+            "IYZICO_MODE='production' ama IYZICO_PRODUCTION_API_KEY/IYZICO_PRODUCTION_SECRET_KEY tanımlı değil."
+        )
+else:  # mock
+    IYZICO_API_KEY = ''
+    IYZICO_SECRET_KEY = ''
+    IYZICO_BASE_URL = ''
+
+# iyzico Checkout Form'un ödeme sonrası kullanıcı tarayıcısı üzerinden POST
+# ile geri döneceği BACKEND callback URL'i (örn. https://api.lunova.tr/api/v1/
+# payments/callback/). mock modda hiç kullanılmaz. sandbox/production'da boşsa
+# ödeme başlatma isteği net bir PaymentError ile reddedilir (bkz.
+# payments/services.py) - sandbox'ı LOCALDE test etmek isteyen bir geliştirici
+# bu URL'in dışarıdan (iyzico'nun sunucularından) erişilebilir olması
+# gerektiğini unutmamalı (örn. ngrok gibi bir tünelle).
+IYZICO_CALLBACK_URL = env.str('IYZICO_CALLBACK_URL', default='')

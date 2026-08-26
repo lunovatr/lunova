@@ -277,6 +277,39 @@ def send_appointment_confirmed_email(appointment) -> None:
     )
 
 
+def send_payment_required_email(appointment) -> None:
+    """Randevu onaylandığında (ya da uzman tarafından oluşturulduğunda) danışanın
+    ödeme yapması gerektiğinde ASENKRON bir bilgilendirme maili gönderir -
+    send_appointment_confirmed_email/send_appointment_created_email'in YERİNE
+    çağrılır (appointments/views.py::status_update() ve appointments/serializers.py::
+    CreateAppointmentWithZoomSerializer.create() - payments.services.
+    resolve_appointment_payment() False dönünce, bkz. 28. tur). CTA linki
+    randevu detayına değil yeni "Ödemeler" sayfasına gider - Zoom bağlantısı
+    ödeme tamamlanana kadar henüz oluşmuyor.
+    """
+    date_str, time_str = _appointment_date_time(appointment)
+    expert_name = appointment.expert.get_full_name()
+    base_url = settings.FRONTEND_URLS.get('client')
+    cta_url = f"{base_url}/payments?appointmentId={appointment.id}" if base_url else None
+    send_template_email_async(
+        appointment.client.email,
+        subject="Seansınız İçin Ödeme Bekleniyor",
+        heading="Seansınız onaylandı - ödeme bekleniyor",
+        intro_paragraphs=[
+            f"Merhaba {appointment.client.first_name},",
+            f"{expert_name} ile {date_str} {time_str} tarihli seansınız onaylandı. "
+            "Görüşme bağlantınızın oluşturulabilmesi için önce ödemenizi tamamlamanız gerekiyor.",
+        ],
+        details=[
+            {'label': 'Uzman', 'value': expert_name},
+            {'label': 'Tarih', 'value': date_str},
+            {'label': 'Saat', 'value': time_str},
+        ],
+        cta_text="Ödemeyi Tamamla",
+        cta_url=cta_url,
+    )
+
+
 def send_appointment_cancellation_email(appointment, *, actor) -> None:
     """Randevu status='cancel_requested' ya da 'cancelled' olduğunda ASENKRON
     bir bildirim maili gönderir - appointments/views.py::status_update()

@@ -14,6 +14,11 @@ export type AppointmentStatus =
   | "cancelled"
   | "completed";
 
+// 'not_applicable' (henüz confirmed/completed değil), 'unpaid' (ödeme
+// bekleniyor) ya da 'paid' (ücretsiz ilk seans dahil) - backend
+// appointments/serializers.py::AppointmentSerializer.get_payment_status()'ten.
+export type PaymentStatus = "not_applicable" | "unpaid" | "paid";
+
 export interface Appointment {
   id: number;
   expert: number;
@@ -27,6 +32,9 @@ export interface Appointment {
   notes?: string;
   zoom_join_url?: string | null;
   zoom_meeting_id?: string | null;
+  payment_status?: PaymentStatus;
+  session_price?: string | number | null;
+  session_currency?: string | null;
 }
 
 export default Appointment;

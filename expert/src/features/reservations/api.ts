@@ -23,6 +23,12 @@ export interface Appointment {
   zoom_start_url: string
   zoom_join_url: string
   zoom_meeting_id: string
+  // 'not_applicable' (henüz confirmed/completed değil), 'unpaid' (ödeme
+  // bekleniyor) ya da 'paid' (ücretsiz ilk seans dahil) - backend
+  // appointments/serializers.py::AppointmentSerializer.get_payment_status()'ten (28. tur).
+  payment_status?: 'not_applicable' | 'unpaid' | 'paid'
+  session_price?: string | number | null
+  session_currency?: string | null
   created_at: string
   updated_at: string
 }
