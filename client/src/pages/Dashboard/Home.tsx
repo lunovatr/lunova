@@ -3,6 +3,7 @@ import PageMeta from "../../components/common/PageMeta";
 import WelcomeCard from "../../components/dashboard/WelcomeCard";
 import UpcomingAppointmentsCard from "../../components/dashboard/UpcomingAppointmentsCard";
 import MiniCalendarCard from "../../components/dashboard/MiniCalendarCard";
+import FreeTrialBanner from "../../components/common/FreeTrialBanner";
 import api from "../../lib/api";
 import type { Appointment } from "../../types/appointment";
 
@@ -42,6 +43,8 @@ export default function Home() {
       />
       <div className="space-y-6">
         <WelcomeCard />
+
+        <FreeTrialBanner />
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <UpcomingAppointmentsCard appointments={appointments} loading={loading} />

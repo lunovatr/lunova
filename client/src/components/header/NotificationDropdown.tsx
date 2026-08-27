@@ -69,9 +69,14 @@ export default function NotificationDropdown() {
       // Belge onay/red kararı her zaman kullanıcının KENDİ belgesiyle ilgili -
       // ek bir id taşımaz, hedef sabit olarak profil sayfasındaki "Dosyalarım" kartı.
       navigate("/profile");
-    } else if (notification.notification_type === "payment_required" && notification.appointment_id) {
-      // Ödeme bekleyen randevu - randevu detayına değil, doğrudan ödeme
-      // ekranına (ilgili randevu ön-seçili olarak) gider.
+    } else if (
+      (notification.notification_type === "payment_required" ||
+        notification.notification_type === "free_trial_ready") &&
+      notification.appointment_id
+    ) {
+      // Ödeme bekleyen randevu (ya da ücretsiz ilk seans "devam et" onayı
+      // bekleyen randevu) - randevu detayına değil, doğrudan ödeme ekranına
+      // (ilgili randevu ön-seçili olarak) gider.
       navigate(`/payments?appointmentId=${notification.appointment_id}`);
     } else if (notification.appointment_id) {
       navigate(`/appointments/${notification.appointment_id}`);

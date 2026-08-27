@@ -46,13 +46,16 @@ function statusVariant(s: Appointment['status']): BadgeVariant {
   return 'secondary'
 }
 
-const PAYMENT_STATUS_LABELS: Record<'unpaid' | 'paid', string> = {
-  paid: 'Ödendi',
-  unpaid: 'Ödeme Bekliyor',
-}
-
 function paymentStatusVariant(s: 'unpaid' | 'paid'): BadgeVariant {
   return s === 'paid' ? 'default' : 'secondary'
+}
+
+// is_free_trial (30. tur, YENİ) ile metin ayırt ediliyor - renk (paymentStatusVariant)
+// aynı kalıyor, sadece danışanın ücretsiz ilk seans hakkıyla mı ilerlediği belirtiliyor.
+function paymentBadgeLabel(app: Pick<Appointment, 'payment_status' | 'is_free_trial'>): string | null {
+  if (app.payment_status === 'paid') return app.is_free_trial ? 'Ücretsiz İlk Seans' : 'Ödendi'
+  if (app.payment_status === 'unpaid') return app.is_free_trial ? 'Ücretsiz Seans Onayı Bekleniyor' : 'Ödeme Bekliyor'
+  return null
 }
 
 export function AppointmentsTable({ appointments, onUpdate, onAppointmentClick }: AppointmentsTableProps) {
@@ -170,7 +173,7 @@ export function AppointmentsTable({ appointments, onUpdate, onAppointmentClick }
                     <TableCell>
                       {(app.payment_status === 'paid' || app.payment_status === 'unpaid') && (
                         <Badge variant={paymentStatusVariant(app.payment_status)}>
-                          {PAYMENT_STATUS_LABELS[app.payment_status]}
+                          {paymentBadgeLabel(app)}
                         </Badge>
                       )}
                     </TableCell>

@@ -160,18 +160,41 @@ def create_payment_required_notification(appointment):
     )
 
 
+def create_free_trial_ready_notification(appointment):
+    """Uzman onayladığında/randevu oluşturduğunda danışanın ömür boyu bir kez
+    hakkı olan ücretsiz ilk seansı devreye girdiğinde (appointment.is_free_trial
+    işaretlenince, henüz Payment oluşmadan) DANIŞANA bir bildirim üretir -
+    create_payment_required_notification'ın "devam et" karşılığı, payments.
+    services.confirm_free_trial() çağrılana kadar Zoom açılmaz. Tıklanınca
+    frontend aynı "Ödemeler" sayfasına (?appointmentId=) gider - payment_required
+    ile aynı appointment FK'sini kullanır.
+    """
+    expert_name = appointment.expert.get_full_name()
+    Notification.objects.get_or_create(
+        user_id=appointment.client_id,
+        dedupe_key=f"free_trial_ready:{appointment.id}",
+        defaults={
+            'notification_type': 'free_trial_ready',
+            'title': "Ücretsiz ilk seansınız onayınızı bekliyor",
+            'body': f"{expert_name} ile olan seansınız ücretsiz ilk seans hakkınızla planlandı. "
+                    "Devam etmek için onaylamanız gerekiyor.",
+            'appointment': appointment,
+        },
+    )
+
+
 def create_payment_succeeded_notification(payment):
     """Bir ödeme başarıyla tamamlandığında (Payment.status=SUCCEEDED) hem
     danışana hem uzmana ayrı birer bildirim üretir - payments/services.py'nin
-    gerçek bir ödeme akışının tamamlandığı noktalarından (_mock_complete_checkout,
-    handle_checkout_callback'in DIRECT dalı, capture_preauth) çağrılır.
-    BİLİNÇLİ OLARAK ücretsiz ilk seans hakkının tüketildiği an ÇAĞRILMAZ (bkz.
-    payments/services.py::resolve_appointment_payment) - orada gerçek bir ödeme
-    yaşanmıyor, "ödemeniz alındı" bildirimi yanıltıcı olurdu.
+    gerçek bir ödeme/onay akışının tamamlandığı noktalarından
+    (_mock_complete_checkout, handle_checkout_callback'in DIRECT dalı,
+    capture_preauth, confirm_free_trial) çağrılır. amount=0 + metadata.free_trial
+    ise (ücretsiz ilk seans onayı) metin buna göre dallanır - "ödemeniz alındı"
+    demek yanıltıcı olurdu.
 
     `payment` parametresi diğer create_*_notification fonksiyonlarıyla aynı
     "duck-typed, ilgili app'i import etmeyen leaf-app" deseninde (sadece
-    .id/.appointment okunuyor).
+    .id/.amount/.metadata/.appointment okunuyor).
     """
     appointment = payment.appointment
     if appointment is None:
@@ -179,14 +202,26 @@ def create_payment_succeeded_notification(payment):
 
     client_name = appointment.client.get_full_name()
     expert_name = appointment.expert.get_full_name()
+    is_free_trial = payment.amount == 0 and payment.metadata.get('free_trial')
+
+    if is_free_trial:
+        client_title = "Ücretsiz ilk seansınız onaylandı"
+        client_body = f"{expert_name} ile olan ücretsiz ilk seansınız onaylandı."
+        expert_title = "Danışan ücretsiz ilk seansını onayladı"
+        expert_body = f"{client_name} ücretsiz ilk seansını onayladı."
+    else:
+        client_title = "Ödemeniz alındı"
+        client_body = f"{expert_name} ile olan seansınız için ödemeniz tamamlandı."
+        expert_title = "Danışan ödemesi alındı"
+        expert_body = f"{client_name} seansı için ödemesini tamamladı."
 
     Notification.objects.get_or_create(
         user_id=appointment.client_id,
         dedupe_key=f"payment_succeeded_client:{payment.id}",
         defaults={
             'notification_type': 'payment_succeeded',
-            'title': "Ödemeniz alındı",
-            'body': f"{expert_name} ile olan seansınız için ödemeniz tamamlandı.",
+            'title': client_title,
+            'body': client_body,
             'appointment': appointment,
         },
     )
@@ -195,8 +230,8 @@ def create_payment_succeeded_notification(payment):
         dedupe_key=f"payment_succeeded_expert:{payment.id}",
         defaults={
             'notification_type': 'payment_succeeded',
-            'title': "Danışan ödemesi alındı",
-            'body': f"{client_name} seansı için ödemesini tamamladı.",
+            'title': expert_title,
+            'body': expert_body,
             'appointment': appointment,
         },
     )

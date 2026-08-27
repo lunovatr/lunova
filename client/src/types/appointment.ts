@@ -15,8 +15,10 @@ export type AppointmentStatus =
   | "completed";
 
 // 'not_applicable' (henüz confirmed/completed değil), 'unpaid' (ödeme
-// bekleniyor) ya da 'paid' (ücretsiz ilk seans dahil) - backend
-// appointments/serializers.py::AppointmentSerializer.get_payment_status()'ten.
+// bekleniyor - ücretsiz ilk seans onayı bekleyenler de 'unpaid' sayılır,
+// ayırt etmek için is_free_trial'a bakın) ya da 'paid' (ücretsiz ilk seans
+// dahil) - backend appointments/serializers.py::AppointmentSerializer.
+// get_payment_status()'ten.
 export type PaymentStatus = "not_applicable" | "unpaid" | "paid";
 
 export interface Appointment {
@@ -35,6 +37,10 @@ export interface Appointment {
   payment_status?: PaymentStatus;
   session_price?: string | number | null;
   session_currency?: string | null;
+  // Danışanın ömür boyu bir kez hakkı olan ücretsiz ilk seansıyla mı
+  // ilerlediği - true iken payment_status='unpaid' "Devam Et" (ücretsiz
+  // onay) anlamına gelir, 'paid' ise onay tamamlanmış demektir (30. tur).
+  is_free_trial?: boolean;
 }
 
 export default Appointment;

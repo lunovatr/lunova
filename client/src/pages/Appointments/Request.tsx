@@ -6,6 +6,7 @@ import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import PageMeta from "../../components/common/PageMeta";
 import ComponentCard from '../../components/common/ComponentCard';
 import ToastContainer from "../../components/common/ToastContainer";
+import FreeTrialBanner from "../../components/common/FreeTrialBanner";
 import { useToast } from "../../hooks/useToast";
 import ExpertAvailability, { ActiveSlotSelection } from "./ExpertAvailability";
 
@@ -91,8 +92,10 @@ export default function Request() {
     <>
       <PageMeta title="Randevu Talebi" description="Uzman seçimi ve randevu talebi sayfası" />
       <PageBreadcrumb pageTitle="Randevu Talebi" />
-      
+
       <ToastContainer toasts={toasts} removeToast={removeToast} />
+
+      <FreeTrialBanner className="mb-6" />
 
       <div className="space-y-6">
         {/* Kategori ve Tarih Seçimi */}

@@ -29,6 +29,11 @@ export interface Appointment {
   payment_status?: 'not_applicable' | 'unpaid' | 'paid'
   session_price?: string | number | null
   session_currency?: string | null
+  // Danışanın ömür boyu bir kez hakkı olan ücretsiz ilk seansıyla mı
+  // ilerlediği - true iken payment_status='unpaid' "ücretsiz seans onayı
+  // bekleniyor" anlamına gelir, 'paid' ise onaylanmış/tamamlanmış demektir
+  // (bkz. backend appointments/serializers.py::AppointmentSerializer, 30. tur).
+  is_free_trial?: boolean
   created_at: string
   updated_at: string
 }

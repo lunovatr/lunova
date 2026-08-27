@@ -20,8 +20,9 @@ from .services import grant_appointment_access_if_paid
 from accounts.models import UserRole
 from mailer.services import (
     send_appointment_confirmed_email, send_appointment_cancellation_email, send_payment_required_email,
+    send_free_trial_ready_email,
 )
-from notifications.services import create_payment_required_notification
+from notifications.services import create_payment_required_notification, create_free_trial_ready_notification
 from datetime import datetime
 from django.utils import timezone
 from dateutil.relativedelta import relativedelta
@@ -269,9 +270,15 @@ class AppointmentDetailView(generics.RetrieveUpdateDestroyAPIView):
             # Ödeme (ya da kullanılmamış ücretsiz ilk seans hakkı) yoksa Zoom
             # burada oluşturulmaz - bkz. appointments/services.py::grant_appointment_access_if_paid.
             # Ödeme gerekiyorsa genel "onaylandı" maili yerine ödeme talebi
-            # maili + bildirimi gönderilir (28. tur).
+            # maili + bildirimi gönderilir (28. tur). Ücretsiz ilk seans hakkı
+            # varsa (is_free_trial burada resolve_appointment_payment tarafından
+            # işaretlenmiş olur) ayrı bir "devam et" onayı istemi gönderilir -
+            # danışan Payments sayfasında onaylayana kadar Zoom açılmaz (30. tur).
             if grant_appointment_access_if_paid(instance):
                 send_appointment_confirmed_email(instance)
+            elif instance.is_free_trial:
+                send_free_trial_ready_email(instance)
+                create_free_trial_ready_notification(instance)
             else:
                 send_payment_required_email(instance)
                 create_payment_required_notification(instance)

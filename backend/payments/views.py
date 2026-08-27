@@ -24,7 +24,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from appointments.models import Appointment
-from .services import PaymentError, initiate_direct_checkout, handle_checkout_callback
+from .services import (
+    PaymentError,
+    initiate_direct_checkout,
+    handle_checkout_callback,
+    confirm_free_trial,
+    is_client_eligible_for_free_session,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +62,54 @@ class AppointmentCheckoutView(APIView):
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(result, status=status.HTTP_201_CREATED)
+
+
+class AppointmentFreeTrialConfirmView(APIView):
+    """POST /api/v1/payments/appointments/<appointment_id>/confirm-free-trial/
+    Danışanın Ödemeler sayfasındaki "Devam Et" tıklaması - kart bilgisi/iyzico
+    yok, appointment.is_free_trial=True olarak işaretlenmiş bir randevu için
+    ücretsiz hakkı burada tüketir (confirm_free_trial). AppointmentCheckoutView'dan
+    AYRI bir view: farklı semantik (tutar yok, iyzico'ya hiç gidilmez), farklı
+    hata/başarı şekli.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, appointment_id):
+        try:
+            appointment = Appointment.objects.get(id=appointment_id, is_deleted=False)
+        except Appointment.DoesNotExist:
+            return Response({'detail': 'Randevu bulunamadı.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if appointment.client_id != request.user.id:
+            return Response(
+                {'detail': 'Bu randevu için işlem yapma yetkiniz yok.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            payment = confirm_free_trial(appointment)
+        except PaymentError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(
+            {'payment_id': payment.id, 'status': payment.status, 'appointment_id': appointment.id},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class FreeTrialEligibilityView(APIView):
+    """GET /api/v1/payments/free-trial-eligibility/
+    Danışanın hâlâ ömür boyu bir kez hakkı olan ücretsiz ilk seansı kullanıp
+    kullanmadığını döner - client/expert henüz hiç randevu oluşturmamışken bile
+    (ör. ana sayfa/randevu alma akışı promosyon banner'ı için) sorgulanabilsin
+    diye ayrı, hafif bir uç. is_client_eligible_for_free_session() danışanın
+    TÜM Payment geçmişine bakıyor - frontend'in elindeki (tarih aralığıyla
+    sınırlı) randevu listesinden bu bilgi güvenilir şekilde türetilemez.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response({'eligible': is_client_eligible_for_free_session(request.user)})
 
 
 @csrf_exempt

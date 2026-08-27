@@ -22,6 +22,7 @@ class Notification(models.Model):
         ('document_status', 'Belge Durumu'),
         ('payment_required', 'Ödeme Gerekiyor'),
         ('payment_succeeded', 'Ödeme Alındı'),
+        ('free_trial_ready', 'Ücretsiz Seans Onayı Bekleniyor'),
     ]
 
     user = models.ForeignKey(

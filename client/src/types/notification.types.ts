@@ -11,13 +11,17 @@
 // dolu - tıklanınca /payments?appointmentId=... sayfasına gider) ile
 // 'payment_succeeded' (ödeme tamamlandı, appointment_id dolu - tıklanınca
 // randevu detayına gider, appointment_reminder ile aynı genel appointment_id
-// yönlendirmesini paylaşır).
+// yönlendirmesini paylaşır). (30. tur, YENİ) 'free_trial_ready' -
+// payment_required'ın ücretsiz ilk seans karşılığı (randevu onaylandı, danışanın
+// ücretsiz hakkı var, "Devam Et" onayı bekleniyor) - appointment_id dolu,
+// payment_required ile AYNI /payments?appointmentId=... hedefine gider.
 export type NotificationType =
   | "appointment_reminder"
   | "message"
   | "document_status"
   | "payment_required"
-  | "payment_succeeded";
+  | "payment_succeeded"
+  | "free_trial_ready";
 
 export interface NotificationItem {
   id: number;

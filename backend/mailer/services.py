@@ -310,6 +310,41 @@ def send_payment_required_email(appointment) -> None:
     )
 
 
+def send_free_trial_ready_email(appointment) -> None:
+    """Randevu onaylandığında (ya da uzman tarafından oluşturulduğunda) danışanın
+    ömür boyu bir kez hakkı olan ücretsiz ilk seansı devreye girdiğinde ASENKRON
+    bir bilgilendirme maili gönderir - send_appointment_confirmed_email/
+    send_appointment_created_email'in YERİNE çağrılır, send_payment_required_email'in
+    "ücretsiz" karşılığı (appointments/views.py::status_update() ve
+    appointments/serializers.py::CreateAppointmentWithZoomSerializer.create() -
+    grant_appointment_access_if_paid() False dönüp appointment.is_free_trial
+    True olunca, bkz. 30. tur). CTA linki AYNI "Ödemeler" sayfasına gider -
+    danışan kart bilgisi girmeden, sadece "Devam Et" ile onaylar.
+    """
+    date_str, time_str = _appointment_date_time(appointment)
+    expert_name = appointment.expert.get_full_name()
+    base_url = settings.FRONTEND_URLS.get('client')
+    cta_url = f"{base_url}/payments?appointmentId={appointment.id}" if base_url else None
+    send_template_email_async(
+        appointment.client.email,
+        subject="Ücretsiz İlk Seansınız Onayınızı Bekliyor",
+        heading="Seansınız planlandı - ücretsiz ilk seansınızla onaylayın",
+        intro_paragraphs=[
+            f"Merhaba {appointment.client.first_name},",
+            f"{expert_name} ile {date_str} {time_str} tarihli seansınız, ömür boyu 1 kez "
+            "kullanabileceğiniz ücretsiz ilk seans hakkınızla planlandı. Görüşme bağlantınızın "
+            "oluşturulabilmesi için devam etmek istediğinizi onaylamanız gerekiyor.",
+        ],
+        details=[
+            {'label': 'Uzman', 'value': expert_name},
+            {'label': 'Tarih', 'value': date_str},
+            {'label': 'Saat', 'value': time_str},
+        ],
+        cta_text="Onayla ve Devam Et",
+        cta_url=cta_url,
+    )
+
+
 def send_appointment_cancellation_email(appointment, *, actor) -> None:
     """Randevu status='cancel_requested' ya da 'cancelled' olduğunda ASENKRON
     bir bildirim maili gönderir - appointments/views.py::status_update()

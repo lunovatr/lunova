@@ -6,6 +6,7 @@ import PageBreadCrumb from "../../components/common/PageBreadCrumb";
 import ToastContainer from "../../components/common/ToastContainer";
 import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
+import Badge from "../../components/ui/badge/Badge";
 import api from "../../lib/api";
 import { useToast } from "../../hooks/useToast";
 import { useModal } from "../../hooks/useModal";
@@ -96,9 +97,32 @@ export default function Payments() {
     setSelected(null);
   };
 
-  const handlePay = async () => {
+  const handleConfirm = async () => {
     if (!selected) return;
     setSubmitting(true);
+
+    if (selected.is_free_trial) {
+      // Ücretsiz ilk seans: kart bilgisi/iyzico yok, sadece "Devam Et" onayı -
+      // ayrı bir uç (confirm-free-trial), checkout ile karıştırılmamalı.
+      try {
+        await api.post(`/api/v1/payments/appointments/${selected.id}/confirm-free-trial/`);
+        showToast("Seansınız onaylandı, bağlantınız hazırlanıyor.", "success");
+        confirmModal.closeModal();
+        setSelected(null);
+        await fetchAppointments();
+      } catch (err: any) {
+        const message = err.response?.data?.detail || "İşlem başarısız.";
+        showToast(message, "error");
+        // Hak bu arada başka bir randevuda kullanılmış olabilir (yarış durumu) -
+        // backend appointment.is_free_trial'ı sıfırlamış olacak, listeyi
+        // yeniden çekmek satırı otomatik olarak normal "Öde"ye döndürür.
+        await fetchAppointments();
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
     try {
       const response = await api.post<CheckoutResponse>(
         `/api/v1/payments/appointments/${selected.id}/checkout/`
@@ -174,10 +198,20 @@ export default function Payments() {
                             {appointment.expert_name ?? "Uzman"}
                           </div>
                           <div className="text-sm text-gray-500 dark:text-gray-400">
-                            {formatDateTime(appointment.date, appointment.time)} · {formatPrice(appointment)}
+                            {formatDateTime(appointment.date, appointment.time)}
+                            {!appointment.is_free_trial && <> · {formatPrice(appointment)}</>}
                           </div>
+                          {appointment.is_free_trial && (
+                            <div className="mt-1">
+                              <Badge size="sm" color="success" variant="light">
+                                Ücretsiz İlk Seans
+                              </Badge>
+                            </div>
+                          )}
                         </div>
-                        <Button onClick={() => openConfirm(appointment)}>Öde</Button>
+                        <Button onClick={() => openConfirm(appointment)}>
+                          {appointment.is_free_trial ? "Devam Et" : "Öde"}
+                        </Button>
                       </div>
                     ))}
                   </div>
@@ -207,9 +241,15 @@ export default function Payments() {
                             {formatDateTime(appointment.date, appointment.time)}
                           </div>
                         </div>
-                        <span className="inline-flex w-fit items-center rounded-full bg-success-50 px-2.5 py-0.5 text-xs font-medium text-success-700 dark:bg-success-500/15 dark:text-success-500">
-                          Ödendi
-                        </span>
+                        {appointment.is_free_trial ? (
+                          <Badge size="sm" color="success" variant="solid">
+                            Ücretsiz İlk Seans
+                          </Badge>
+                        ) : (
+                          <Badge size="sm" color="success" variant="light">
+                            Ödendi
+                          </Badge>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -223,21 +263,35 @@ export default function Payments() {
       <Modal isOpen={confirmModal.isOpen} onClose={closeConfirm} className="max-w-[440px] m-4">
         <div className="relative w-full rounded-3xl bg-white p-6 dark:bg-gray-900">
           <h4 className="mb-2 text-lg font-semibold text-gray-800 dark:text-white/90">
-            Ödemeyi Onayla
+            {selected?.is_free_trial ? "Ücretsiz İlk Seansınızı Onaylayın" : "Ödemeyi Onayla"}
           </h4>
           {selected && (
             <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
-              {selected.expert_name ?? "Uzman"} ile {formatDateTime(selected.date, selected.time)} tarihli
-              seansınız için <span className="font-medium">{formatPrice(selected)}</span> tutarında ödeme
-              yapılacak.
+              {selected.is_free_trial ? (
+                <>
+                  {selected.expert_name ?? "Uzman"} ile {formatDateTime(selected.date, selected.time)} tarihli
+                  seansınız, ömür boyu 1 kez hakkınız olan <span className="font-medium">ücretsiz ilk seans</span>{" "}
+                  hakkınızla planlandı. Kart bilgisi girmenize gerek yok - devam ederek seansı onaylayabilirsiniz.
+                </>
+              ) : (
+                <>
+                  {selected.expert_name ?? "Uzman"} ile {formatDateTime(selected.date, selected.time)} tarihli
+                  seansınız için <span className="font-medium">{formatPrice(selected)}</span> tutarında ödeme
+                  yapılacak.
+                </>
+              )}
             </p>
           )}
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={closeConfirm} disabled={submitting}>
               Vazgeç
             </Button>
-            <Button onClick={handlePay} disabled={submitting}>
-              {submitting ? "Yönlendiriliyor..." : "Ödemeyi Tamamla"}
+            <Button onClick={handleConfirm} disabled={submitting}>
+              {submitting
+                ? "Yönlendiriliyor..."
+                : selected?.is_free_trial
+                ? "Devam Et"
+                : "Ödemeyi Tamamla"}
             </Button>
           </div>
         </div>

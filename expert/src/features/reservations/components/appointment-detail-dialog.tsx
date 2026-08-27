@@ -44,13 +44,16 @@ function statusVariant(s: Appointment['status']): BadgeVariant {
   return 'secondary'
 }
 
-const PAYMENT_STATUS_LABELS: Record<'unpaid' | 'paid', string> = {
-  paid: 'Ödendi',
-  unpaid: 'Ödeme Bekleniyor',
-}
-
 function paymentStatusVariant(s: 'unpaid' | 'paid'): BadgeVariant {
   return s === 'paid' ? 'default' : 'secondary'
+}
+
+// is_free_trial (30. tur, YENİ) ile metin ayırt ediliyor - appointments-table.tsx'teki
+// AYNI yardımcı, proje konvansiyonu gereği bu iki dosya arasında kopyalanıyor.
+function paymentBadgeLabel(app: Pick<Appointment, 'payment_status' | 'is_free_trial'>): string | null {
+  if (app.payment_status === 'paid') return app.is_free_trial ? 'Ücretsiz İlk Seans' : 'Ödendi'
+  if (app.payment_status === 'unpaid') return app.is_free_trial ? 'Ücretsiz Seans Onayı Bekleniyor' : 'Ödeme Bekleniyor'
+  return null
 }
 
 export function AppointmentDetailDialog({
@@ -161,9 +164,9 @@ export function AppointmentDetailDialog({
                 <div className='flex items-center gap-2 text-sm'>
                   <span className='text-muted-foreground'>Ödeme:</span>
                   <Badge variant={paymentStatusVariant(detail.payment_status)}>
-                    {PAYMENT_STATUS_LABELS[detail.payment_status]}
+                    {paymentBadgeLabel(detail)}
                   </Badge>
-                  {detail.payment_status === 'unpaid' && detail.session_price != null && (
+                  {detail.payment_status === 'unpaid' && !detail.is_free_trial && detail.session_price != null && (
                     <span className='text-xs text-muted-foreground'>
                       ({detail.session_price} {detail.session_currency ?? 'TRY'})
                     </span>

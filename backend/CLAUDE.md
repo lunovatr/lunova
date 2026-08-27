@@ -2,6 +2,24 @@
 
 > Bu dosya kaynak koddan (settings.py, models.py, views.py, urls.py) doğrudan doğrulanmıştır — bir önceki AI taslağındaki model alanları, endpoint listesi ve token ömrü gibi bilgilerin çoğu hatalıydı ve burada düzeltildi. Kök dizindeki [claude.md](../claude.md) genel sistem/haberleşme sorunlarını, bu dosya backend'in iç detaylarını anlatır (dokümantasyon bakım kuralları da orada — kısaca: `backend/` içinde yaptığın HER değişiklikten sonra hem bu dosya hem kök `claude.md` güncellenmeli, token maliyeti gerekçesiyle atlanmaz).
 
+> ## 🔧 Son Değişiklikler (2026-08-27, 25. tur) — Ücretsiz İlk Seans: Danışan "Devam Et" Onayı + Yarış Durumu Koruması
+>
+> Kök `claude.md`'nin 30. tur işi (aynı iş, iki frontend tarafı için oraya bakın) - 22. turda kurulan "ömür boyu 1 kez ücretsiz ilk seans" hakkı `resolve_appointment_payment()` içinde uzman onayladığı anda danışanın hiçbir etkileşimi olmadan sessizce tüketiliyordu. Kullanıcı bunu ücretli akışla simetrik hale getirmek istedi: danışan da bir "Devam Et" onayından geçmeli (bu, aynı zamanda seansa gerçekten katılacağına dair bir taahhüt sinyali).
+>
+> - **`appointments/models.py`**: yeni `is_free_trial` (BooleanField, default False, migration `0002_appointment_is_free_trial`) - Payment kaydı oluşmadan ÖNCE set edilir (uzman onayladığı/randevu oluşturduğu anda), Ödemeler sayfası henüz Payment yokken bile "Devam Et" gösterebilsin diye.
+> - **`payments/services.py::resolve_appointment_payment()`**: artık ücretsiz hakkı ANINDA tüketmiyor - `is_client_eligible_for_free_session()` True ise sadece `appointment.is_free_trial=True` set edip `False` döner (paid akışıyla birebir simetrik: appointment aynı Python objesi referansla `appointments.services.grant_appointment_access_if_paid()`'e geçtiği için `appointments/services.py`'ye HİÇ dokunulmadı - `instance.is_free_trial` çağıran tarafta zaten bellekte güncel).
+> - **Yeni `confirm_free_trial(appointment) -> Payment`**: danışanın Ödemeler sayfasındaki "Devam Et" tıklamasıyla çağrılır. `transaction.atomic()` + `Appointment.objects.select_for_update()` içinde: `has_appointment_been_paid`/`is_free_trial` guard'ları (400 - çift tık/yanlış durum), sonra `is_client_eligible_for_free_session()` TEKRAR kontrol edilir - eğer bu arada (iki uzman neredeyse eşzamanlı onaylamışsa) başka bir randevuda tüketilmişse `is_free_trial=False`'a zarifçe düşürülüp `PaymentError` fırlatılır (frontend "Öde"ye geri döner); hâlâ uygunsa asıl `Payment(amount=0, SUCCEEDED, metadata={'free_trial':True})` burada oluşturulur. `select_for_update()` SQLite'ta (dev) no-op, PostgreSQL'de (prod) aynı randevuya çift tıklamaya karşı gerçek satır kilidi. Zoom/bildirim çağrıları (`ensure_zoom_meeting`, `create_payment_succeeded_notification`) BİLİNÇLİ OLARAK `atomic()` bloğunun DIŞINDA - Zoom prod'da dış API'ye gidiyor, kilidi o süre açık tutmamak için.
+> - **`payments/views.py`+`urls.py`**: `AppointmentFreeTrialConfirmView` (`POST /api/v1/payments/appointments/<id>/confirm-free-trial/`, `AppointmentCheckoutView`'daki AYNI 403/404/400 deseni) + `FreeTrialEligibilityView` (`GET /api/v1/payments/free-trial-eligibility/`, `{"eligible": bool}`) - ikinci uç, danışanın TÜM Payment geçmişine bakan `is_client_eligible_for_free_session()`'ı client'ın (tarih-aralığı-sınırlı) randevu listesinden bağımsız, ayrı sorgulanabilir kılıyor (ana sayfa/randevu alma akışı promosyon banner'ları için).
+> - **`notifications/`**: `TYPE_CHOICES`'a `free_trial_ready` eklendi (migration `0005_alter_notification_notification_type`, choices-only). Yeni `create_free_trial_ready_notification()` (`create_payment_required_notification`'ın "devam et" karşılığı). `create_payment_succeeded_notification()` artık `payment.amount==0 and metadata.free_trial` durumunda her iki taraf için de metni "ödemeniz alındı" yerine "ücretsiz ilk seansınız onaylandı" olacak şekilde dallandırıyor - yeni bir tip AÇILMADI (tamamlama tarafı zaten mailsiz/sadece-bildirim, bu asimetri kasıtlı korundu).
+> - **`mailer/services.py`**: yeni `send_free_trial_ready_email()` - `send_payment_required_email()`'in yapısal kopyası, aynı `/payments?appointmentId=` CTA'sı.
+> - **`appointments/views.py::status_update()` + `appointments/serializers.py::CreateAppointmentWithZoomSerializer.create()`**: `elif instance.is_free_trial:` dalı eklendi (free_trial_ready mail+bildirimi, payment_required'ın yerine). **`AppointmentSerializer`**: `is_free_trial` hem `fields` hem **`read_only_fields`**'a eklendi - sistem tarafından hesaplanan bir bayrak, client'ın `PATCH /appointments/{id}/` ile doğrudan yazabilmesine izin verilmedi (bu view zaten `status` içermeyen PATCH'leri serializer'a düz geçiriyor, korumasız bırakılsaydı bir client kendi randevusuna `is_free_trial:true` yazabilirdi - `confirm_free_trial`'ın eligibility re-check'i hasarı sınırlardı ama gereksiz bir risk olurdu).
+> - **Doğrulama**: gerçek dev `db.sqlite3`'e karşı, ephemeral bir script (`APIRequestFactory`/`force_authenticate`, GERÇEK view'lar üzerinden) ile 28/28 kontrol: uzman-doğrudan-oluşturma ve `status_update`-onayı akışlarının ikisi de `is_free_trial=True`+Payment-yok+doğru bildirim/mail üretiyor; "Devam Et" çağrısı Payment+Zoom+her iki tarafa bildirim üretiyor; ikinci (çift-tık) çağrı 400; yarış durumu senaryosu (iki randevu `is_free_trial=True` iken biri önce confirm edilince ikincisi 400 + bayrak sıfırlama) doğru çalışıyor; 403/404/401/400 yetki kontrolleri; eligibility endpoint'i true→false geçişi; ham `PATCH` ile `is_free_trial` yazma denemesinin sessizce yok sayıldığı (`read_only_fields` doğrulaması). Script sonunda ürettiği TÜM veri silinip sıfır kaldığı ayrıca sorgulandı. `manage.py check` + `makemigrations --check --dry-run` temiz.
+> - **Bilinçli olarak bu turda YAPILMADI**: booking/request formlarına dokunulmadı (kullanıcı kararı: "15 dakika" sadece bilgilendirici metin, `Appointment.duration`/Zoom süresi/availability hesaplaması hiç değişmiyor - bkz. kök claude.md'deki ürün kararı tartışması). Kişiye özel bir "indirim kodu" mekanizması KURULMADI - kullanıcı bunu önerdi ama tartışma sonrası mevcut computed-eligibility (Payment geçmişinden hesaplanan) yaklaşımının zaten yeterli ve daha basit olduğuna karar verildi, bir kupon-kod sistemi ileride GERÇEK promosyon kodları (bkz. "🧭 Geliştirme Fikirleri" madde 9, toplu paket+indirim kodu) için ayrı bir iş olarak bırakıldı.
+
+> ## 📜 22. tur — arşivlendi (özet)
+>
+> Yeni `payments/` app'i kuruldu: `Payment` modeli + `services.py` (DIRECT + hazır-ama-bağlanmamış PREAUTH akışı) + `AppointmentCheckoutView`/`checkout_callback` + admin. Ücretsiz ilk seans hakkı (`is_client_eligible_for_free_session`, ayrı alan yok, Payment geçmişinden hesaplanan) ilk kez burada kuruldu (25. turda "Devam Et" onay adımına genişletildi, bkz. yukarıdaki "25. tur"). `appointments/services.py` (YENİ dosya) - Zoom oluşturma mantığı tekilleştirildi + `grant_appointment_access_if_paid()`. Net sonuç `git log -p -- backend/CLAUDE.md` ile geri getirilebilir.
+
 > ## 🔧 Son Değişiklikler (2026-08-26, 24. tur) — 🔴 Kritik: Gerçek iyzico Sandbox'ta `IYZICO_BASE_URL` Şeması Yüzünden TÜM Ödemeler 500 Veriyordu
 > Kullanıcı gerçek bir iyzico sandbox hesabı açıp `.env`'e gerçek `IYZICO_SANDBOX_API_KEY`/`SECRET_KEY` yerleştirdi, Docker'da denedi. İki bulgu geldi: (1) danışan-uzman akışında randevu onaylanır onaylanmaz uzman panelinde "ödendi" görünüyordu - bu bir bug DEĞİL, gerçek DB sorgulanıp `amount=0, status=succeeded, metadata={'free_trial': True}` bir `Payment` kaydı olduğu görüldü - test edilen danışanın hesap bazında ömür boyu 1 kez hakkı olan ücretsiz ilk seansı doğru şekilde tetiklenmişti (bkz. 22. tur). (2) client'ta "Ödemeler" sayfası "yüklenirken hata oluştu" veriyordu - bu GERÇEK bir bug'dı: `Payments.tsx`'teki tarih aralığı (-1ay/+4ay = 5 ay) `AppointmentListView`'ın admin-olmayanlar için uyguladığı 4 aylık üst sınırı aşıyordu, backend `400 {"error": "..."}` döndürüyordu ama hata mesajı çıkarma zinciri `.error` alanını kontrol etmiyordu - `-1ay/+3ay`'a (AppointmentsList.tsx'teki ÇALIŞAN aralıkla aynı) çekildi + `.error` fallback'i eklendi, gerçek backend'e karşı `APIRequestFactory` ile (400→200) doğrulandı.
 > - **Asıl kritik bulgu**: kullanıcı ikinci (ücretsiz olmayan) bir randevu için gerçekten "Öde"ye bastığında backend `500 Internal Server Error` verdi - Docker log'undaki traceback `http.client.InvalidURL: nonnumeric port: '//sandbox-api.iyzipay.com'` gösteriyordu. Kök neden: `iyzipay` SDK'sının `iyzipay_resource.py::connect()`'i `options['base_url']`'i DOĞRUDAN `http.client.HTTPSConnection(host)`'a host argümanı olarak geçiriyor - bir URL değil, çıplak bir hostname bekliyor (SDK'nın kendi `__init__.py`'sindeki varsayılan da `'sandbox-api.iyzipay.com'`, şemasız). `lunova_backend/settings.py`'de 22. turda `IYZICO_BASE_URL` **şemayla birlikte** (`'https://sandbox-api.iyzipay.com'`) yazılmıştı - bu, mock modda hiç fark edilmedi çünkü mock mod SDK'ya hiç dokunmuyor (bkz. 22. tur), sadece gerçek bir sandbox key'iyle gerçek bir ağ isteği denendiğinde ortaya çıktı.
@@ -113,7 +131,9 @@ backend/
 │
 ├── appointments/            ⭐ En iyi dokümante edilmiş app — README.md ve ENDPOINTS.md
 │   │                          kod ile satır satır örtüşüyor, örnek alınmalı.
-│   ├── models.py            → Appointment (expert/client User FK'ları, 6 durumlu status)
+│   ├── models.py            → Appointment (expert/client User FK'ları, 6 durumlu status, 25. tur YENİ
+│   │                          is_free_trial BooleanField - payments.services.resolve_appointment_payment()
+│   │                          tarafından set edilir, AppointmentSerializer'da read_only)
 │   ├── services.py           (22. tur, YENİ) → ensure_zoom_meeting() (views.py/serializers.py'de
 │   │                          AYRI AYRI kopyalanmış olan Zoom mock/real oluşturma mantığının tek
 │   │                          paylaşılan noktası - payments'ın 3. bir çağırana ihtiyacıyla çıkarıldı),
@@ -122,10 +142,13 @@ backend/
 │   │                          yapıp GEÇERSE ensure_zoom_meeting'i tetikler)
 │   ├── views.py              → status_update içinde geçiş matrisi + (22. tur, YENİ) confirmed
 │   │                          dalında Zoom artık DOĞRUDAN değil grant_appointment_access_if_paid()
-│   │                          üzerinden + confirmed/cancel_requested/cancelled'da mailer.services çağrıları
+│   │                          üzerinden + confirmed/cancel_requested/cancelled'da mailer.services çağrıları;
+│   │                          (25. tur, YENİ) instance.is_free_trial True ise send_free_trial_ready_email()+
+│   │                          create_free_trial_ready_notification() (payment_required'ın yerine)
 │   ├── serializers.py        → (22. tur, YENİ) CreateAppointmentWithZoomSerializer.create() de aynı
-│   │                          şekilde grant_appointment_access_if_paid() kullanıyor; her iki create()
-│   │                          (Client/Expert) sonunda mailer.services.send_appointment_created_email()
+│   │                          şekilde grant_appointment_access_if_paid() kullanıyor (+ 25. tur'daki AYNI
+│   │                          is_free_trial dalı); her iki create() (Client/Expert) sonunda
+│   │                          mailer.services.send_appointment_created_email()
 │   └── permissions.py        → IsExpertOrClientForCreatePermission, IsAppointmentParticipantPermission,
 │                                IsAppointmentExpertPermission, IsAppointmentClientPermission
 │
@@ -162,7 +185,12 @@ backend/
 │   ├── services.py              → sync_appointment_reminders() (3 gün içindeki confirmed randevular için
 │   │                          get_or_create ile bildirim üretir - job scheduler YOK, her GET'te çalışır),
 │   │                          cleanup_old_read_notifications() (20 günden eski okunmuşları siler),
-│   │                          create_message_notification() (14. tur, YENİ - messaging/views.py'den çağrılır)
+│   │                          create_message_notification() (14. tur, YENİ - messaging/views.py'den çağrılır),
+│   │                          create_payment_required_notification()/create_payment_succeeded_notification()
+│   │                          (23. tur, YENİ - payments akışından), create_free_trial_ready_notification()
+│   │                          (25. tur, YENİ - "Devam Et" onayı bekleyen ücretsiz ilk seans için; ayrıca
+│   │                          create_payment_succeeded_notification() artık amount=0+metadata.free_trial
+│   │                          durumunda metni "ücretsiz ilk seansınız onaylandı" olacak şekilde dallandırıyor)
 │   ├── views.py                 → NotificationListView (GET, sync+cleanup tetikler), NotificationMarkReadView (PATCH)
 │   └── tests/feed_notifications.py  (16. tur, YENİ) → tüm kullanıcılar için sync_appointment_reminders()'ı
 │                              tetikler + bazı bildirimleri okunmuş/20-günden-eski-okunmuş işaretler (test verisi)
@@ -199,7 +227,9 @@ backend/
 │                          fail_silently'yi HER ZAMAN True zorlar, sistemi bloklamaz/bozmaz) üzerine kurulu.
 │                          Tipli sarmalayıcılar: send_password_reset_email() (senkron - bu istekte mail
 │                          göndermek yan etki değil asıl amaç), send_appointment_created_email()/
-│                          send_appointment_confirmed_email()/send_appointment_cancellation_email() (asenkron,
+│                          send_appointment_confirmed_email()/send_appointment_cancellation_email()/
+│                          send_payment_required_email() (23. tur, YENİ)/send_free_trial_ready_email()
+│                          (25. tur, YENİ - send_payment_required_email'in ücretsiz karşılığı) (asenkron,
 │                          appointment nesnesi duck-typed, appointments/serializers.py + views.py'den
 │                          çağrılır) - yeni bir mail türü eklendikçe aynı desende bir tane daha eklenir,
 │                          enum/registry YOK (YAGNI, bkz. 21. tur changelog). Gmail SMTP kullanımı bilinçli
@@ -214,14 +244,21 @@ backend/
 │   │                          status [pending/authorized/succeeded/voided/failed/refunded], amount/
 │   │                          currency, conversation_id/provider_token/provider_payment_id, metadata JSON)
 │   ├── services.py             → resolve_appointment_payment() (appointments'ın çağırdığı ana giriş
-│   │                          noktası) + is_client_eligible_for_free_session() (ücretsiz ilk seans,
+│   │                          noktası - 25. turdan beri ücretsiz hakkı ANINDA tüketmiyor, sadece
+│   │                          appointments.Appointment.is_free_trial'ı işaretliyor) + confirm_free_trial()
+│   │                          (25. tur, YENİ - danışanın "Devam Et" onayıyla asıl Payment'ı burada
+│   │                          oluşturur, transaction.atomic()+select_for_update() ile yarış durumu
+│   │                          korumalı) + is_client_eligible_for_free_session() (ücretsiz ilk seans,
 │   │                          hesaplanan - ayrı alan yok) + initiate_direct_checkout()/
 │   │                          handle_checkout_callback() (DIRECT/auth-ecom, appointments akışına BAĞLI
 │   │                          olan) + initiate_preauth_checkout()/capture_preauth()/void_preauth()
 │   │                          (PREAUTH/preauth-ecom+postAuth+cancel, hazır ama HİÇBİR yerden çağrılmıyor)
 │   ├── views.py                → AppointmentCheckoutView (POST /payments/appointments/<id>/checkout/,
-│   │                          DRF) + checkout_callback (POST /payments/callback/, düz Django view -
-│   │                          iyzico'nun form-POST callback'i, sonunda frontend'e redirect eder)
+│   │                          DRF) + AppointmentFreeTrialConfirmView (25. tur, YENİ - POST .../
+│   │                          confirm-free-trial/) + FreeTrialEligibilityView (25. tur, YENİ - GET
+│   │                          /payments/free-trial-eligibility/, {"eligible": bool}) + checkout_callback
+│   │                          (POST /payments/callback/, düz Django view - iyzico'nun form-POST
+│   │                          callback'i, sonunda frontend'e redirect eder)
 │   ├── admin.py                → PaymentAdmin, mark_refunded toplu aksiyonu (iade şimdilik manuel)
 │   └── migrations/0001_initial.py
 │
@@ -377,4 +414,4 @@ Kullanıcı ekibin dokümantasyonu incelemesini istediği için, her app README'
 18. 🟡 **[21. turda bulundu, bilinçli olarak kabul edildi]** `mailer/services.py::send_template_email_async()` `threading.Thread` kullanıyor — Celery/kuyruk YOK, retry/persistence YOK. Uygulama süreci mail gönderilmeden ÖNCE çökerse/yeniden başlarsa (örn. deploy sırasında) o mail sessizce kaybolur. Kullanıcıya açıkça anlatılıp kabul edildi (mail burada ana veri kaynağı değil, sadece bir bilgilendirme yan etkisi - randevu durumu zaten DB'ye senkron yazılıyor). Hacim arttıkça ve/veya gerçek hata takibi (kullanıcının bahsettiği "hataları bir mail adresine yönlendirme" fikri) gerektiğinde Celery+Redis (ya da en azından bir `EmailLog`+retry komutu) değerlendirilebilir - şu an YAGNI gereği kurulmadı.
 
 ---
-**Son Güncelleme**: 2026-08-26, 23. tur (22. turda kurulan `payments/` app'i gerçek randevu yaşam döngüsüne bağlandı. Uzman onaylayınca/randevu oluşturunca ödeme gerekiyorsa yeni `send_payment_required_email` + `payment_required` bildirimi danışana gidiyor [genel "onaylandı" mailinin yerini alıyor]; gerçek bir ödeme tamamlanınca [mock/DIRECT-callback/PREAUTH-postAuth] hem danışana hem uzmana `payment_succeeded` bildirimi [`notifications/models.py`'ye migration'lı 2 yeni tip]. `AppointmentSerializer`'a `payment_status`/`session_price`/`session_currency` eklendi - ayrı bir endpoint gerekmedi. Gerçek dev DB'ye karşı GERÇEK view'lar üzerinden [`force_authenticate`] 16 kontrol geçti, tüm test verisi temizlendi. `manage.py check` + `makemigrations --check` temiz. İki frontend'in entegrasyonu (client: yeni "Ödemeler" sayfası; expert: ödeme rozeti) aynı turda yapıldı - detay kök claude.md 29. tur, client/claude.md 23. tur, expert/claude.md 20. tur)
+**Son Güncelleme**: 2026-08-27, 25. tur (Ücretsiz ilk seans artık uzman onayladığı anda sessizce tüketilmiyor - danışan ücretli akışla simetrik bir "Devam Et" onayından geçiyor. Yeni `Appointment.is_free_trial` bayrağı [Payment oluşmadan önce set edilir, migration `0002_appointment_is_free_trial`], `payments/services.py::confirm_free_trial()` [danışanın "Devam Et" tıklamasıyla asıl Payment'ı `transaction.atomic()`+`select_for_update()` içinde oluşturur, yarış durumuna karşı korumalı], yeni uçlar `POST /payments/appointments/<id>/confirm-free-trial/` + `GET /payments/free-trial-eligibility/`, yeni bildirim/mail türü `free_trial_ready` [migration `0005_alter_notification_notification_type`]. `AppointmentSerializer`'a `is_free_trial` eklendi [read-only - client PATCH ile yazamaz]. Gerçek dev DB'ye karşı GERÇEK view'lar üzerinden [`force_authenticate`] 28/28 kontrol geçti, tüm test verisi temizlendi. `manage.py check` + `makemigrations --check --dry-run` temiz. İki frontend'in entegrasyonu (client: `FreeTrialBanner.tsx` + Ödemeler sayfasında "Devam Et"; expert: ödeme rozeti artık ücretsiz ilk seansı ayırt ediyor) aynı turda yapıldı - detay kök claude.md 30. tur, client/claude.md 24. tur, expert/claude.md 21. tur)

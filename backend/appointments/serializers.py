@@ -1,8 +1,8 @@
 from rest_framework import serializers
 from .models import Appointment
 from .services import grant_appointment_access_if_paid
-from mailer.services import send_appointment_created_email, send_payment_required_email
-from notifications.services import create_payment_required_notification
+from mailer.services import send_appointment_created_email, send_payment_required_email, send_free_trial_ready_email
+from notifications.services import create_payment_required_notification, create_free_trial_ready_notification
 from availability.models import WeeklyAvailability, AvailabilityException
 from accounts.models import ExpertProfile, User
 
@@ -20,10 +20,15 @@ class AppointmentSerializer(serializers.ModelSerializer):
             'id', 'expert', 'client', 'expert_name', 'client_name',
             'date', 'time', 'duration', 'is_confirmed', 'notes', 'status',
             'zoom_start_url', 'zoom_join_url', 'zoom_meeting_id',
-            'payment_status', 'session_price', 'session_currency',
+            'payment_status', 'session_price', 'session_currency', 'is_free_trial',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['zoom_start_url', 'zoom_join_url', 'zoom_meeting_id', 'created_at', 'updated_at']
+        read_only_fields = [
+            'zoom_start_url', 'zoom_join_url', 'zoom_meeting_id', 'created_at', 'updated_at',
+            # sistem tarafından hesaplanan bir bayrak (payments.services.resolve_appointment_payment) -
+            # client'ın PATCH /appointments/{id}/ ile doğrudan yazabilmesine izin verilmemeli.
+            'is_free_trial',
+        ]
 
     def get_payment_status(self, obj):
         """'not_applicable' (henüz confirmed/completed değil - ödeme sorusu
@@ -102,6 +107,9 @@ class CreateAppointmentWithZoomSerializer(serializers.ModelSerializer):
 
         if grant_appointment_access_if_paid(appointment):
             send_appointment_created_email(appointment)
+        elif appointment.is_free_trial:
+            send_free_trial_ready_email(appointment)
+            create_free_trial_ready_notification(appointment)
         else:
             send_payment_required_email(appointment)
             create_payment_required_notification(appointment)

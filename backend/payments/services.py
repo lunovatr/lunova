@@ -40,6 +40,7 @@ from decimal import Decimal
 
 import iyzipay
 from django.conf import settings
+from django.db import transaction
 
 from .models import Payment, PaymentFlow, PaymentStatus, PaymentType
 from notifications.services import create_payment_succeeded_notification
@@ -134,36 +135,93 @@ def is_client_eligible_for_free_session(client) -> bool:
 def resolve_appointment_payment(appointment) -> bool:
     """appointment için Zoom erişiminin ŞİMDİ verilip verilemeyeceğini belirler.
 
-    True dönerse (zaten ödenmiş, ya da danışanın kullanılmamış ücretsiz ilk
-    seans hakkı varsa - bu durumda hakkı burada TÜKETİR, amount=0 SUCCEEDED bir
-    Payment kaydı oluşturur) çağıran taraf (appointments.services.
+    True dönerse (zaten ödenmiş) çağıran taraf (appointments.services.
     grant_appointment_access_if_paid) hemen Zoom oluşturabilir.
 
-    False dönerse danışanın önce AppointmentCheckoutView (POST
-    /api/v1/payments/appointments/<id>/checkout/) ile ödeme başlatması gerekir -
-    appointment durumuna (pending/confirmed) hiç dokunulmaz, sadece Zoom
-    oluşturulmaz.
+    False dönerse danışanın ya AppointmentCheckoutView (POST
+    /api/v1/payments/appointments/<id>/checkout/) ile ödeme başlatması ya da
+    (ücretsiz ilk seans hakkı varsa - appointment.is_free_trial burada set
+    edilir) AppointmentFreeTrialConfirmView (POST /api/v1/payments/appointments/
+    <id>/confirm-free-trial/) ile "devam et" onayını vermesi gerekir - GERÇEK
+    ödemeli akışla simetrik: hak burada TÜKETİLMEZ, sadece işaretlenir; asıl
+    Payment kaydı danışanın kendi "Devam Et" tıklamasıyla confirm_free_trial()
+    içinde oluşur (bkz. o fonksiyonun docstring'i - kullanıcı kararı: ücretsiz
+    seans da tıpkı ücretli seans gibi danışanın ayrı bir taahhüt/onay adımından
+    geçmeli). appointment durumuna (pending/confirmed) hiç dokunulmaz, sadece
+    Zoom oluşturulmaz.
     """
     if has_appointment_been_paid(appointment):
         return True
 
-    if is_client_eligible_for_free_session(appointment.client):
-        expert_profile = getattr(appointment.expert, 'expertprofile', None)
-        currency = expert_profile.currency if expert_profile else 'TRY'
-        Payment.objects.create(
-            payer=appointment.client,
-            appointment=appointment,
-            payment_type=PaymentType.SINGLE_SESSION,
-            flow=PaymentFlow.DIRECT,
-            status=PaymentStatus.SUCCEEDED,
-            amount=Decimal('0'),
-            currency=currency,
-            conversation_id=str(uuid.uuid4()),
-            metadata={'free_trial': True},
-        )
-        return True
+    if is_client_eligible_for_free_session(appointment.client) and not appointment.is_free_trial:
+        appointment.is_free_trial = True
+        appointment.save(update_fields=['is_free_trial', 'updated_at'])
 
     return False
+
+
+def confirm_free_trial(appointment) -> Payment:
+    """Danışanın Ödemeler sayfasındaki "Devam Et" tıklamasıyla çağrılır -
+    resolve_appointment_payment()'ın appointment.is_free_trial=True ile
+    işaretlediği bir randevu için asıl amount=0 SUCCEEDED Payment kaydını
+    burada oluşturur (ücretsiz hak burada TÜKETİLİR) ve Zoom erişimini açar.
+
+    select_for_update() + transaction.atomic(): danışanın hakkı iki farklı
+    randevuda (iki uzman neredeyse eşzamanlı onaylarsa) is_free_trial=True
+    olarak işaretlenmiş olabilir - hangisi önce confirm edilirse hakkı o
+    tüketir, ikincisi burada is_client_eligible_for_free_session() tekrar
+    kontrol edilince artık uygun bulunmaz ve zarifçe normal ödemeye
+    düşürülür (is_free_trial=False). select_for_update SQLite'ta (dev) no-op,
+    PostgreSQL'de (prod) aynı randevuya art arda çift tıklamaya karşı gerçek
+    bir satır kilidi.
+
+    Zoom/bildirim çağrıları BİLİNÇLİ OLARAK atomic() bloğunun DIŞINDA -
+    ensure_zoom_meeting prod'da dış bir API'ye (Zoom) gidiyor, satır kilidini
+    o süre boyunca açık tutmamak için.
+    """
+    from appointments.models import Appointment
+
+    degraded = False
+    payment = None
+
+    with transaction.atomic():
+        appointment = Appointment.objects.select_for_update().get(pk=appointment.pk)
+
+        if has_appointment_been_paid(appointment):
+            raise PaymentError("Bu randevu için ödeme zaten tamamlanmış.")
+
+        if not appointment.is_free_trial:
+            raise PaymentError("Bu randevu ücretsiz ilk seans için işaretli değil.")
+
+        if not is_client_eligible_for_free_session(appointment.client):
+            appointment.is_free_trial = False
+            appointment.save(update_fields=['is_free_trial', 'updated_at'])
+            degraded = True
+        else:
+            expert_profile = getattr(appointment.expert, 'expertprofile', None)
+            currency = expert_profile.currency if expert_profile else 'TRY'
+            payment = Payment.objects.create(
+                payer=appointment.client,
+                appointment=appointment,
+                payment_type=PaymentType.SINGLE_SESSION,
+                flow=PaymentFlow.DIRECT,
+                status=PaymentStatus.SUCCEEDED,
+                amount=Decimal('0'),
+                currency=currency,
+                conversation_id=str(uuid.uuid4()),
+                metadata={'free_trial': True},
+            )
+
+    if degraded:
+        raise PaymentError(
+            "Ücretsiz ilk seans hakkınız bu arada başka bir randevu için kullanılmış "
+            "görünüyor. Bu seans için ödeme yapmanız gerekiyor."
+        )
+
+    from appointments.services import ensure_zoom_meeting
+    ensure_zoom_meeting(appointment)
+    create_payment_succeeded_notification(payment)
+    return payment
 
 
 # ---------------------------------------------------------------------------

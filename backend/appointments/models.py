@@ -12,6 +12,7 @@ class Appointment(models.Model):
     duration = models.IntegerField(default=45)
 
     is_confirmed = models.BooleanField(default=False)
+    is_free_trial = models.BooleanField("Ücretsiz İlk Seans", default=False)
     notes = models.TextField(blank=True, null=True)
     status = models.CharField(
         max_length=20,
