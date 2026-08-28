@@ -46,6 +46,31 @@ def ensure_zoom_meeting(appointment) -> None:
         logger.exception("Zoom meeting creation failed for appointment %s", appointment.id)
 
 
+def ensure_group_session_zoom_meeting(group_session) -> None:
+    """ensure_zoom_meeting()'in GroupSession karşılığı (Faz 5) - TÜM
+    katılımcılar AYNI toplantıyı paylaşır, bu yüzden ilk katılımcının ödemesi
+    tamamlandığında bir kez oluşturulur (idempotency guard'ı zoom_meeting_id
+    kontrolüyle aynı), sonraki katılımcılar için tekrar oluşturulmaz."""
+    if group_session.zoom_meeting_id:
+        return
+
+    try:
+        meeting_datetime = datetime.combine(group_session.date, group_session.time)
+        topic = f"Grup Seansı: {group_session.session_offering.name} - Uzman {group_session.expert.get_full_name()}"
+
+        if settings.ENVIRONMENT == 'Production':
+            zoom_info = create_zoom_meeting(topic=topic, start_time=meeting_datetime, duration=group_session.duration)
+        else:
+            zoom_info = create_mock_zoom_meeting(group_session.id)
+
+        group_session.zoom_start_url = zoom_info.get('start_url')
+        group_session.zoom_join_url = zoom_info.get('join_url')
+        group_session.zoom_meeting_id = str(zoom_info.get('id'))
+        group_session.save(update_fields=['zoom_start_url', 'zoom_join_url', 'zoom_meeting_id'])
+    except Exception:
+        logger.exception("Zoom meeting creation failed for group session %s", group_session.id)
+
+
 def grant_appointment_access_if_paid(appointment) -> bool:
     """True dönerse Zoom meeting oluşturuldu (ya da zaten vardı). False dönerse
     danışanın ödemesi bekleniyor - appointment'a hiç dokunulmadı."""

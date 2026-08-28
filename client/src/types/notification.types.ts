@@ -15,13 +15,21 @@
 // payment_required'ın ücretsiz ilk seans karşılığı (randevu onaylandı, danışanın
 // ücretsiz hakkı var, "Devam Et" onayı bekleniyor) - appointment_id dolu,
 // payment_required ile AYNI /payments?appointmentId=... hedefine gider.
+// (Faz 2/8, Frontend Yapılandırması planı, YENİ) 'group_join_requested' -
+// SADECE uzman tarafında görünür (bkz. expert/features/notifications), client
+// tarafı sadece 'group_payment_required'/'group_join_rejected'/
+// 'group_waitlist_spot_available' türlerini alır - hepsi group_session_id taşır.
 export type NotificationType =
   | "appointment_reminder"
   | "message"
   | "document_status"
   | "payment_required"
   | "payment_succeeded"
-  | "free_trial_ready";
+  | "free_trial_ready"
+  | "group_join_requested"
+  | "group_payment_required"
+  | "group_join_rejected"
+  | "group_waitlist_spot_available";
 
 export interface NotificationItem {
   id: number;
@@ -30,6 +38,7 @@ export interface NotificationItem {
   body: string;
   appointment_id: number | null;
   related_user_id: number | null;
+  group_session_id: number | null;
   is_read: boolean;
   read_at: string | null;
   created_at: string;

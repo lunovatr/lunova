@@ -1,4 +1,11 @@
 // src/pages/Payments/Payments.tsx
+//
+// Faz 5 (Frontend Yapılandırması planı) - bu sayfa artık SADECE bireysel
+// randevu ödemelerini değil, onaylanmış-ama-ödenmemiş grup seansı
+// katılımlarını da tek bir "ödeme" yüzeyinde topluyor (GroupSessions.tsx
+// kasıtlı olarak kendi ödeme akışını tekrarlamıyor, buraya yönlendiriyor).
+// Faz 3 - indirim kodu girişi onay modalına eklendi (sadece ücretsiz ilk
+// seans DIŞINDAKİ akışlarda).
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import PageMeta from "../../components/common/PageMeta";
@@ -7,10 +14,13 @@ import ToastContainer from "../../components/common/ToastContainer";
 import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
 import Badge from "../../components/ui/badge/Badge";
+import Label from "../../components/form/Label";
+import Input from "../../components/form/input/InputField";
 import api from "../../lib/api";
 import { useToast } from "../../hooks/useToast";
 import { useModal } from "../../hooks/useModal";
 import type { Appointment } from "../../types/appointment";
+import type { MyGroupParticipation, MyGroupSessionsResponse } from "../../types/groupSession";
 
 interface CheckoutResponse {
   payment_id: number;
@@ -21,37 +31,41 @@ interface CheckoutResponse {
   mock?: boolean;
 }
 
+// Bireysel randevu ve grup seansı katılımını TEK bir listede göstermek için
+// ortak bir zarf tipi - `kind` ayırıcı alan.
+type PendingItem =
+  | { kind: "appointment"; id: number; appointment: Appointment }
+  | { kind: "group"; id: number; participation: MyGroupParticipation };
+
 function formatDateTime(date: string, time: string) {
   return `${date} ${time.slice(0, 5)}`;
 }
 
-function formatPrice(appointment: Appointment) {
-  if (appointment.session_price == null) return "Fiyat belirtilmemiş";
-  return `${appointment.session_price} ${appointment.session_currency ?? "TRY"}`;
+function formatPrice(amount: string | number | null | undefined, currency: string | null | undefined) {
+  if (amount == null) return "Fiyat belirtilmemiş";
+  return `${amount} ${currency ?? "TRY"}`;
 }
 
 export default function Payments() {
   const { toasts, showToast, removeToast } = useToast();
   const confirmModal = useModal();
   const [searchParams] = useSearchParams();
-  const highlightedId = searchParams.get("appointmentId");
+  const highlightedAppointmentId = searchParams.get("appointmentId");
+  const highlightedGroupParticipantId = searchParams.get("groupParticipantId");
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [groupParticipations, setGroupParticipations] = useState<MyGroupParticipation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<Appointment | null>(null);
+  const [selected, setSelected] = useState<PendingItem | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [discountCode, setDiscountCode] = useState("");
 
-  const fetchAppointments = async () => {
+  const fetchAll = async () => {
     setLoading(true);
     setError(null);
     try {
       const params = {
-        // Backend appointments/views.py::AppointmentListView, admin olmayanlar
-        // için start_date..end_date aralığını en fazla 4 ay ile sınırlıyor -
-        // AppointmentsList.tsx'teki AYNI -1ay/+3ay aralığı (tam 4 ay) burada
-        // da kullanılıyor. Önceden +4 ay kullanılıyordu (toplam 5 ay), bu her
-        // zaman backend'den 400 döndürüyordu.
         start_date: new Date(new Date().setMonth(new Date().getMonth() - 1))
           .toISOString()
           .split("T")[0],
@@ -59,8 +73,12 @@ export default function Payments() {
           .toISOString()
           .split("T")[0],
       };
-      const response = await api.get<Appointment[]>("/api/v1/appointments/", { params });
-      setAppointments(response.data);
+      const [appointmentsRes, groupsRes] = await Promise.all([
+        api.get<Appointment[]>("/api/v1/appointments/", { params }),
+        api.get<MyGroupSessionsResponse>("/api/v1/appointments/group-sessions/mine/"),
+      ]);
+      setAppointments(appointmentsRes.data);
+      setGroupParticipations(groupsRes.data.participations);
     } catch (err: any) {
       setError(
         err.response?.data?.detail ||
@@ -74,20 +92,36 @@ export default function Payments() {
   };
 
   useEffect(() => {
-    fetchAppointments();
+    fetchAll();
   }, []);
 
-  const pending = useMemo(
-    () => appointments.filter((a) => a.payment_status === "unpaid"),
-    [appointments]
-  );
-  const history = useMemo(
-    () => appointments.filter((a) => a.payment_status === "paid"),
-    [appointments]
-  );
+  const pending: PendingItem[] = useMemo(() => {
+    const fromAppointments: PendingItem[] = appointments
+      .filter((a) => a.payment_status === "unpaid")
+      .map((a) => ({ kind: "appointment" as const, id: a.id, appointment: a }));
+    const fromGroups: PendingItem[] = groupParticipations
+      .filter((p) => p.status === "approved" && p.payment_status === "unpaid")
+      .map((p) => ({ kind: "group" as const, id: p.id, participation: p }));
+    return [...fromAppointments, ...fromGroups];
+  }, [appointments, groupParticipations]);
 
-  const openConfirm = (appointment: Appointment) => {
-    setSelected(appointment);
+  const history: PendingItem[] = useMemo(() => {
+    const fromAppointments: PendingItem[] = appointments
+      .filter((a) => a.payment_status === "paid")
+      .map((a) => ({ kind: "appointment" as const, id: a.id, appointment: a }));
+    const fromGroups: PendingItem[] = groupParticipations
+      .filter((p) => p.status === "approved" && p.payment_status === "paid")
+      .map((p) => ({ kind: "group" as const, id: p.id, participation: p }));
+    return [...fromAppointments, ...fromGroups];
+  }, [appointments, groupParticipations]);
+
+  const isHighlighted = (item: PendingItem) =>
+    (item.kind === "appointment" && highlightedAppointmentId === String(item.id)) ||
+    (item.kind === "group" && highlightedGroupParticipantId === String(item.id));
+
+  const openConfirm = (item: PendingItem) => {
+    setSelected(item);
+    setDiscountCode("");
     confirmModal.openModal();
   };
 
@@ -101,45 +135,44 @@ export default function Payments() {
     if (!selected) return;
     setSubmitting(true);
 
-    if (selected.is_free_trial) {
-      // Ücretsiz ilk seans: kart bilgisi/iyzico yok, sadece "Devam Et" onayı -
-      // ayrı bir uç (confirm-free-trial), checkout ile karıştırılmamalı.
+    if (selected.kind === "appointment" && selected.appointment.is_free_trial) {
+      // Ücretsiz ilk seans: kart bilgisi/iyzico yok, sadece "Devam Et" onayı.
       try {
         await api.post(`/api/v1/payments/appointments/${selected.id}/confirm-free-trial/`);
         showToast("Seansınız onaylandı, bağlantınız hazırlanıyor.", "success");
         confirmModal.closeModal();
         setSelected(null);
-        await fetchAppointments();
+        await fetchAll();
       } catch (err: any) {
         const message = err.response?.data?.detail || "İşlem başarısız.";
         showToast(message, "error");
-        // Hak bu arada başka bir randevuda kullanılmış olabilir (yarış durumu) -
-        // backend appointment.is_free_trial'ı sıfırlamış olacak, listeyi
-        // yeniden çekmek satırı otomatik olarak normal "Öde"ye döndürür.
-        await fetchAppointments();
+        await fetchAll();
       } finally {
         setSubmitting(false);
       }
       return;
     }
 
+    const url =
+      selected.kind === "appointment"
+        ? `/api/v1/payments/appointments/${selected.id}/checkout/`
+        : `/api/v1/payments/group-sessions/participants/${selected.id}/checkout/`;
+
     try {
-      const response = await api.post<CheckoutResponse>(
-        `/api/v1/payments/appointments/${selected.id}/checkout/`
-      );
+      const response = await api.post<CheckoutResponse>(url, {
+        discount_code: discountCode.trim() || undefined,
+      });
       const result = response.data;
 
       if (result.payment_page_url) {
-        // Gerçek (sandbox/production) mod: iyzico'nun hosted ödeme sayfasına yönlendir.
         window.location.href = result.payment_page_url;
         return;
       }
 
-      // mock mod: ödeme anında tamamlanıyor, yönlendirmeye gerek yok.
       showToast("Ödemeniz alındı, seans bağlantınız hazırlanıyor.", "success");
       confirmModal.closeModal();
       setSelected(null);
-      await fetchAppointments();
+      await fetchAll();
     } catch (err: any) {
       const message =
         err.response?.data?.detail ||
@@ -149,6 +182,26 @@ export default function Payments() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const renderItemHeader = (item: PendingItem) => {
+    if (item.kind === "appointment") {
+      return {
+        title: item.appointment.expert_name ?? "Uzman",
+        subtitle: formatDateTime(item.appointment.date, item.appointment.time),
+        priceLine: !item.appointment.is_free_trial
+          ? formatPrice(item.appointment.session_price, item.appointment.session_currency)
+          : null,
+        isFreeTrial: !!item.appointment.is_free_trial,
+      };
+    }
+    const group = item.participation.group_session;
+    return {
+      title: `${group.session_offering_name} (Grup) · ${group.expert_name}`,
+      subtitle: formatDateTime(group.date, group.time),
+      priceLine: formatPrice(group.price, group.currency),
+      isFreeTrial: false,
+    };
   };
 
   return (
@@ -184,36 +237,44 @@ export default function Payments() {
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {pending.map((appointment) => (
-                      <div
-                        key={appointment.id}
-                        className={`flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between ${
-                          highlightedId === String(appointment.id)
-                            ? "border-brand-500 bg-brand-50 dark:bg-brand-500/10"
-                            : "border-gray-200 dark:border-white/[0.05]"
-                        }`}
-                      >
-                        <div>
-                          <div className="font-medium text-gray-900 dark:text-white">
-                            {appointment.expert_name ?? "Uzman"}
-                          </div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">
-                            {formatDateTime(appointment.date, appointment.time)}
-                            {!appointment.is_free_trial && <> · {formatPrice(appointment)}</>}
-                          </div>
-                          {appointment.is_free_trial && (
-                            <div className="mt-1">
-                              <Badge size="sm" color="success" variant="light">
-                                Ücretsiz İlk Seans
-                              </Badge>
+                    {pending.map((item) => {
+                      const info = renderItemHeader(item);
+                      return (
+                        <div
+                          key={`${item.kind}-${item.id}`}
+                          className={`flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between ${
+                            isHighlighted(item)
+                              ? "border-brand-500 bg-brand-50 dark:bg-brand-500/10"
+                              : "border-gray-200 dark:border-white/[0.05]"
+                          }`}
+                        >
+                          <div>
+                            <div className="font-medium text-gray-900 dark:text-white">
+                              {info.title}
+                              {item.kind === "group" && (
+                                <span className="ml-2">
+                                  <Badge size="sm" color="info">Grup</Badge>
+                                </span>
+                              )}
                             </div>
-                          )}
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                              {info.subtitle}
+                              {info.priceLine && <> · {info.priceLine}</>}
+                            </div>
+                            {info.isFreeTrial && (
+                              <div className="mt-1">
+                                <Badge size="sm" color="success" variant="light">
+                                  Ücretsiz İlk Seans
+                                </Badge>
+                              </div>
+                            )}
+                          </div>
+                          <Button onClick={() => openConfirm(item)}>
+                            {info.isFreeTrial ? "Devam Et" : "Öde"}
+                          </Button>
                         </div>
-                        <Button onClick={() => openConfirm(appointment)}>
-                          {appointment.is_free_trial ? "Devam Et" : "Öde"}
-                        </Button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -228,30 +289,36 @@ export default function Payments() {
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {history.map((appointment) => (
-                      <div
-                        key={appointment.id}
-                        className="flex flex-col gap-1 rounded-lg border border-gray-200 p-4 dark:border-white/[0.05] sm:flex-row sm:items-center sm:justify-between"
-                      >
-                        <div>
-                          <div className="font-medium text-gray-900 dark:text-white">
-                            {appointment.expert_name ?? "Uzman"}
+                    {history.map((item) => {
+                      const info = renderItemHeader(item);
+                      return (
+                        <div
+                          key={`${item.kind}-${item.id}`}
+                          className="flex flex-col gap-1 rounded-lg border border-gray-200 p-4 dark:border-white/[0.05] sm:flex-row sm:items-center sm:justify-between"
+                        >
+                          <div>
+                            <div className="font-medium text-gray-900 dark:text-white">
+                              {info.title}
+                              {item.kind === "group" && (
+                                <span className="ml-2">
+                                  <Badge size="sm" color="info">Grup</Badge>
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">{info.subtitle}</div>
                           </div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">
-                            {formatDateTime(appointment.date, appointment.time)}
-                          </div>
+                          {info.isFreeTrial ? (
+                            <Badge size="sm" color="success" variant="solid">
+                              Ücretsiz İlk Seans
+                            </Badge>
+                          ) : (
+                            <Badge size="sm" color="success" variant="light">
+                              Ödendi
+                            </Badge>
+                          )}
                         </div>
-                        {appointment.is_free_trial ? (
-                          <Badge size="sm" color="success" variant="solid">
-                            Ücretsiz İlk Seans
-                          </Badge>
-                        ) : (
-                          <Badge size="sm" color="success" variant="light">
-                            Ödendi
-                          </Badge>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -263,24 +330,43 @@ export default function Payments() {
       <Modal isOpen={confirmModal.isOpen} onClose={closeConfirm} className="max-w-[440px] m-4">
         <div className="relative w-full rounded-3xl bg-white p-6 dark:bg-gray-900">
           <h4 className="mb-2 text-lg font-semibold text-gray-800 dark:text-white/90">
-            {selected?.is_free_trial ? "Ücretsiz İlk Seansınızı Onaylayın" : "Ödemeyi Onayla"}
+            {selected?.kind === "appointment" && selected.appointment.is_free_trial
+              ? "Ücretsiz İlk Seansınızı Onaylayın"
+              : "Ödemeyi Onayla"}
           </h4>
           {selected && (
-            <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
-              {selected.is_free_trial ? (
-                <>
-                  {selected.expert_name ?? "Uzman"} ile {formatDateTime(selected.date, selected.time)} tarihli
-                  seansınız, ömür boyu 1 kez hakkınız olan <span className="font-medium">ücretsiz ilk seans</span>{" "}
-                  hakkınızla planlandı. Kart bilgisi girmenize gerek yok - devam ederek seansı onaylayabilirsiniz.
-                </>
-              ) : (
-                <>
-                  {selected.expert_name ?? "Uzman"} ile {formatDateTime(selected.date, selected.time)} tarihli
-                  seansınız için <span className="font-medium">{formatPrice(selected)}</span> tutarında ödeme
-                  yapılacak.
-                </>
-              )}
-            </p>
+            <>
+              {(() => {
+                const info = renderItemHeader(selected);
+                if (info.isFreeTrial) {
+                  return (
+                    <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
+                      {info.title} ile {info.subtitle} tarihli seansınız, ömür boyu 1 kez hakkınız olan{" "}
+                      <span className="font-medium">ücretsiz ilk seans</span> hakkınızla planlandı. Kart
+                      bilgisi girmenize gerek yok - devam ederek seansı onaylayabilirsiniz.
+                    </p>
+                  );
+                }
+                return (
+                  <>
+                    <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
+                      {info.title} için {info.subtitle} tarihli{" "}
+                      <span className="font-medium">{info.priceLine}</span> tutarında ödeme yapılacak.
+                    </p>
+                    <div className="mb-6">
+                      <Label htmlFor="discount_code">İndirim Kodu (opsiyonel)</Label>
+                      <Input
+                        id="discount_code"
+                        type="text"
+                        placeholder="Varsa indirim kodunuzu girin"
+                        value={discountCode}
+                        onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
+                      />
+                    </div>
+                  </>
+                );
+              })()}
+            </>
           )}
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={closeConfirm} disabled={submitting}>
@@ -289,7 +375,7 @@ export default function Payments() {
             <Button onClick={handleConfirm} disabled={submitting}>
               {submitting
                 ? "Yönlendiriliyor..."
-                : selected?.is_free_trial
+                : selected?.kind === "appointment" && selected.appointment.is_free_trial
                 ? "Devam Et"
                 : "Ödemeyi Tamamla"}
             </Button>

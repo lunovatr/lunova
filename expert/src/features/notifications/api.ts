@@ -13,11 +13,15 @@ import api from '@/lib/api'
 // genel appointment_id fallback'i zaten /reservations?appointmentId=...'e yönlendiriyor,
 // ayrı bir dallanma gerekmedi). 'payment_required' danışan tarafına özgü, uzman
 // tarafında hiç üretilmiyor.
+// (Faz 2/8, Frontend Yapılandırması planı, YENİ) 'group_join_requested' -
+// bir danışan uzmanın grup seansına katılım talebi gönderdiğinde uzmana
+// gider, group_session_id taşır (tıklanınca /groups?groupSessionId=...).
 export type NotificationType =
   | 'appointment_reminder'
   | 'message'
   | 'document_status'
   | 'payment_succeeded'
+  | 'group_join_requested'
 
 export interface NotificationItem {
   id: number
@@ -26,6 +30,7 @@ export interface NotificationItem {
   body: string
   appointment_id: number | null
   related_user_id: number | null
+  group_session_id: number | null
   is_read: boolean
   read_at: string | null
   created_at: string

@@ -4,7 +4,7 @@ from django.urls import reverse
 from django.db.models import Count, Q
 from django.utils import timezone
 from datetime import timedelta
-from .models import Appointment
+from .models import Appointment, GroupSession, GroupSessionParticipant, GroupSessionWaitlist
 
 
 class AppointmentStatusFilter(admin.SimpleListFilter):
@@ -190,4 +190,35 @@ class AppointmentAdmin(admin.ModelAdmin):
         updated = queryset.update(is_deleted=True)
         self.message_user(request, f'{updated} randevu silindi (soft delete).')
     soft_delete.short_description = "Seçili randevuları sil (soft delete)"
+
+
+class GroupSessionParticipantInline(admin.TabularInline):
+    model = GroupSessionParticipant
+    extra = 0
+    fields = ('client', 'status', 'payment', 'reviewed_by', 'reviewed_at', 'joined_at')
+    readonly_fields = ('joined_at',)
+    autocomplete_fields = ('client', 'reviewed_by')
+
+
+class GroupSessionWaitlistInline(admin.TabularInline):
+    model = GroupSessionWaitlist
+    extra = 0
+    fields = ('client', 'joined_waitlist_at', 'notified_at', 'claim_expires_at')
+    readonly_fields = ('joined_waitlist_at',)
+    autocomplete_fields = ('client',)
+
+
+@admin.register(GroupSession)
+class GroupSessionAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'expert', 'session_offering', 'variant', 'date', 'time',
+                     'capacity', 'participant_count', 'status')
+    list_filter = ('status', 'session_offering', 'session_type')
+    search_fields = ('expert__first_name', 'expert__last_name', 'session_offering__name')
+    date_hierarchy = 'date'
+    inlines = [GroupSessionParticipantInline, GroupSessionWaitlistInline]
+
+    def participant_count(self, obj):
+        approved = obj.participants.filter(status='approved').count()
+        return f"{approved}/{obj.capacity}"
+    participant_count.short_description = "Doluluk (onaylı)"
 

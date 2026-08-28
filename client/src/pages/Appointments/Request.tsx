@@ -169,10 +169,15 @@ export default function Request() {
                   key={expert.expert_user_id}
                   className="border border-gray-200 rounded-lg"
                 >
-                  <div className="p-4">
+                  <div className="p-4 flex items-center justify-between gap-4">
                     <h4 className="font-semibold text-lg text-gray-800 dark:text-white">
                       {expert.name}
                     </h4>
+                    {expert.session_price != null && (
+                      <span className="shrink-0 rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                        {expert.session_price} {expert.session_currency || "TRY"} / {expert.appointment_duration || 45} dk
+                      </span>
+                    )}
                   </div>
 
                   <div className="px-4 pb-4">

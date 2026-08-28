@@ -286,7 +286,7 @@ class AppointmentDetailView(generics.RetrieveUpdateDestroyAPIView):
             send_appointment_cancellation_email(instance, actor=user)
 
         # Response serializer ile döndür
-        response_serializer = AppointmentSerializer(instance)
+        response_serializer = AppointmentSerializer(instance, context={'request': request})
         return Response(response_serializer.data)
     
     def destroy(self, request, *args, **kwargs):

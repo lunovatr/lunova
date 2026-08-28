@@ -103,7 +103,7 @@ class ExpertProfileAdmin(admin.ModelAdmin):
 
     filter_horizontal = (
         'services', 'specializations', 'languages',
-        'approach_methods', 'target_groups', 'session_types'
+        'approach_methods', 'target_groups'
     )
 
     def get_full_name(self, obj):
@@ -140,8 +140,9 @@ class ExpertProfileAdmin(admin.ModelAdmin):
 class ClientProfileAdmin(admin.ModelAdmin):
     list_display = (
         'user', 'expert', 'get_full_name', 'get_birth_date', 'get_gender',
-        'get_phone_number', 'is_active_in_treatment', 'onboarding_complete'
+        'get_phone_number', 'is_active_in_treatment', 'onboarding_complete', 'recovery_status'
     )
+    list_filter = ('recovery_status',)
 
     fieldsets = (
         ("Temel Bilgiler", {"fields": ('user', 'expert', 'support_goal')}),
@@ -149,7 +150,15 @@ class ClientProfileAdmin(admin.ModelAdmin):
             'onboarding_complete', 'is_active_in_treatment', 'received_service_before'
         )}),
         ("Bağımlılık Bilgileri", {"fields": ('substances_used',)}),
+        # recovery_status normalde review_document() tarafından otomatik set
+        # edilir (bkz. accounts/services.py) - burada salt-okunur, admin elle
+        # bir hata durumunda düzeltebilsin diye readonly DEĞİL ama açıkça
+        # "otomatik" olduğu belirtildi.
+        ("Ex-User Doğrulaması (Faz 4)", {"fields": (
+            'recovery_status', 'recovery_status_verified_by', 'recovery_status_verified_at',
+        ), "description": "Normalde 'İyileşme Durumu Belgesi' onaylandığında otomatik doldurulur."}),
     )
+    readonly_fields = ('recovery_status_verified_by', 'recovery_status_verified_at')
 
     search_fields = (
         'user__email', 'user__first_name', 'user__last_name',
@@ -320,12 +329,13 @@ class DocumentAdmin(admin.ModelAdmin):
             services.sync_review_fields(obj)
         super().save_model(request, obj, form, change)
         if status_changed:
+            services.apply_recovery_status_effect(obj, reviewed_by=request.user)
             services.notify_document_review(obj)
 
     def approve_documents(self, request, queryset):
         count = 0
         for doc in queryset.exclude(status=DocumentStatus.APPROVED):
-            services.review_document(doc, DocumentStatus.APPROVED)
+            services.review_document(doc, DocumentStatus.APPROVED, reviewed_by=request.user)
             count += 1
         self.message_user(request, f"{count} belge onaylandı, kullanıcılara bildirim gönderildi.")
     approve_documents.short_description = "Seçili belgeleri onayla"
@@ -333,7 +343,7 @@ class DocumentAdmin(admin.ModelAdmin):
     def reject_documents(self, request, queryset):
         count = 0
         for doc in queryset.exclude(status=DocumentStatus.REJECTED):
-            services.review_document(doc, DocumentStatus.REJECTED)
+            services.review_document(doc, DocumentStatus.REJECTED, reviewed_by=request.user)
             count += 1
         self.message_user(request, f"{count} belge reddedildi, kullanıcılara bildirim gönderildi.")
     reject_documents.short_description = "Seçili belgeleri reddet"

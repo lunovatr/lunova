@@ -22,7 +22,7 @@ from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth.password_validation import validate_password
 from django.middleware.csrf import get_token
 from django.db.models import Q
-from ..models import UserRole, ExpertProfile, ClientProfile, Document, DocumentType
+from ..models import UserRole, ExpertProfile, ClientProfile, Document, DocumentType, SessionType
 from accounts.serializers.document_serializers import DocumentSerializer
 from mailer.services import send_password_reset_email
 
@@ -335,6 +335,17 @@ class ClientListView(generics.ListAPIView):
 
         # Client kullanıcılar için boş queryset döndür
         return queryset.none()
+
+
+class SessionTypeListView(APIView):
+    """GET /api/v1/accounts/session-types/ - Faz 4 (Frontend Yapılandırması
+    planı), grup seansı oluşturma formunun (ve randevu/grup serializer'larının
+    zaten FK olarak kullandığı) SessionType (Online/Yüz Yüze/Karma) listesini
+    döner - önceden hiçbir uç bunu expose etmiyordu."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(list(SessionType.objects.values('id', 'name')))
 
 
 class PasswordResetRequestView(APIView):

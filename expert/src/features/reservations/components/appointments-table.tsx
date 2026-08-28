@@ -166,9 +166,14 @@ export function AppointmentsTable({ appointments, onUpdate, onAppointmentClick }
                     </TableCell>
                     <TableCell className='text-sm'>{app.duration} dk</TableCell>
                     <TableCell>
-                      <Badge variant={statusVariant(app.status)}>
-                        {STATUS_LABELS[app.status]}
-                      </Badge>
+                      <div className='flex flex-wrap items-center gap-1'>
+                        <Badge variant={statusVariant(app.status)}>
+                          {STATUS_LABELS[app.status]}
+                        </Badge>
+                        {app.session_offering_name && (
+                          <Badge variant='outline'>{app.session_offering_name}</Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       {(app.payment_status === 'paid' || app.payment_status === 'unpaid') && (

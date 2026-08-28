@@ -23,13 +23,19 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from appointments.models import Appointment
+from rest_framework import generics
+
+from appointments.models import Appointment, GroupSessionParticipant
+from .models import PackageDefinition, PackagePurchase
+from .serializers import PackageDefinitionSerializer, PackagePurchaseSerializer
 from .services import (
     PaymentError,
     initiate_direct_checkout,
+    initiate_group_participant_checkout,
     handle_checkout_callback,
     confirm_free_trial,
     is_client_eligible_for_free_session,
+    purchase_package,
 )
 
 logger = logging.getLogger(__name__)
@@ -56,8 +62,39 @@ class AppointmentCheckoutView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        discount_code = request.data.get('discount_code') or None
+
         try:
-            result = initiate_direct_checkout(appointment, request)
+            result = initiate_direct_checkout(appointment, request, discount_code=discount_code)
+        except PaymentError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(result, status=status.HTTP_201_CREATED)
+
+
+class GroupSessionParticipantCheckoutView(APIView):
+    """POST /api/v1/payments/group-sessions/participants/<participant_id>/checkout/
+    Danışan, ONAYLANMIŞ (approved) kendi grup seansı katılımı için iyzico
+    Checkout Form başlatır - AppointmentCheckoutView'daki AYNI 403/404/400
+    deseni (Faz 1, Frontend Yapılandırması planı)."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, participant_id):
+        try:
+            participant = GroupSessionParticipant.objects.select_related('group_session').get(pk=participant_id)
+        except GroupSessionParticipant.DoesNotExist:
+            return Response({'detail': 'Katılım kaydı bulunamadı.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if participant.client_id != request.user.id:
+            return Response(
+                {'detail': 'Bu katılım için ödeme başlatma yetkiniz yok.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        discount_code = request.data.get('discount_code') or None
+
+        try:
+            result = initiate_group_participant_checkout(participant, request, discount_code=discount_code)
         except PaymentError as e:
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -110,6 +147,51 @@ class FreeTrialEligibilityView(APIView):
 
     def get(self, request):
         return Response({'eligible': is_client_eligible_for_free_session(request.user)})
+
+
+class PackageListView(generics.ListAPIView):
+    """GET /api/v1/payments/packages/ - herkese açık (kimliği doğrulanmış
+    her kullanıcı), aktif PackageDefinition'ları fiyatıyla birlikte listeler
+    (Faz 2/7, Frontend Yapılandırması planı)."""
+    permission_classes = [IsAuthenticated]
+    serializer_class = PackageDefinitionSerializer
+    queryset = PackageDefinition.objects.filter(is_active=True).select_related('applies_to_offering')
+
+
+class PackageCheckoutView(APIView):
+    """POST /api/v1/payments/packages/<package_id>/checkout/ - sadece client,
+    purchase_package() çağırır."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, package_id):
+        if getattr(request.user, 'role', None) != 'client':
+            return Response({'detail': 'Sadece danışanlar paket satın alabilir.'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            package_definition = PackageDefinition.objects.get(pk=package_id)
+        except PackageDefinition.DoesNotExist:
+            return Response({'detail': 'Paket bulunamadı.'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            result = purchase_package(package_definition, request.user, request)
+        except PaymentError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(result, status=status.HTTP_201_CREATED)
+
+
+class MyPackagesView(generics.ListAPIView):
+    """GET /api/v1/payments/packages/mine/ - sadece client, satın aldığı
+    paketleri + her birinin kalan hakkını döner."""
+    permission_classes = [IsAuthenticated]
+    serializer_class = PackagePurchaseSerializer
+
+    def get_queryset(self):
+        if getattr(self.request.user, 'role', None) != 'client':
+            return PackagePurchase.objects.none()
+        return PackagePurchase.objects.filter(client=self.request.user).select_related(
+            'package_definition', 'package_definition__applies_to_offering',
+        )
 
 
 @csrf_exempt

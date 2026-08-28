@@ -77,7 +77,7 @@ export interface EmergencyContact {
 // --------------------
 // Documents
 // --------------------
-export type DocumentTypes = 'profile_photo' | 'consent_form' | 'cv' | 'degree' | 'other';
+export type DocumentTypes = 'profile_photo' | 'consent_form' | 'cv' | 'degree' | 'recovery_proof' | 'other';
 
 // İkili yapı (Değer - Türkçe Etiket eşleşmesi)
 export const DOCUMENT_TYPE_LABELS: Record<DocumentTypes, string> = {
@@ -85,6 +85,9 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentTypes, string> = {
   consent_form: 'Aydınlatma Metni / Onam Formu',
   cv: 'Özgeçmiş (CV)',
   degree: 'Diploma / Sertifika',
+  // Faz 4 (Seans Tipi Kataloğu planı) - ex-user grup terapisi uygunluğu bu
+  // belge onaylanınca otomatik işaretlenir (bkz. backend/claude.md).
+  recovery_proof: 'İyileşme Durumu Belgesi',
   other: 'Diğer Belge',
 };
 
@@ -127,6 +130,11 @@ export interface ProfileResponse {
   received_service_before: boolean;
   onboarding_complete: boolean;
   is_active_in_treatment: boolean;
+  // Faz 2/6 (Frontend Yapılandırması planı) - RECOVERY_PROOF belgesi admin
+  // tarafından onaylanınca otomatik 'in_recovery' olur (accounts/services.py::
+  // apply_recovery_status_effect), ex-user-only grup seanslarına katılım
+  // uygunluğunu belirler.
+  recovery_status: "in_recovery" | "active_treatment" | "not_applicable" | null;
 
   substances_used: AddictionType[];
   emergency_contacts?: EmergencyContact[];

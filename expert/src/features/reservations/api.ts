@@ -34,6 +34,14 @@ export interface Appointment {
   // bekleniyor" anlamına gelir, 'paid' ise onaylanmış/tamamlanmış demektir
   // (bkz. backend appointments/serializers.py::AppointmentSerializer, 30. tur).
   is_free_trial?: boolean
+  // Faz 2/4/6 (Frontend Yapılandırması planı) - "hangi hizmet"/"hangi
+  // teslimat şekli" artık serialize ediliyor; expert_earning SADECE ilgili
+  // uzman kendi randevusuna baktığında dolar (backend tarafında gated).
+  session_type?: number | null
+  session_type_name?: string | null
+  session_offering?: number | null
+  session_offering_name?: string | null
+  expert_earning?: string | number | null
   created_at: string
   updated_at: string
 }

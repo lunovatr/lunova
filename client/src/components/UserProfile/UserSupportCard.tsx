@@ -120,6 +120,18 @@ export default function UserTreatmentCard() {
                   {storeUser?.received_service_before ? 'Evet' : 'Hayır'}
                 </p>
               </div>
+
+              {storeUser?.recovery_status === "in_recovery" && (
+                <div className="col-span-1 lg:col-span-2">
+                  <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">Ex-User Durumu</p>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-success-50 px-2.5 py-0.5 text-xs font-medium text-success-600 dark:bg-success-500/15 dark:text-success-500">
+                    Ex-User Doğrulandı ✓
+                  </span>
+                  <p className="mt-1 text-xs text-gray-400">
+                    Bu doğrulama sayesinde sadece ex-user'lara açık grup seanslarına katılabilirsiniz.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

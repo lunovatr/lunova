@@ -25,12 +25,18 @@ env = environ.Env(
     DEBUG=(bool, False)
 )
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env.bool('DEBUG', default=False)
-
+# .env DOSYASI, .env'DEN OKUYAN İLK env.xxx() ÇAĞRISINDAN ÖNCE YÜKLENMELİ.
+# Önceden DEBUG burada env.read_env()'den ÖNCE okunuyordu - bu yüzden
+# DEBUG HER ZAMAN varsayılan (False) değerini alıyordu, .env'deki
+# DEBUG=True hiçbir zaman gerçekten etkili olmuyordu (ALLOWED_HOSTS/
+# SECRET_KEY gibi diğer TÜM ayarlar zaten read_env()'DEN SONRA okunduğu
+# için bu sorunu yaşamıyordu - sadece DEBUG'a özgü bir sıralama hatasıydı).
 env_file = BASE_DIR / '.env'
 if env_file.exists():
     env.read_env(env_file)
+
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = env.bool('DEBUG', default=False)
 
 STORAGE_PROVIDER = env.str('STORAGE_PROVIDER', default='mock')
 if STORAGE_PROVIDER == 'supabase':
@@ -124,6 +130,7 @@ INSTALLED_APPS = [
     'messaging',        # Uzman-danışan not/mesaj sistemi
     'mailer',           # Mail gönderme servisi
     'payments',         # iyzico ödeme entegrasyonu
+    'catalog',          # Seans Tipi Kataloğu (SessionOffering) - Katman 1
 ]
 
 MIDDLEWARE = [

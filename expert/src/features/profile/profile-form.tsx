@@ -43,7 +43,6 @@ import {
   SPECIALIZATIONS,
   APPROACH_METHODS,
   TARGET_GROUPS,
-  SESSION_TYPES,
   LANGUAGES,
   CURRENCIES,
   STATUS_CONFIG,
@@ -77,7 +76,6 @@ const profileFormSchema = z.object({
   currency: z.string().optional(),
   appointment_duration: z.coerce.number().min(30, 'Seans süresi en az 30 dakika olmalıdır').max(50, 'Seans süresi en fazla 50 dakika olabilir').optional(),
   free_first_session: z.boolean().optional(),
-  session_types: z.array(z.string()).optional(),
   languages: z.array(z.string()).optional(),
 
   // Other
@@ -136,7 +134,6 @@ export function ProfileForm() {
       currency: 'TRY',
       appointment_duration: 45,
       free_first_session: false,
-      session_types: [],
       languages: [],
       availability_status: 'busy',
       video_intro_url: '',
@@ -176,8 +173,7 @@ export function ProfileForm() {
               approach_methods: expertData.approach_methods?.map(s => Number(Object.keys(APPROACH_METHODS).find(key => APPROACH_METHODS[Number(key)] === s))).filter(Boolean) || [],
               // target_groups: expertData.target_groups?.map(s => Number(Object.keys(TARGET_GROUPS).find(key => TARGET_GROUPS[Number(key)] === s))).filter(Boolean) || [],
               target_groups: expertData.target_groups || [],
-              session_types: expertData.session_types || [],
-              
+
               session_price: expertData.session_price || '',
               currency: expertData.currency || 'TRY',
               appointment_duration: expertData.appointment_duration || 45,
@@ -274,13 +270,6 @@ export function ProfileForm() {
             Number(
               Object.keys(TARGET_GROUPS).find(
                 key => TARGET_GROUPS[Number(key)] === label
-              )
-            )
-          ),
-          session_types: values.session_types?.map(label =>
-            Number(
-              Object.keys(SESSION_TYPES).find(
-                key => SESSION_TYPES[Number(key)] === label
               )
             )
           ),
@@ -862,49 +851,6 @@ export function ProfileForm() {
                     </div>
                   </FormItem>
                 )}
-              />
-
-              <FormField
-                control={form.control}
-                name='session_types'
-                render={({ field }) => {
-                  const currentValues = field.value || [];
-
-                  return (
-                    <FormItem>
-                      <div className='mb-4'>
-                        <FormLabel>Seans Tipleri</FormLabel>
-                        <FormDescription>Sunduğunuz seans tiplerini seçiniz</FormDescription>
-                      </div>
-                      <div className='space-y-2'>
-                        {Object.entries(SESSION_TYPES).map(([id, label]) => (
-                          <FormItem
-                            key={id}
-                            className='flex flex-row items-start space-x-3 space-y-0'
-                          >
-                            <FormControl>
-                              <Checkbox
-                                // Sadece label üzerinden kontrol
-                                checked={currentValues.includes(label)}
-                                onCheckedChange={(checked) => {
-                                  return checked
-                                    ? field.onChange([...currentValues, label])
-                                    : field.onChange(
-                                        currentValues.filter((value: string) => value !== label)
-                                      );
-                                }}
-                              />
-                            </FormControl>
-                            <FormLabel className='font-normal cursor-pointer'>
-                              {label}
-                            </FormLabel>
-                          </FormItem>
-                        ))}
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  );
-                }}
               />
 
               <FormField

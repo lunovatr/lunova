@@ -41,6 +41,12 @@ export interface Appointment {
   // ilerlediği - true iken payment_status='unpaid' "Devam Et" (ücretsiz
   // onay) anlamına gelir, 'paid' ise onay tamamlanmış demektir (30. tur).
   is_free_trial?: boolean;
+  // Faz 2 (Frontend Yapılandırması planı) - "hangi hizmet"/"hangi teslimat
+  // şekli" artık serialize ediliyor.
+  session_type?: number | null;
+  session_type_name?: string | null;
+  session_offering?: number | null;
+  session_offering_name?: string | null;
 }
 
 export default Appointment;

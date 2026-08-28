@@ -1,5 +1,5 @@
 from django.urls import path
-from .views.views import ExpertRegisterView, ClientRegisterView, AdminRegisterView, LoginView, LogoutView, MeView, ExpertListView, ClientListView, PasswordResetRequestView, PasswordResetConfirmView, TokenRefreshView
+from .views.views import ExpertRegisterView, ClientRegisterView, AdminRegisterView, LoginView, LogoutView, MeView, ExpertListView, ClientListView, SessionTypeListView, PasswordResetRequestView, PasswordResetConfirmView, TokenRefreshView
 from .views.profile import ProfileView
 from .views.document_views import DocumentListCreateView, DocumentPresignUploadView, DocumentDeleteView
 
@@ -13,6 +13,7 @@ urlpatterns = [
     path('me/', MeView.as_view(), name='me'),
     path('experts/', ExpertListView.as_view(), name='expert_list'),
     path('clients/', ClientListView.as_view(), name='client_list'),
+    path('session-types/', SessionTypeListView.as_view(), name='session_type_list'),
     
     path("profile/", ProfileView.as_view(), name="profile"),
     

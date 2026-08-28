@@ -160,6 +160,115 @@ def create_payment_required_notification(appointment):
     )
 
 
+def create_group_waitlist_spot_available_notification(waitlist_entry):
+    """Bir grup seansında yer açıldığında (bir katılımcı iptal ettiğinde)
+    bekleme listesindeki sıradaki kişiye bildirim üretir - bkz.
+    payments/services.py::promote_next_from_waitlist(). dedupe_key
+    waitlist_entry'nin kendi pk'sine bağlı, aynı bildirim tekrar üretilmez.
+    Faz 2'de eklenen Notification.group_session FK'si ile artık tıklanınca
+    ilgili gruba deep-link verilebiliyor."""
+    group_session = waitlist_entry.group_session
+    Notification.objects.get_or_create(
+        user_id=waitlist_entry.client_id,
+        dedupe_key=f"group_waitlist_spot_available:{waitlist_entry.id}",
+        defaults={
+            'notification_type': 'group_waitlist_spot_available',
+            'title': "Grup seansında yeriniz açıldı",
+            'body': f"{group_session.session_offering.name} grup seansında bir yer açıldı, "
+                    "doğrudan katılımcı listesine eklendiniz. Ödeme yapmanız gerekiyor.",
+            'group_session': group_session,
+        },
+    )
+
+
+def create_group_join_requested_notification(participant):
+    """Bir danışan bir grup seansına katılım talebi gönderdiğinde UZMANA
+    bildirim üretir (Faz 1/2, Frontend Yapılandırması planı) -
+    payments/services.py::request_join_group_session() tarafından çağrılır
+    (pending_approval durumuna düşen talepler için - waitlist'e düşen bir
+    talep için ÇAĞRILMAZ, uzmanın inceleyeceği bir şey yok)."""
+    group_session = participant.group_session
+    client_name = participant.client.get_full_name()
+    Notification.objects.get_or_create(
+        user_id=group_session.expert_id,
+        dedupe_key=f"group_join_requested:{participant.id}",
+        defaults={
+            'notification_type': 'group_join_requested',
+            'title': "Yeni grup seansı katılım talebi",
+            'body': f"{client_name}, {group_session.session_offering.name} grup seansına katılmak istiyor.",
+            'group_session': group_session,
+        },
+    )
+
+
+def create_group_payment_required_notification(participant):
+    """Bir katılımcının talebi onaylandığında (ya da bekleme listesinden
+    terfi ettiğinde) DANIŞANA "ödeme gerekiyor" bildirimi üretir -
+    payment_required'ın grup seansı karşılığı. update_or_create kullanılır -
+    aynı katılımcı waitlist'ten terfi + doğrudan onay gibi iki farklı yoldan
+    (teorik olarak) tekrar bu duruma düşerse bildirim metni güncellenir."""
+    group_session = participant.group_session
+    Notification.objects.update_or_create(
+        user_id=participant.client_id,
+        dedupe_key=f"group_payment_required:{participant.id}",
+        defaults={
+            'notification_type': 'group_payment_required',
+            'title': "Grup seansı için ödeme bekleniyor",
+            'body': f"{group_session.session_offering.name} grup seansına katılımınız onaylandı. "
+                    "Yerinizi kesinleştirmek için ödeme yapmanız gerekiyor.",
+            'group_session': group_session,
+            'is_read': False,
+            'read_at': None,
+        },
+    )
+
+
+def create_group_join_rejected_notification(participant):
+    """Uzman bir talebi reddettiğinde DANIŞANA bildirim üretir."""
+    group_session = participant.group_session
+    Notification.objects.get_or_create(
+        user_id=participant.client_id,
+        dedupe_key=f"group_join_rejected:{participant.id}",
+        defaults={
+            'notification_type': 'group_join_rejected',
+            'title': "Grup seansı talebiniz reddedildi",
+            'body': f"{group_session.session_offering.name} grup seansına katılım talebiniz uzman "
+                    "tarafından reddedildi.",
+            'group_session': group_session,
+        },
+    )
+
+
+def create_group_payment_succeeded_notification(participant):
+    """Bir grup seansı katılımcısının ödemesi tamamlandığında hem danışana
+    hem uzmana bildirim üretir - create_payment_succeeded_notification'ın
+    appointment=None olduğu için hiç çalışmadığı grup seansı akışı için
+    ayrı bir fonksiyon (bkz. o fonksiyonun erken dönüşü)."""
+    group_session = participant.group_session
+    client_name = participant.client.get_full_name()
+
+    Notification.objects.get_or_create(
+        user_id=participant.client_id,
+        dedupe_key=f"group_payment_succeeded_client:{participant.id}",
+        defaults={
+            'notification_type': 'payment_succeeded',
+            'title': "Ödemeniz alındı",
+            'body': f"{group_session.session_offering.name} grup seansı için ödemeniz tamamlandı.",
+            'group_session': group_session,
+        },
+    )
+    Notification.objects.get_or_create(
+        user_id=group_session.expert_id,
+        dedupe_key=f"group_payment_succeeded_expert:{participant.id}",
+        defaults={
+            'notification_type': 'payment_succeeded',
+            'title': "Danışan grup seansı ödemesini tamamladı",
+            'body': f"{client_name}, {group_session.session_offering.name} grup seansı için ödemesini tamamladı.",
+            'group_session': group_session,
+        },
+    )
+
+
 def create_free_trial_ready_notification(appointment):
     """Uzman onayladığında/randevu oluşturduğunda danışanın ömür boyu bir kez
     hakkı olan ücretsiz ilk seansı devreye girdiğinde (appointment.is_free_trial

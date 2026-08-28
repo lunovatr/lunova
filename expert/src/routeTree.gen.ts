@@ -15,6 +15,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedReservationsRouteImport } from './routes/_authenticated/reservations'
 import { Route as AuthenticatedMessagesRouteImport } from './routes/_authenticated/messages'
+import { Route as AuthenticatedGroupsRouteImport } from './routes/_authenticated/groups'
 import { Route as AuthenticatedClientFormsRouteImport } from './routes/_authenticated/client-forms'
 import { Route as AuthenticatedAvailabilityRouteImport } from './routes/_authenticated/availability'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
@@ -60,6 +61,11 @@ const AuthenticatedReservationsRoute =
 const AuthenticatedMessagesRoute = AuthenticatedMessagesRouteImport.update({
   id: '/messages',
   path: '/messages',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedGroupsRoute = AuthenticatedGroupsRouteImport.update({
+  id: '/groups',
+  path: '/groups',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedClientFormsRoute =
@@ -165,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/503': typeof errors503Route
   '/availability': typeof AuthenticatedAvailabilityRoute
   '/client-forms': typeof AuthenticatedClientFormsRoute
+  '/groups': typeof AuthenticatedGroupsRoute
   '/messages': typeof AuthenticatedMessagesRoute
   '/reservations': typeof AuthenticatedReservationsRoute
   '/': typeof AuthenticatedIndexRoute
@@ -188,6 +195,7 @@ export interface FileRoutesByTo {
   '/503': typeof errors503Route
   '/availability': typeof AuthenticatedAvailabilityRoute
   '/client-forms': typeof AuthenticatedClientFormsRoute
+  '/groups': typeof AuthenticatedGroupsRoute
   '/messages': typeof AuthenticatedMessagesRoute
   '/reservations': typeof AuthenticatedReservationsRoute
   '/': typeof AuthenticatedIndexRoute
@@ -213,6 +221,7 @@ export interface FileRoutesById {
   '/(errors)/503': typeof errors503Route
   '/_authenticated/availability': typeof AuthenticatedAvailabilityRoute
   '/_authenticated/client-forms': typeof AuthenticatedClientFormsRoute
+  '/_authenticated/groups': typeof AuthenticatedGroupsRoute
   '/_authenticated/messages': typeof AuthenticatedMessagesRoute
   '/_authenticated/reservations': typeof AuthenticatedReservationsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
@@ -238,6 +247,7 @@ export interface FileRouteTypes {
     | '/503'
     | '/availability'
     | '/client-forms'
+    | '/groups'
     | '/messages'
     | '/reservations'
     | '/'
@@ -261,6 +271,7 @@ export interface FileRouteTypes {
     | '/503'
     | '/availability'
     | '/client-forms'
+    | '/groups'
     | '/messages'
     | '/reservations'
     | '/'
@@ -285,6 +296,7 @@ export interface FileRouteTypes {
     | '/(errors)/503'
     | '/_authenticated/availability'
     | '/_authenticated/client-forms'
+    | '/_authenticated/groups'
     | '/_authenticated/messages'
     | '/_authenticated/reservations'
     | '/_authenticated/'
@@ -351,6 +363,13 @@ declare module '@tanstack/react-router' {
       path: '/messages'
       fullPath: '/messages'
       preLoaderRoute: typeof AuthenticatedMessagesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/groups': {
+      id: '/_authenticated/groups'
+      path: '/groups'
+      fullPath: '/groups'
+      preLoaderRoute: typeof AuthenticatedGroupsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/client-forms': {
@@ -486,6 +505,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSettingsRouteRoute: typeof AuthenticatedSettingsRouteRouteWithChildren
   AuthenticatedAvailabilityRoute: typeof AuthenticatedAvailabilityRoute
   AuthenticatedClientFormsRoute: typeof AuthenticatedClientFormsRoute
+  AuthenticatedGroupsRoute: typeof AuthenticatedGroupsRoute
   AuthenticatedMessagesRoute: typeof AuthenticatedMessagesRoute
   AuthenticatedReservationsRoute: typeof AuthenticatedReservationsRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
@@ -498,6 +518,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSettingsRouteRoute: AuthenticatedSettingsRouteRouteWithChildren,
   AuthenticatedAvailabilityRoute: AuthenticatedAvailabilityRoute,
   AuthenticatedClientFormsRoute: AuthenticatedClientFormsRoute,
+  AuthenticatedGroupsRoute: AuthenticatedGroupsRoute,
   AuthenticatedMessagesRoute: AuthenticatedMessagesRoute,
   AuthenticatedReservationsRoute: AuthenticatedReservationsRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,

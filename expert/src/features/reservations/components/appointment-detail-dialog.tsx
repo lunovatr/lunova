@@ -150,11 +150,17 @@ export function AppointmentDetailDialog({
 
             <div className='flex items-center gap-2'>
               <CalendarClock className='h-4 w-4 shrink-0 text-muted-foreground' />
-              <div className='flex items-center gap-2 text-sm'>
+              <div className='flex flex-wrap items-center gap-2 text-sm'>
                 <span className='text-muted-foreground'>Durum:</span>
                 <Badge variant={statusVariant(detail.status)}>
                   {STATUS_LABELS[detail.status]}
                 </Badge>
+                {detail.session_offering_name && (
+                  <Badge variant='outline'>{detail.session_offering_name}</Badge>
+                )}
+                {detail.session_type_name && (
+                  <Badge variant='outline'>{detail.session_type_name}</Badge>
+                )}
               </div>
             </div>
 
@@ -169,6 +175,11 @@ export function AppointmentDetailDialog({
                   {detail.payment_status === 'unpaid' && !detail.is_free_trial && detail.session_price != null && (
                     <span className='text-xs text-muted-foreground'>
                       ({detail.session_price} {detail.session_currency ?? 'TRY'})
+                    </span>
+                  )}
+                  {detail.payment_status === 'paid' && detail.expert_earning != null && (
+                    <span className='text-xs text-muted-foreground'>
+                      (net kazancınız: {detail.expert_earning} {detail.session_currency ?? 'TRY'})
                     </span>
                   )}
                 </div>

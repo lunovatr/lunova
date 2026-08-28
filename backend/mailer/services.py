@@ -345,6 +345,70 @@ def send_free_trial_ready_email(appointment) -> None:
     )
 
 
+def send_group_join_requested_email(participant) -> None:
+    """Bir danışan bir grup seansına katılım talebi gönderdiğinde ASENKRON
+    bir bilgilendirme maili gönderir - UZMANA (Faz 1, Frontend Yapılandırması
+    planı, send_appointment_created_email'in 'waiting_approval' dalıyla aynı
+    fikir). `participant` bilinçli olarak duck-typed - mailer appointments'ı
+    import etmiyor, sadece .client/.group_session okunuyor."""
+    group_session = participant.group_session
+    client_name = participant.client.get_full_name()
+    date_str = group_session.date.strftime('%d.%m.%Y')
+    time_str = group_session.time.strftime('%H:%M')
+    base_url = settings.FRONTEND_URLS.get('expert')
+    cta_url = f"{base_url}/groups?groupSessionId={group_session.id}" if base_url else None
+    send_template_email_async(
+        group_session.expert.email,
+        subject="Yeni Grup Seansı Katılım Talebi",
+        heading="Grup seansınıza yeni bir katılım talebi var",
+        intro_paragraphs=[
+            f"Merhaba {group_session.expert.first_name},",
+            f"{client_name}, {date_str} {time_str} tarihli {group_session.session_offering.name} "
+            "grup seansına katılmak istiyor.",
+            "Talebi onaylamak veya reddetmek için panelinize giriş yapabilirsiniz.",
+        ],
+        details=[
+            {'label': 'Danışan', 'value': client_name},
+            {'label': 'Grup Seansı', 'value': group_session.session_offering.name},
+            {'label': 'Tarih', 'value': date_str},
+            {'label': 'Saat', 'value': time_str},
+        ],
+        cta_text="Talebi Görüntüle",
+        cta_url=cta_url,
+    )
+
+
+def send_group_payment_required_email(participant) -> None:
+    """Bir katılımcının talebi onaylandığında (ya da bekleme listesinden
+    terfi ettiğinde) ASENKRON bir bilgilendirme maili gönderir - DANIŞANA,
+    send_payment_required_email'in grup seansı karşılığı."""
+    group_session = participant.group_session
+    expert_name = group_session.expert.get_full_name()
+    date_str = group_session.date.strftime('%d.%m.%Y')
+    time_str = group_session.time.strftime('%H:%M')
+    base_url = settings.FRONTEND_URLS.get('client')
+    cta_url = f"{base_url}/payments?groupParticipantId={participant.id}" if base_url else None
+    send_template_email_async(
+        participant.client.email,
+        subject="Grup Seansı İçin Ödeme Bekleniyor",
+        heading="Grup seansı katılımınız onaylandı - ödeme bekleniyor",
+        intro_paragraphs=[
+            f"Merhaba {participant.client.first_name},",
+            f"{expert_name} ile {date_str} {time_str} tarihli {group_session.session_offering.name} "
+            "grup seansına katılımınız onaylandı. Yerinizi kesinleştirmek için ödemenizi "
+            "tamamlamanız gerekiyor.",
+        ],
+        details=[
+            {'label': 'Uzman', 'value': expert_name},
+            {'label': 'Grup Seansı', 'value': group_session.session_offering.name},
+            {'label': 'Tarih', 'value': date_str},
+            {'label': 'Saat', 'value': time_str},
+        ],
+        cta_text="Ödemeyi Tamamla",
+        cta_url=cta_url,
+    )
+
+
 def send_appointment_cancellation_email(appointment, *, actor) -> None:
     """Randevu status='cancel_requested' ya da 'cancelled' olduğunda ASENKRON
     bir bildirim maili gönderir - appointments/views.py::status_update()

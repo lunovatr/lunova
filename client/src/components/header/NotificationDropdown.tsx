@@ -78,6 +78,14 @@ export default function NotificationDropdown() {
       // bekleyen randevu) - randevu detayına değil, doğrudan ödeme ekranına
       // (ilgili randevu ön-seçili olarak) gider.
       navigate(`/payments?appointmentId=${notification.appointment_id}`);
+    } else if (notification.notification_type === "group_payment_required") {
+      // Grup seansı için ödeme gerekiyor - aynı "Ödemeler" sayfası (Faz 5'te
+      // genelleşti, bekleyen grup katılımları da orada listeleniyor).
+      navigate("/payments");
+    } else if (notification.notification_type === "group_join_rejected") {
+      navigate("/group-sessions");
+    } else if (notification.notification_type === "group_waitlist_spot_available") {
+      navigate("/group-sessions");
     } else if (notification.appointment_id) {
       navigate(`/appointments/${notification.appointment_id}`);
     }
