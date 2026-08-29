@@ -87,6 +87,10 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess }: CreateGroupM
       toast.error('Lütfen tüm zorunlu alanları doldurun.')
       return
     }
+    if (Number(capacity) < 2) {
+      toast.error('Bir grup seansının kapasitesi en az 2 olmalıdır.')
+      return
+    }
 
     setSubmitting(true)
     try {

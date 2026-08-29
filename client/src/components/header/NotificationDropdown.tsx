@@ -82,9 +82,12 @@ export default function NotificationDropdown() {
       // Grup seansı için ödeme gerekiyor - aynı "Ödemeler" sayfası (Faz 5'te
       // genelleşti, bekleyen grup katılımları da orada listeleniyor).
       navigate("/payments");
-    } else if (notification.notification_type === "group_join_rejected") {
-      navigate("/group-sessions");
-    } else if (notification.notification_type === "group_waitlist_spot_available") {
+    } else if (
+      notification.notification_type === "group_join_rejected" ||
+      notification.notification_type === "group_waitlist_spot_available" ||
+      notification.notification_type === "group_session_cancelled" ||
+      notification.notification_type === "group_participant_reassigned"
+    ) {
       navigate("/group-sessions");
     } else if (notification.appointment_id) {
       navigate(`/appointments/${notification.appointment_id}`);

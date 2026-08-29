@@ -218,6 +218,26 @@ export function GroupDetailDialog({ groupId, open, onOpenChange, onUpdate }: Gro
               )}
             </div>
 
+            {detail.waitlist.length > 0 && (
+              <>
+                <Separator />
+                <div>
+                  <p className='mb-2 text-sm font-medium'>Bekleme Listesi ({detail.waitlist.length})</p>
+                  <div className='space-y-2'>
+                    {detail.waitlist.map((entry) => (
+                      <div key={entry.id} className='flex items-center justify-between rounded-md border p-2 text-sm'>
+                        <div>
+                          <div className='font-medium'>{entry.client_name}</div>
+                          <div className='text-muted-foreground text-xs'>{entry.client_email}</div>
+                        </div>
+                        <Badge variant='outline'>{entry.position}. sırada</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
             {rejected.length > 0 && (
               <div>
                 <p className='mb-2 text-sm font-medium'>Reddedilenler ({rejected.length})</p>

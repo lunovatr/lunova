@@ -19,6 +19,11 @@
 // SADECE uzman tarafında görünür (bkz. expert/features/notifications), client
 // tarafı sadece 'group_payment_required'/'group_join_rejected'/
 // 'group_waitlist_spot_available' türlerini alır - hepsi group_session_id taşır.
+// (Admin Panel Dokümantasyon/Güvenlik turu, YENİ) 'group_session_cancelled' -
+// bir grup seansı iptal edildiğinde HEM onaylı katılımcılara HEM bekleme
+// listesindekilere gider; 'group_participant_reassigned' - admin panelinden
+// başka bir gruba aktarıldığında - ikisi de group_session_id taşır, aynı
+// "Grup Seanslarım" sayfasına yönlendirir.
 export type NotificationType =
   | "appointment_reminder"
   | "message"
@@ -29,7 +34,9 @@ export type NotificationType =
   | "group_join_requested"
   | "group_payment_required"
   | "group_join_rejected"
-  | "group_waitlist_spot_available";
+  | "group_waitlist_spot_available"
+  | "group_session_cancelled"
+  | "group_participant_reassigned";
 
 export interface NotificationItem {
   id: number;

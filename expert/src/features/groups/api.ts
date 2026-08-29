@@ -19,6 +19,16 @@ export interface GroupSessionParticipant {
   reviewed_at: string | null
 }
 
+export interface GroupSessionWaitlistEntry {
+  id: number
+  client: number
+  client_name: string
+  client_email: string
+  position: number
+  joined_waitlist_at: string
+  notified_at: string | null
+}
+
 export interface GroupSession {
   id: number
   expert: number
@@ -40,6 +50,7 @@ export interface GroupSession {
   currency: string | null
   zoom_join_url: string | null
   participants: GroupSessionParticipant[]
+  waitlist: GroupSessionWaitlistEntry[]
   created_at: string
   updated_at: string
 }

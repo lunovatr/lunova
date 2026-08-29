@@ -241,11 +241,20 @@ def has_appointment_been_paid(appointment) -> bool:
 
 
 def is_client_eligible_for_free_session(client) -> bool:
-    """Danışan hesabı bazında, ömür boyu bir kez (kullanıcı kararı - bkz. kök
-    claude.md). Daha önce (herhangi bir randevu için) başarılı bir ödemesi -
-    ücretsiz seans dahil, o da amount=0 SUCCEEDED olarak kaydedilir - yoksa
-    hak henüz kullanılmamıştır."""
-    return not Payment.objects.filter(payer=client, status=PaymentStatus.SUCCEEDED).exists()
+    """Danışan hesabı bazında, ömür boyu bir kez, SADECE bireysel randevular
+    için (kullanıcı kararı - bkz. kök claude.md, Sağlık Kontrolü turu). Daha
+    önce bir RANDEVU için başarılı bir ödemesi - ücretsiz seans dahil, o da
+    amount=0 SUCCEEDED olarak kaydedilir - yoksa hak henüz kullanılmamıştır.
+
+    `appointment__isnull=False` filtresi BİLİNÇLİ: grup seansı/paket ödemeleri
+    (Payment.appointment her zaman None) bu hakkı TÜKETMEMELİ - onlar ayrı
+    ürünler, ücretsiz ilk seans politikası sadece bireysel randevu akışına
+    özgü. Bu filtre olmadan bir danışan grup seansı ya da paket satın alınca
+    bireysel randevu için hâlâ sahip olduğu ücretsiz hakkı kaybediyordu (bug,
+    Sağlık Kontrolü turunda bulundu)."""
+    return not Payment.objects.filter(
+        payer=client, status=PaymentStatus.SUCCEEDED, appointment__isnull=False,
+    ).exists()
 
 
 def resolve_appointment_payment(appointment) -> bool:
@@ -382,6 +391,36 @@ def validate_discount_code(code: str, client, session_offering=None) -> Discount
     return discount_code
 
 
+def _lock_and_recheck_discount_code(discount_code: "DiscountCode", client) -> None:
+    """validate_discount_code()'daki max_redemptions/max_redemptions_per_user
+    sayım kontrollerini, DiscountCode satırını select_for_update() ile
+    kilitleyip TEKRAR çalıştırır. Çağıranın kendi transaction.atomic() bloğu
+    İÇİNDE, Payment.objects.create()'den HEMEN ÖNCE çağrılmalı.
+
+    Neden gerekli: validate_discount_code() (fiyat hesaplanmadan önce, hızlı
+    başarısız olsun diye erkenden) yaptığı ilk sayım ile asıl Payment satırının
+    yazılması arasında geçen sürede başka bir eşzamanlı istek aynı kodu
+    tüketmiş olabilir - iki eşzamanlı istek ikisi de "0 kullanım" görüp
+    max_redemptions_per_user=1 olan bir kodu iki kez kullanabiliyordu (yarış
+    durumu, Sağlık Kontrolü turunda bulundu). approve_group_join_request()'teki
+    AYNI select_for_update deseni: PostgreSQL'de (prod) gerçek bir satır
+    kilidi, SQLite'ta (dev) no-op - projenin genelindeki kabul edilen
+    asimetri (bkz. confirm_free_trial() docstring'i)."""
+    locked = DiscountCode.objects.select_for_update().get(pk=discount_code.pk)
+    if locked.max_redemptions is not None:
+        total_used = Payment.objects.filter(
+            discount_code=locked, status=PaymentStatus.SUCCEEDED
+        ).count()
+        if total_used >= locked.max_redemptions:
+            raise PaymentError("Bu indirim kodunun kullanım limiti doldu.")
+
+    user_used = Payment.objects.filter(
+        discount_code=locked, payer=client, status=PaymentStatus.SUCCEEDED
+    ).count()
+    if user_used >= locked.max_redemptions_per_user:
+        raise PaymentError("Bu indirim kodunu daha önce kullandınız.")
+
+
 def apply_discount_to_pricing(pricing: dict, discount_rule) -> dict:
     """`pricing` (get_effective_price/_resolve_pricing çıktısı) üzerine bir
     DiscountRule uygular - indirim tutarını ÖNCE orijinal fiyattan hesaplar,
@@ -456,7 +495,10 @@ def initiate_direct_checkout(appointment, request=None, discount_code: str | Non
     güvenlik katmanı, çift ödemeyi engeller.
 
     discount_code verilirse (Faz 3) validate_discount_code + apply_discount_to_pricing
-    ile fiyat/komisyon bölünmesi indirime göre yeniden hesaplanır.
+    ile fiyat/komisyon bölünmesi indirime göre yeniden hesaplanır. Payment
+    satırının yazılması transaction.atomic() + _lock_and_recheck_discount_code()
+    ile korunur (Sağlık Kontrolü turunda bulunan yarış durumu düzeltmesi -
+    bkz. o fonksiyonun docstring'i).
     """
     if has_appointment_been_paid(appointment):
         raise PaymentError("Bu randevu için ödeme zaten tamamlanmış.")
@@ -471,22 +513,35 @@ def initiate_direct_checkout(appointment, request=None, discount_code: str | Non
         pricing = apply_discount_to_pricing(pricing, applied_discount_code.discount_rule)
 
     amount, currency = pricing['amount'], pricing['currency']
+    is_mock = settings.IYZICO_MODE == 'mock'
 
-    payment = Payment.objects.create(
-        payer=appointment.client,
-        appointment=appointment,
-        payment_type=PaymentType.SINGLE_SESSION,
-        flow=PaymentFlow.DIRECT,
-        amount=amount,
-        currency=currency,
-        conversation_id=str(uuid.uuid4()),
-        pricing_rule=pricing['pricing_rule'],
-        platform_commission=pricing['platform_commission'],
-        expert_earning=pricing['expert_earning'],
-        discount_code=applied_discount_code,
-    )
+    with transaction.atomic():
+        if applied_discount_code is not None:
+            _lock_and_recheck_discount_code(applied_discount_code, appointment.client)
 
-    if settings.IYZICO_MODE == 'mock':
+        payment = Payment.objects.create(
+            payer=appointment.client,
+            appointment=appointment,
+            payment_type=PaymentType.SINGLE_SESSION,
+            flow=PaymentFlow.DIRECT,
+            amount=amount,
+            currency=currency,
+            conversation_id=str(uuid.uuid4()),
+            pricing_rule=pricing['pricing_rule'],
+            platform_commission=pricing['platform_commission'],
+            expert_earning=pricing['expert_earning'],
+            discount_code=applied_discount_code,
+        )
+        if is_mock:
+            # Kilit tutulurken SUCCEEDED'a çekilir - aksi halde bu payment
+            # henüz PENDING'ken lock serbest kalır ve hemen ardından gelen
+            # eşzamanlı bir istek "0 kullanım" görmeye devam eder (yarış
+            # durumu kapanmamış olur). Provider alanları/Zoom/bildirim
+            # _mock_complete_checkout() ile kilidin DIŞINDA tamamlanıyor.
+            payment.status = PaymentStatus.SUCCEEDED
+            payment.save(update_fields=['status', 'updated_at'])
+
+    if is_mock:
         return _mock_complete_checkout(payment)
 
     if not settings.IYZICO_CALLBACK_URL:
@@ -956,29 +1011,39 @@ def initiate_group_participant_checkout(participant, request=None, discount_code
         pricing = apply_discount_to_pricing(pricing, applied_discount_code.discount_rule)
 
     amount, currency = pricing['amount'], pricing['currency']
+    is_mock = settings.IYZICO_MODE == 'mock'
 
-    payment = Payment.objects.create(
-        payer=participant.client,
-        appointment=None,
-        payment_type=PaymentType.SINGLE_SESSION,
-        flow=PaymentFlow.DIRECT,
-        amount=amount,
-        currency=currency,
-        conversation_id=str(uuid.uuid4()),
-        pricing_rule=pricing['pricing_rule'],
-        platform_commission=pricing['platform_commission'],
-        expert_earning=pricing['expert_earning'],
-        discount_code=applied_discount_code,
-        metadata={'group_session_id': group_session.id, 'group_participant_id': participant.id},
-    )
-    participant.payment = payment
-    participant.save(update_fields=['payment'])
+    with transaction.atomic():
+        if applied_discount_code is not None:
+            _lock_and_recheck_discount_code(applied_discount_code, participant.client)
 
-    if settings.IYZICO_MODE == 'mock':
-        payment.status = PaymentStatus.SUCCEEDED
+        payment = Payment.objects.create(
+            payer=participant.client,
+            appointment=None,
+            payment_type=PaymentType.SINGLE_SESSION,
+            flow=PaymentFlow.DIRECT,
+            amount=amount,
+            currency=currency,
+            conversation_id=str(uuid.uuid4()),
+            pricing_rule=pricing['pricing_rule'],
+            platform_commission=pricing['platform_commission'],
+            expert_earning=pricing['expert_earning'],
+            discount_code=applied_discount_code,
+            metadata={'group_session_id': group_session.id, 'group_participant_id': participant.id},
+        )
+        participant.payment = payment
+        participant.save(update_fields=['payment'])
+
+        if is_mock:
+            # bkz. initiate_direct_checkout'taki aynı yorum - kilit tutulurken
+            # SUCCEEDED'a çekilir, aksi halde yarış durumu kapanmaz.
+            payment.status = PaymentStatus.SUCCEEDED
+            payment.save(update_fields=['status', 'updated_at'])
+
+    if is_mock:
         payment.provider_token = f'mock-token-{payment.id}'
         payment.provider_payment_id = f'mock-payment-{payment.id}'
-        payment.save(update_fields=['status', 'provider_token', 'provider_payment_id', 'updated_at'])
+        payment.save(update_fields=['provider_token', 'provider_payment_id', 'updated_at'])
 
         from appointments.services import ensure_group_session_zoom_meeting
         from notifications.services import create_group_payment_succeeded_notification
@@ -1129,38 +1194,64 @@ def compute_package_price(package_definition) -> dict:
     return {'amount': total, 'currency': unit_pricing['currency'], 'unit_price': unit_price}
 
 
-def purchase_package(package_definition, client, request=None) -> dict:
+def purchase_package(package_definition, client, request=None, discount_code: str | None = None) -> dict:
     """Danışanın bir PackageDefinition'ı satın alması - kapasite/koltuk
     kavramı olmadığı için (group session'ın aksine) PackagePurchase satırı
     SADECE ödeme gerçekten SUCCEEDED olunca oluşturulur (mock modda burada
-    senkron, gerçek modda handle_checkout_callback içinde)."""
+    senkron, gerçek modda handle_checkout_callback içinde).
+
+    discount_code (Sağlık Kontrolü turunda EKLENDİ - önceden bu parametre hiç
+    yoktu, PackageCheckoutView'ın body'den okuduğu kod sessizce yok
+    sayılıyordu, bug) verilirse initiate_direct_checkout/
+    initiate_group_participant_checkout ile AYNI validate_discount_code +
+    apply_discount_to_pricing + _lock_and_recheck_discount_code deseni
+    uygulanır."""
     from .models import PackagePurchase
 
     if not package_definition.is_active:
         raise PaymentError("Bu paket artık satışta değil.")
 
     pricing = compute_package_price(package_definition)
+
+    applied_discount_code = None
+    if discount_code:
+        applied_discount_code = validate_discount_code(
+            discount_code, client, session_offering=package_definition.applies_to_offering,
+        )
+        pricing = apply_discount_to_pricing(pricing, applied_discount_code.discount_rule)
+
     amount, currency = pricing['amount'], pricing['currency']
+    is_mock = settings.IYZICO_MODE == 'mock'
 
-    payment = Payment.objects.create(
-        payer=client,
-        appointment=None,
-        payment_type=PaymentType.PACKAGE,
-        flow=PaymentFlow.DIRECT,
-        amount=amount,
-        currency=currency,
-        conversation_id=str(uuid.uuid4()),
-        metadata={'package_definition_id': package_definition.id},
-    )
+    with transaction.atomic():
+        if applied_discount_code is not None:
+            _lock_and_recheck_discount_code(applied_discount_code, client)
 
-    if settings.IYZICO_MODE == 'mock':
-        payment.status = PaymentStatus.SUCCEEDED
+        payment = Payment.objects.create(
+            payer=client,
+            appointment=None,
+            payment_type=PaymentType.PACKAGE,
+            flow=PaymentFlow.DIRECT,
+            amount=amount,
+            currency=currency,
+            conversation_id=str(uuid.uuid4()),
+            discount_code=applied_discount_code,
+            metadata={'package_definition_id': package_definition.id},
+        )
+
+        if is_mock:
+            # bkz. initiate_direct_checkout'taki aynı yorum - kilit tutulurken
+            # SUCCEEDED'a çekilir, aksi halde yarış durumu kapanmaz.
+            payment.status = PaymentStatus.SUCCEEDED
+            payment.save(update_fields=['status', 'updated_at'])
+            purchase = PackagePurchase.objects.create(
+                client=client, package_definition=package_definition, payment=payment,
+            )
+
+    if is_mock:
         payment.provider_token = f'mock-token-{payment.id}'
         payment.provider_payment_id = f'mock-payment-{payment.id}'
-        payment.save(update_fields=['status', 'provider_token', 'provider_payment_id', 'updated_at'])
-        purchase = PackagePurchase.objects.create(
-            client=client, package_definition=package_definition, payment=payment,
-        )
+        payment.save(update_fields=['provider_token', 'provider_payment_id', 'updated_at'])
         return {
             'purchase_id': purchase.id, 'payment_id': payment.id, 'status': payment.status,
             'token': payment.provider_token, 'checkout_form_content': None, 'payment_page_url': None,
@@ -1209,6 +1300,153 @@ def purchase_package(package_definition, client, request=None) -> dict:
         'checkout_form_content': response.get('checkoutFormContent'),
         'payment_page_url': response.get('paymentPageUrl'),
     }
+
+
+def cancel_group_session(group_session, *, cancelled_by) -> "GroupSession":
+    """Bir grup seansını iptal eder (Admin Panel Dokümantasyon/Güvenlik turu,
+    YENİ) - appointments/group_views.py::GroupSessionDetailView.patch()'in
+    ('cancelled' dalı) GERÇEK arka ucu, Django admin'deki "Grup Seansını
+    İptal Et" aksiyonunun da ikinci çağıranı. Önceden bu iki yüzey de
+    grubu ham bir .save() ile CANCELLED'a çekiyordu - onaylanmış+ödemiş
+    katılımcılara/bekleme listesine/bildirime hiç dokunulmuyordu (Sağlık
+    Kontrolü turunda bulunan, o turda bilinçli olarak ERTELENEN bulgu).
+
+    Onaylanmış (approved) katılımcılara BİLİNÇLİ OLARAK dokunulmaz - onları
+    "açıkta kalan" yapan şey zaten budur (status=APPROVED AND group_session.
+    status=CANCELLED sorgusuyla hesaplanır, bkz. DisplacedParticipantFilter,
+    admin.py). Admin bu turda kurulan "başka bir gruba aktar" aksiyonuyla
+    (reassign_group_participant) onları elle işleme alır - otomatik bir
+    iade/aktarma burada YAPILMAZ (kullanıcı kararı, ayrı bir "geçici çözüm"
+    olarak tasarlandı).
+
+    Onay bekleyen (pending_approval) talepler otomatik reddedilir (var olan
+    reject_group_join_request() yeniden kullanılır - DRY, bildirim/mail
+    dahil). Bekleme listesi kayıtlarına ÖNCE bilgilendirme bildirimi gider,
+    SONRA silinir (promote_next_from_waitlist()'teki "önce bildir, sonra sil"
+    sırasıyla tutarlı, kullanıcı kararı: waitlist'e de haber verilsin)."""
+    from appointments.models import (
+        GroupSession, GroupSessionParticipant, GroupSessionParticipantStatus,
+        GroupSessionStatus, GroupSessionWaitlist,
+    )
+    from notifications.services import (
+        create_group_session_cancelled_notification, create_group_join_rejected_notification,
+    )
+    from mailer.services import send_group_session_cancelled_email
+
+    with transaction.atomic():
+        group_session = GroupSession.objects.select_for_update().get(pk=group_session.pk)
+
+        if group_session.status != GroupSessionStatus.SCHEDULED:
+            raise PaymentError("Sadece planlanmış bir grup seansı iptal edilebilir.")
+
+        group_session.status = GroupSessionStatus.CANCELLED
+        group_session.save(update_fields=['status', 'updated_at'])
+
+        pending = list(GroupSessionParticipant.objects.select_for_update().filter(
+            group_session=group_session, status=GroupSessionParticipantStatus.PENDING_APPROVAL,
+        ))
+        for participant in pending:
+            participant.status = GroupSessionParticipantStatus.REJECTED
+            participant.reviewed_by = cancelled_by
+            participant.reviewed_at = timezone.now()
+            participant.save(update_fields=['status', 'reviewed_by', 'reviewed_at'])
+            create_group_join_rejected_notification(participant)
+
+        approved = list(GroupSessionParticipant.objects.filter(
+            group_session=group_session, status=GroupSessionParticipantStatus.APPROVED,
+        ))
+        waitlist_entries = list(
+            GroupSessionWaitlist.objects.select_for_update().filter(group_session=group_session).select_related('client')
+        )
+        for entry in waitlist_entries:
+            create_group_session_cancelled_notification(entry.client, group_session)
+        GroupSessionWaitlist.objects.filter(group_session=group_session).delete()
+
+        for participant in approved:
+            create_group_session_cancelled_notification(participant.client, group_session)
+
+    for entry in waitlist_entries:
+        send_group_session_cancelled_email(entry.client, group_session)
+    for participant in approved:
+        send_group_session_cancelled_email(participant.client, group_session)
+
+    return group_session
+
+
+def reassign_group_participant(participant, target_group_session, *, reassigned_by) -> "GroupSessionParticipant":
+    """Açıkta kalan (iptal edilmiş bir grubun approved) bir katılımcıyı başka,
+    benzer bir grup seansına aktarır (Admin Panel Dokümantasyon/Güvenlik
+    turu, YENİ) - kullanıcının açıkça istediği "geçici çözüm": admin panelden
+    manuel olarak, danışan tekrar ödeme yapmadan (payment FK'si AYNEN taşınır)
+    aktarım yapılabilsin diye.
+
+    Doğrulamalar (sırasıyla): katılımcı approved mı, hedef scheduled+gelecek
+    tarihli mi, hedef AYNI session_offering'e mi ait (kullanıcı kararı -
+    variant esnek, örn. tier_0'dan tier_1'e aktarım engellenmez), ex-user
+    uygunluğu (_check_ex_user_eligibility() yeniden kullanılır), hedefte
+    aynı danışan için zaten bir kayıt var mı (UniqueConstraint'e IntegrityError
+    olarak çarpmadan önce net bir PaymentError), kapasite müsait mi
+    (select_for_update() ile approve_group_join_request()'teki AYNI yarış
+    durumu koruması).
+
+    original_group_session SADECE İLK aktarımda doldurulur (bir danışan
+    ikinci kez aktarılırsa hep "gerçekten en baştaki" grubu gösterir).
+    payment FK'si dokunulmadan taşınır - danışan tekrar ödeme yapmaz."""
+    from appointments.models import (
+        GroupSession, GroupSessionParticipant, GroupSessionParticipantStatus, GroupSessionStatus,
+    )
+    from appointments.services import ensure_group_session_zoom_meeting
+    from notifications.services import create_group_participant_reassigned_notification
+    from mailer.services import send_group_participant_reassigned_email
+
+    with transaction.atomic():
+        participant = GroupSessionParticipant.objects.select_for_update().get(pk=participant.pk)
+        target_group_session = GroupSession.objects.select_for_update().get(pk=target_group_session.pk)
+
+        if participant.status != GroupSessionParticipantStatus.APPROVED:
+            raise PaymentError("Sadece onaylanmış bir katılımcı başka bir gruba aktarılabilir.")
+
+        if target_group_session.pk == participant.group_session_id:
+            raise PaymentError("Hedef grup seansı, katılımcının zaten bulunduğu grupla aynı olamaz.")
+
+        if target_group_session.status != GroupSessionStatus.SCHEDULED:
+            raise PaymentError("Hedef grup seansı planlanmış (scheduled) durumda olmalıdır.")
+        if target_group_session.date < timezone.localdate():
+            raise PaymentError("Hedef grup seansı geçmiş bir tarihte olamaz.")
+        if target_group_session.session_offering_id != participant.group_session.session_offering_id:
+            raise PaymentError("Hedef grup seansı aynı seans tipine (hizmete) ait olmalıdır.")
+
+        _check_ex_user_eligibility(target_group_session, participant.client)
+
+        if GroupSessionParticipant.objects.filter(
+            group_session=target_group_session, client=participant.client,
+        ).exists():
+            raise PaymentError("Bu danışanın hedef grup seansında zaten bir kaydı var.")
+
+        approved_count = GroupSessionParticipant.objects.filter(
+            group_session=target_group_session, status=GroupSessionParticipantStatus.APPROVED,
+        ).count()
+        if approved_count >= target_group_session.capacity:
+            raise GroupSessionFullError("Hedef grup seansı dolu, aktarım yapılamaz.")
+
+        source_group_session = participant.group_session
+        if participant.original_group_session_id is None:
+            participant.original_group_session = source_group_session
+        participant.group_session = target_group_session
+        participant.reviewed_by = reassigned_by
+        participant.reviewed_at = timezone.now()
+        participant.save(update_fields=[
+            'group_session', 'original_group_session', 'reviewed_by', 'reviewed_at',
+        ])
+
+    ensure_group_session_zoom_meeting(target_group_session)
+    create_group_participant_reassigned_notification(
+        participant, source_group_session=source_group_session, target_group_session=target_group_session,
+    )
+    send_group_participant_reassigned_email(
+        participant, source_group_session=source_group_session, target_group_session=target_group_session,
+    )
+    return participant
 
 
 def get_package_remaining_sessions(package_purchase) -> int:

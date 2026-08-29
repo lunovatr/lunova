@@ -409,6 +409,65 @@ def send_group_payment_required_email(participant) -> None:
     )
 
 
+def send_group_session_cancelled_email(client, group_session) -> None:
+    """Bir grup seansı iptal edildiğinde (bkz. payments/services.py::
+    cancel_group_session()) HEM açıkta kalan onaylı katılımcılara HEM bekleme
+    listesindekilere ASENKRON bir bilgilendirme maili gönderir - `client`
+    bilinçli olarak bir User nesnesi (appointment/participant değil), çünkü
+    çağıran taraf hem GroupSessionParticipant hem GroupSessionWaitlist
+    kayıtları için aynı fonksiyonu kullanıyor."""
+    date_str = group_session.date.strftime('%d.%m.%Y')
+    time_str = group_session.time.strftime('%H:%M')
+    base_url = settings.FRONTEND_URLS.get('client')
+    cta_url = f"{base_url}/groups" if base_url else None
+    send_template_email_async(
+        client.email,
+        subject="Grup Seansı İptal Edildi",
+        heading="Grup seansınız iptal edildi",
+        intro_paragraphs=[
+            f"Merhaba {client.first_name},",
+            f"{date_str} {time_str} tarihli {group_session.session_offering.name} grup seansı "
+            "uzman tarafından iptal edildi.",
+            "Ekibimiz sizinle iletişime geçerek benzer bir gruba yönlendirebilir ya da "
+            "ödemeniz varsa iade süreciyle ilgili bilgilendirebilir.",
+        ],
+        details=[
+            {'label': 'Grup Seansı', 'value': group_session.session_offering.name},
+            {'label': 'Tarih', 'value': date_str},
+            {'label': 'Saat', 'value': time_str},
+        ],
+        cta_text="Grup Seanslarım",
+        cta_url=cta_url,
+    )
+
+
+def send_group_participant_reassigned_email(participant, *, source_group_session, target_group_session) -> None:
+    """Admin panelinden bir katılımcı başka bir grup seansına aktarıldığında
+    ASENKRON bir bilgilendirme maili gönderir - send_group_session_cancelled_email
+    ile birlikte, "açıkta kalan danışan" yönetiminin ikinci ayağı."""
+    date_str = target_group_session.date.strftime('%d.%m.%Y')
+    time_str = target_group_session.time.strftime('%H:%M')
+    base_url = settings.FRONTEND_URLS.get('client')
+    cta_url = f"{base_url}/groups" if base_url else None
+    send_template_email_async(
+        participant.client.email,
+        subject="Grup Seansınız Değişti",
+        heading="Başka bir grup seansına aktarıldınız",
+        intro_paragraphs=[
+            f"Merhaba {participant.client.first_name},",
+            f"İptal edilen {source_group_session.session_offering.name} grup seansındaki yeriniz, "
+            f"{date_str} {time_str} tarihli yeni bir gruba aktarıldı. Ödemenize tekrar gerek yoktur.",
+        ],
+        details=[
+            {'label': 'Yeni Grup Seansı', 'value': target_group_session.session_offering.name},
+            {'label': 'Tarih', 'value': date_str},
+            {'label': 'Saat', 'value': time_str},
+        ],
+        cta_text="Grup Seanslarım",
+        cta_url=cta_url,
+    )
+
+
 def send_appointment_cancellation_email(appointment, *, actor) -> None:
     """Randevu status='cancel_requested' ya da 'cancelled' olduğunda ASENKRON
     bir bildirim maili gönderir - appointments/views.py::status_update()

@@ -1,6 +1,7 @@
 from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.html import format_html
+from lunova_backend.admin_notes import admin_note
 from .models import (
     User, ExpertProfile, ClientProfile, EmergencyContact, Service, Language,
     University, DegreeLevel, Major, Specialization, ApproachMethod,
@@ -89,6 +90,22 @@ class ExpertProfileAdmin(admin.ModelAdmin):
     actions = ['approve_experts', 'revoke_expert_approval']
 
     fieldsets = (
+        (None, {
+            'fields': (),
+            'description': admin_note(
+                "'Onay Durumu' (approval_status) bu paneldeki EN YÜKSEK ETKİLİ tek "
+                "alandır - açık olduğu sürece bu uzman platformda arama sonuçlarında "
+                "görünür ve danışanlardan randevu talebi alabilir. Kapatmak (ya da "
+                "aşağıdaki 'Onayı Kaldır' toplu aksiyonu) uzmanı ANINDA arama "
+                "sonuçlarından/yeni randevu akışından çıkarır - MEVCUT (zaten planlanmış) "
+                "randevulara/ödemelere dokunmaz.\n\n"
+                "'Ücret Bilgileri' burada görünen 'Seans Ücreti' (session_price) SADECE "
+                "bir VARSAYILANDIR - Ödemeler bölümündeki bir Fiyatlandırma Kuralı bu "
+                "uzman için tanımlıysa GERÇEK fiyat/tahsilat oradan gelir, buradaki "
+                "değer görmezden gelinir.",
+                severity='critical',
+            ),
+        }),
         ("Kullanıcı ve Onay Bilgileri", {"fields": ('user', 'title', 'approval_status')}),
         ("Temel Bilgiler", {"fields": (
             'university', 'degree_level', 'major', 'experience_years',
@@ -97,6 +114,12 @@ class ExpertProfileAdmin(admin.ModelAdmin):
         ("Seans ve Ücret Bilgileri", {"fields": (
             'session_price', 'currency', 'appointment_duration',
             'free_first_session', 'availability_status', 'video_intro_url'
+        ), "description": admin_note(
+            "'free_first_session' şu an HİÇBİR akış tarafından okunmuyor (ölü alan) - "
+            "platformun GERÇEK 'ücretsiz ilk seans' politikası hesap bazında, ayrı bir "
+            "yerde (Ödemeler modülü) yönetiliyor. Bu kutuyu işaretlemek/işaretsiz "
+            "bırakmak GÖZLENEBİLİR HİÇBİR ŞEYİ değiştirmez.",
+            severity='low',
         )}),
         ("Puanlama Bilgileri", {"fields": ('rating_average', 'rating_count')}),
     )
@@ -145,6 +168,16 @@ class ClientProfileAdmin(admin.ModelAdmin):
     list_filter = ('recovery_status',)
 
     fieldsets = (
+        (None, {
+            'fields': (),
+            'description': admin_note(
+                "'Uzman' (expert) alanı bu danışanın ATANMIŞ uzmanıdır - bunu elle "
+                "değiştirmek danışanı BAŞKA bir uzmana taşır, danışanın kendi panelinde "
+                "gördüğü uzman/randevu geçmişi etkilenir. Sadece gerçekten bir atama "
+                "hatasını düzeltiyorsanız değiştirin, rutin bir işlem değildir.",
+                severity='high',
+            ),
+        }),
         ("Temel Bilgiler", {"fields": ('user', 'expert', 'support_goal')}),
         ("Süreç ve Durum", {"fields": (
             'onboarding_complete', 'is_active_in_treatment', 'received_service_before'
@@ -255,6 +288,19 @@ class DocumentAdmin(admin.ModelAdmin):
     verbose_name = "Belge"
     verbose_name_plural = "Belgeler"
     fieldsets = (
+        (None, {
+            'fields': (),
+            'description': admin_note(
+                "Bu, bir kullanıcının yüklediği TEK bir dosyanın (diploma, kimlik, "
+                "profil fotoğrafı, 'İyileşme Durumu Belgesi' vb.) kaydıdır - dosyanın "
+                "kendisi burada DEĞİL, harici bir depolama servisindedir (bu ekran sadece "
+                "meta veriyi/onay durumunu tutar). 'İyileşme Durumu Belgesi' (Recovery "
+                "Proof) türünü ONAYLAMAK, danışanın 'Ex-User Doğrulaması' durumunu "
+                "OTOMATİK olarak günceller ve bazı grup seansı türlerine katılım "
+                "uygunluğunu belirler - bu belge türünü onaylarken dikkatli olun.",
+                severity='high',
+            ),
+        }),
         ("Temel Bilgiler", {
             "fields": ('user', 'type', 'original_filename')
         }),
@@ -372,17 +418,54 @@ class DocumentAdmin(admin.ModelAdmin):
 
 
 # ====================================================================
-# V. DİĞER YARDIMCI MODELLER (Basit Yönetim)
+# V. DİĞER YARDIMCI MODELLER (Basit Yönetim - Tier 2 taksonomi modelleri)
 # ====================================================================
 
 admin.site.register(AdminProfile)
-admin.site.register(Service)
-admin.site.register(Language)
-admin.site.register(University)
-admin.site.register(DegreeLevel)
-admin.site.register(Major)
-admin.site.register(Specialization)
-admin.site.register(ApproachMethod)
-admin.site.register(TargetGroup)
-admin.site.register(SessionType)
-admin.site.register(AddictionType)
+
+_TAXONOMY_NOTE = admin_note(
+    "Bu, uzman profillerinde/kayıt formlarında seçilebilir bir SEÇENEK "
+    "LİSTESİDİR (taksonomi) - kendisi bir randevu/ödeme gibi işlem verisi "
+    "TUTMAZ. Bir satırı SİLMEK, o seçeneği kullanan TÜM uzman profillerinden "
+    "de KALDIRIR (çoktan-çoğa ilişki üzerinden) - geri dönüşü yoktur. Artık "
+    "kullanılmasını istemediğiniz bir seçenek için ('Aktif mi?' alanı "
+    "varsa) onu KAPATMAK, SİLMEKTEN çok daha güvenlidir - silme geçmiş "
+    "profillerdeki referansı da kaldırır, kapatma sadece yeni seçimlerde "
+    "görünmesini engeller.",
+    severity='medium',
+)
+
+
+class _TaxonomyAdmin(admin.ModelAdmin):
+    """Service/Language/University/... gibi basit, çoğunlukla tek-alanlı
+    (sadece isim) seçenek listeleri için ORTAK, hafif bir admin (Tier 2 -
+    bkz. kök claude.md admin dokümantasyon planı): bunlar ExpertProfile/
+    Payment/GroupSession gibi yüksek etkili modeller DEĞİL, sadece bir
+    dropdown'ın/çoklu-seçimin kaynağı - bu yüzden tam bir fieldsets/severity
+    ayrımı yerine tek, paylaşılan bir model-seviyesi uyarı yeterli görüldü."""
+    search_fields = ('name',)
+
+    def get_list_display(self, request):
+        field_names = {f.name for f in self.model._meta.get_fields()}
+        fields = ['name']
+        if 'is_active' in field_names:
+            fields.append('is_active')
+        return fields
+
+    def get_list_filter(self, request):
+        field_names = {f.name for f in self.model._meta.get_fields()}
+        return ('is_active',) if 'is_active' in field_names else ()
+
+    def get_fieldsets(self, request, obj=None):
+        default_fieldsets = list(super().get_fieldsets(request, obj))
+        if default_fieldsets and default_fieldsets[0][0] is None:
+            _, opts = default_fieldsets[0]
+            default_fieldsets[0] = ("Değerler", opts)
+        return [(None, {'fields': (), 'description': _TAXONOMY_NOTE})] + default_fieldsets
+
+
+for _model in (
+    Service, Language, University, DegreeLevel, Major, Specialization,
+    ApproachMethod, TargetGroup, SessionType, AddictionType,
+):
+    admin.site.register(_model, _TaxonomyAdmin)

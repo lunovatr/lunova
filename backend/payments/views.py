@@ -172,8 +172,10 @@ class PackageCheckoutView(APIView):
         except PackageDefinition.DoesNotExist:
             return Response({'detail': 'Paket bulunamadı.'}, status=status.HTTP_404_NOT_FOUND)
 
+        discount_code = request.data.get('discount_code') or None
+
         try:
-            result = purchase_package(package_definition, request.user, request)
+            result = purchase_package(package_definition, request.user, request, discount_code=discount_code)
         except PaymentError as e:
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 

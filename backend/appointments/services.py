@@ -71,6 +71,35 @@ def ensure_group_session_zoom_meeting(group_session) -> None:
         logger.exception("Zoom meeting creation failed for group session %s", group_session.id)
 
 
+def cancel_appointment(appointment, *, actor) -> None:
+    """Bir randevuyu iptal eder - appointments/views.py::status_update()'in
+    'cancelled' dalındaki (status + is_confirmed set + mail) mantığın tek bir
+    fonksiyona çıkarılmış hâli (Admin Panel Dokümantasyon/Güvenlik turu,
+    YENİ). `status_update()`'in KENDİSİNE BİLİNÇLİ OLARAK dokunulmadı - zaten
+    doğru çalışıyor, regresyon riski almaya gerek yok. Bu fonksiyon SADECE
+    appointments/admin.py::AppointmentAdmin.mark_as_cancelled tarafından
+    çağrılıyor - önceden orada `queryset.update(status='cancelled',
+    is_confirmed=False)` ile ham bir toplu güncelleme yapılıyordu, bu
+    send_appointment_cancellation_email'i (mail bildirimi) tamamen atlıyordu
+    (Sağlık Kontrolü turunda AppointmentAdmin okunurken bulunan, bu turda
+    düzeltilen ilişkili bir bug - kullanıcı kararı: bireysel randevu için de
+    aynı düzeltme yapılsın).
+
+    `actor` iptali yapan User - admin panelinden çağrıldığında bu admin'in
+    kendisi olur; send_appointment_cancellation_email actor'ı ne expert ne
+    client olarak tanımadığı için (fonksiyonun kendi mantığı: actor client
+    değilse recipient=client varsayar) bu durumda bildirim DANIŞANA gider,
+    uzmana gitmez - bu mailer fonksiyonunun var olan tasarımının bir sonucu,
+    bu turda genişletilmedi (kapsam sadece mark_as_cancelled'ın mail'i hiç
+    atlamaması, kime gittiği ayrı bir konu)."""
+    from mailer.services import send_appointment_cancellation_email
+
+    appointment.status = 'cancelled'
+    appointment.is_confirmed = False
+    appointment.save(update_fields=['status', 'is_confirmed', 'updated_at'])
+    send_appointment_cancellation_email(appointment, actor=actor)
+
+
 def grant_appointment_access_if_paid(appointment) -> bool:
     """True dönerse Zoom meeting oluşturuldu (ya da zaten vardı). False dönerse
     danışanın ödemesi bekleniyor - appointment'a hiç dokunulmadı."""

@@ -15,7 +15,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.models import UserRole
-from payments.services import PaymentError, approve_group_join_request, reject_group_join_request, request_join_group_session
+from payments.services import (
+    PaymentError, approve_group_join_request, cancel_group_session,
+    reject_group_join_request, request_join_group_session,
+)
 
 from .models import (
     GroupSession, GroupSessionParticipant, GroupSessionStatus, GroupSessionWaitlist,
@@ -87,15 +90,29 @@ class GroupSessionDetailView(generics.RetrieveAPIView):
     def patch(self, request, *args, **kwargs):
         """Sadece durum güncellemesi (örn. 'cancelled') için - kapasite/tarih
         gibi alanların sonradan değişmesi var olan talep/onay/ödeme akışını
-        tutarsız hale getirir, bilinçli olarak desteklenmiyor."""
+        tutarsız hale getirir, bilinçli olarak desteklenmiyor.
+
+        'cancelled' hedefi artık payments.services.cancel_group_session()
+        üzerinden geçiyor (Admin Panel Dokümantasyon/Güvenlik turu, YENİ) -
+        önceden burada ham bir .save() vardı, onaylanmış/bekleme listesindeki
+        katılımcılara hiç dokunmuyordu (bkz. o fonksiyonun docstring'i). Bu
+        aynı zamanda Django admin'deki "Grup Seansını İptal Et" aksiyonunun
+        da çağırdığı fonksiyon - tek bir doğru davranış kaynağı."""
         instance = self.get_object()  # get_object() zaten check_object_permissions() çağırır
 
         new_status = request.data.get('status')
         if new_status not in dict(GroupSessionStatus.choices):
             return Response({'detail': 'Geçersiz durum.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        instance.status = new_status
-        instance.save(update_fields=['status', 'updated_at'])
+        if new_status == GroupSessionStatus.CANCELLED:
+            try:
+                instance = cancel_group_session(instance, cancelled_by=request.user)
+            except PaymentError as e:
+                return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            instance.status = new_status
+            instance.save(update_fields=['status', 'updated_at'])
+
         return Response(self.get_serializer(instance).data)
 
 

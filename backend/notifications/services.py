@@ -269,6 +269,47 @@ def create_group_payment_succeeded_notification(participant):
     )
 
 
+def create_group_session_cancelled_notification(client, group_session):
+    """Bir grup seansı iptal edildiğinde (bkz. payments/services.py::
+    cancel_group_session()) HEM onaylanmış (approved - "açıkta kalan")
+    katılımcılara HEM bekleme listesindekilere gönderilir (kullanıcı kararı -
+    waitlist'e de bilgilendirme gitsin, aktarma değil sadece haber). `client`
+    bilinçli olarak bir User nesnesi (id DEĞİL) - waitlist kaydı silinmeden
+    ÖNCE çağrılır ama katılımcı satırı silinmez, dedupe_key yine de
+    client_id+group_session_id'ye bağlı (entry.id'ye değil - entry siliniyor)."""
+    Notification.objects.get_or_create(
+        user_id=client.id,
+        dedupe_key=f"group_session_cancelled:{group_session.id}:{client.id}",
+        defaults={
+            'notification_type': 'group_session_cancelled',
+            'title': "Grup seansı iptal edildi",
+            'body': f"{group_session.session_offering.name} ({group_session.date.strftime('%d.%m.%Y')}) "
+                    "grup seansı uzman tarafından iptal edildi.",
+            'group_session': group_session,
+        },
+    )
+
+
+def create_group_participant_reassigned_notification(participant, *, source_group_session, target_group_session):
+    """Admin panelinden bir katılımcı başka bir grup seansına aktarıldığında
+    (bkz. payments/services.py::reassign_group_participant()) DANIŞANA bir
+    bildirim üretir - eski/yeni grup bilgisiyle. Bir danışan birden fazla kez
+    aktarılabileceği için dedupe_key hedef+katılımcıya bağlı (her aktarım
+    ayrı bir bildirim üretir, update_or_create DEĞİL get_or_create - geçmiş
+    aktarım bildirimleri kaybolmasın)."""
+    Notification.objects.get_or_create(
+        user_id=participant.client_id,
+        dedupe_key=f"group_participant_reassigned:{participant.id}:{target_group_session.id}",
+        defaults={
+            'notification_type': 'group_participant_reassigned',
+            'title': "Başka bir grup seansına aktarıldınız",
+            'body': f"İptal edilen {source_group_session.session_offering.name} grup seansındaki yeriniz, "
+                    f"{target_group_session.date.strftime('%d.%m.%Y')} tarihli yeni bir gruba aktarıldı.",
+            'group_session': target_group_session,
+        },
+    )
+
+
 def create_free_trial_ready_notification(appointment):
     """Uzman onayladığında/randevu oluşturduğunda danışanın ömür boyu bir kez
     hakkı olan ücretsiz ilk seansı devreye girdiğinde (appointment.is_free_trial

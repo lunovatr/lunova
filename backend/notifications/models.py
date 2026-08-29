@@ -27,6 +27,8 @@ class Notification(models.Model):
         ('group_join_requested', 'Grup Seansı Katılım Talebi'),
         ('group_payment_required', 'Grup Seansı İçin Ödeme Gerekiyor'),
         ('group_join_rejected', 'Grup Seansı Talebi Reddedildi'),
+        ('group_session_cancelled', 'Grup Seansı İptal Edildi'),
+        ('group_participant_reassigned', 'Başka Bir Grup Seansına Aktarıldınız'),
     ]
 
     user = models.ForeignKey(

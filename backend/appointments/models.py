@@ -161,6 +161,20 @@ class GroupSessionParticipant(models.Model):
     reviewed_at = models.DateTimeField("İncelenme Tarihi", null=True, blank=True)
     joined_at = models.DateTimeField(auto_now_add=True)
 
+    # Grup iptali + aktarma (Admin Panel Dokümantasyon/Güvenlik turu, YENİ) -
+    # SADECE bir katılımcı payments.services.reassign_group_participant() ile
+    # başka bir gruba aktarıldığında, İLK aktarımda doldurulur (ikinci bir
+    # aktarımda üzerine yazılmaz - her zaman "gerçekten en baştaki" grubu
+    # gösterir). Salt audit/izleme amaçlı - "açıkta kalan katılımcı" hesaplaması
+    # (status=APPROVED AND group_session.status=CANCELLED) bu alana hiç
+    # bakmaz, tamamen computed kalır (projenin "hesapla, state tutma" ilkesi).
+    # Kullanıcı kararı: danışanın geçmiş trafiğini (hangi gruptan hangi gruba
+    # aktarıldığını) izleyebilmek için bilinçli bir istisna.
+    original_group_session = models.ForeignKey(
+        GroupSession, null=True, blank=True, on_delete=models.SET_NULL, related_name='+',
+        verbose_name="Orijinal Grup Seansı (Aktarım Öncesi)",
+    )
+
     class Meta:
         verbose_name = "Grup Seansı Katılımcısı"
         verbose_name_plural = "Grup Seansı Katılımcıları"

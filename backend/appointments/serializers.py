@@ -430,6 +430,7 @@ class GroupSessionSerializer(serializers.ModelSerializer):
     zoom_join_url = serializers.SerializerMethodField()
     my_participation = serializers.SerializerMethodField()
     participants = serializers.SerializerMethodField()
+    waitlist = serializers.SerializerMethodField()
 
     class Meta:
         model = GroupSession
@@ -438,7 +439,7 @@ class GroupSessionSerializer(serializers.ModelSerializer):
             'session_type', 'session_type_name', 'variant', 'variant_label',
             'date', 'time', 'duration', 'capacity', 'status',
             'approved_count', 'remaining_spots', 'price', 'currency',
-            'zoom_join_url', 'my_participation', 'participants',
+            'zoom_join_url', 'my_participation', 'participants', 'waitlist',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['status', 'created_at', 'updated_at']
@@ -478,6 +479,11 @@ class GroupSessionSerializer(serializers.ModelSerializer):
         return obj.participants.filter(client=user).first()
 
     def get_zoom_join_url(self, obj):
+        # Admin Panel Dokümantasyon/Güvenlik turunda düzeltilen bulgu (Sağlık
+        # Kontrolü turunda tespit edilmişti): iptal edilmiş bir grubun Zoom
+        # linki önceden hâlâ dönüyordu - obj.status hiç kontrol edilmiyordu.
+        if obj.status == GroupSessionStatus.CANCELLED:
+            return None
         user = self._request_user()
         if user is None:
             return None
@@ -518,6 +524,28 @@ class GroupSessionSerializer(serializers.ModelSerializer):
             qs = qs.filter(status=GroupSessionParticipantStatus.APPROVED)
         return GroupSessionParticipantSerializer(qs, many=True, context=self.context).data
 
+    def get_waitlist(self, obj):
+        """Bekleme listesi SADECE grubun sahibi uzmana görünür (Sağlık
+        Kontrolü turunda EKLENDİ - önceden uzman panelinde bekleme listesi
+        hiç görünmüyordu, salt-okunur bir görünürlük, sıra FIFO
+        joined_waitlist_at'e göre)."""
+        user = self._request_user()
+        if user is None or user.id != obj.expert_id:
+            return []
+        entries = obj.waitlist_entries.select_related('client').order_by('joined_waitlist_at')
+        return [
+            {
+                'id': entry.id,
+                'client': entry.client_id,
+                'client_name': entry.client.get_full_name(),
+                'client_email': entry.client.email,
+                'position': index + 1,
+                'joined_waitlist_at': entry.joined_waitlist_at,
+                'notified_at': entry.notified_at,
+            }
+            for index, entry in enumerate(entries)
+        ]
+
 
 class GroupSessionCreateSerializer(serializers.ModelSerializer):
     """Sadece uzman tarafından, yeni bir grup seansı slotu açmak için
@@ -533,6 +561,16 @@ class GroupSessionCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Seçilen seans tipi grup seansı için uygun değil (bireysel bir hizmet)."
             )
+        return value
+
+    def validate_capacity(self, value):
+        # Sağlık Kontrolü turunda bulunan bug: capacity PositiveIntegerField
+        # olduğu için Django'da 0 pozitif sayılır, model seviyesinde
+        # reddedilmiyordu - approved_count(0) >= capacity(0) her zaman doğru
+        # olduğu için İLK talep bile hiç incelenmeden doğrudan bekleme
+        # listesine düşüyordu. Bir "grup" tanım gereği en az 2 kişilik olmalı.
+        if value < 2:
+            raise serializers.ValidationError("Bir grup seansının kapasitesi en az 2 olmalıdır.")
         return value
 
     def validate(self, data):
