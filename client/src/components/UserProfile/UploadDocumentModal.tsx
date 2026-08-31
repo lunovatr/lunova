@@ -159,7 +159,14 @@ export default function UploadDocumentModal({ isOpen, onClose, isProfilePhoto }:
                         ))}
                     </>
                   )}
-                </select>            </div>
+                </select>
+              {documentType === "recovery_proof" && (
+                <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  Bu belge onaylandığında "ex-user" olarak doğrulanırsınız ve sadece
+                  ex-user'lara açık grup seanslarına katılabilirsiniz.
+                </p>
+              )}
+            </div>
 
             <div>
               <Label>Dosya Seçin</Label>

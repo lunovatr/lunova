@@ -432,24 +432,6 @@ export function ProfileView() {
 
               <div>
                 <p className='text-muted-foreground mb-2 text-sm font-medium'>
-                  Seans Tipleri
-                </p>
-                <div className='flex flex-wrap gap-2'>
-                  {profile?.session_types &&
-                  profile.session_types.length > 0 ? (
-                    profile.session_types.map((type, idx) => (
-                      <Badge key={idx} variant='outline'>
-                        {type}
-                      </Badge>
-                    ))
-                  ) : (
-                    <p className='text-muted-foreground text-sm'>-</p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <p className='text-muted-foreground mb-2 text-sm font-medium'>
                   Diller
                 </p>
                 <div className='flex flex-wrap gap-2'>

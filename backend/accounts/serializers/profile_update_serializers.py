@@ -63,8 +63,8 @@ class ExpertProfileUpdateSerializer(serializers.ModelSerializer):
         fields = [
             "about", "title", "experience_years", "license_number", 
             "institution", "services", "specializations", "languages", 
-            "approach_methods", "target_groups", "session_types", 
-            "session_price", "currency", "appointment_duration", 
+            "approach_methods", "target_groups",
+            "session_price", "currency", "appointment_duration",
             "free_first_session", "video_intro_url", "availability_status", 
             "university", "degree_level", "major", "documents",
             "user_data",

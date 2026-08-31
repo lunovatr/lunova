@@ -158,8 +158,6 @@ class ExpertProfile(BaseProfile):
                                               related_name="experts", blank=True)
     target_groups = models.ManyToManyField("TargetGroup", verbose_name="Hedef Gruplar",
                                            related_name="experts", blank=True)
-    session_types = models.ManyToManyField("SessionType", verbose_name="Seans Türleri",
-                                           related_name="experts", blank=True)
 
     created_at = models.DateTimeField("Oluşturulma Tarihi", auto_now_add=True)
     updated_at = models.DateTimeField("Güncellenme Tarihi", auto_now=True)
@@ -177,6 +175,12 @@ class DocumentType(models.TextChoices):
     DEGREE = "degree", "Diploma / Sertifika"
     CV = "cv", "Özgeçmiş"
     CONSENT_FORM = "consent_form", "Onay Formu"
+    # Faz 4 (Seans Tipi Kataloğu planı) - danışanın ex-user (daha önce
+    # bağımlılık tedavisi görmüş/iyileşmiş) durumunu kanıtlayan belge. Admin
+    # bu tipteki bir belgeyi onayladığında accounts/services.py::review_document()
+    # otomatik olarak ClientProfile.recovery_status='in_recovery' set eder -
+    # ayrı bir doğrulama akışı KURULMADI, mevcut belge onay motoru yeniden kullanıldı.
+    RECOVERY_PROOF = "recovery_proof", "İyileşme Durumu Belgesi"
     OTHER = "other", "Diğer"
 
 
@@ -331,6 +335,11 @@ class TargetGroup(models.Model):
 
 
 class SessionType(models.Model):
+    """Seansın teslimat şekli (Online / Yüz Yüze / Karma).
+
+    Uzmanın sabit bir niteliği DEĞİL - her randevunun/grup seansının kendi
+    özelliğidir, bkz. appointments.Appointment.session_type.
+    """
     name = models.CharField(max_length=64, unique=True)  # Online, Yüz Yüze, Karma
 
     def __str__(self):
@@ -358,6 +367,12 @@ class AddictionType(models.Model):
         verbose_name_plural = "Bağımlılık Türleri"
 
 
+class RecoveryStatus(models.TextChoices):
+    IN_RECOVERY = "in_recovery", "İyileşme Sürecinde (Ex-User)"
+    ACTIVE_TREATMENT = "active_treatment", "Aktif Tedavide"
+    NOT_APPLICABLE = "not_applicable", "Uygulanamaz"
+
+
 class ClientProfile(BaseProfile):
     expert = models.ForeignKey('ExpertProfile', verbose_name="Atanan Uzman",
                                on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_clients')
@@ -367,6 +382,18 @@ class ClientProfile(BaseProfile):
     received_service_before = models.BooleanField("Daha Önce Hizmet Aldı mı?", default=False)
     onboarding_complete = models.BooleanField("Profilini Tamamladı mı?", default=False)
     is_active_in_treatment = models.BooleanField("Tedavi Aktif mi?", default=True)
+
+    # Faz 4 (Seans Tipi Kataloğu planı) - ex-user grup terapilerine katılım
+    # uygunluğu. Elle set edilmez: accounts/services.py::review_document()
+    # bir RECOVERY_PROOF belgesi onaylandığında otomatik olarak set eder.
+    recovery_status = models.CharField(
+        "İyileşme Durumu", max_length=32, choices=RecoveryStatus.choices, null=True, blank=True,
+    )
+    recovery_status_verified_by = models.ForeignKey(
+        'User', verbose_name="Doğrulayan Admin", null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='recovery_status_verifications',
+    )
+    recovery_status_verified_at = models.DateTimeField("Doğrulanma Tarihi", null=True, blank=True)
 
     def __str__(self):
         return f"{self.user.get_full_name()} ({self.user.id_number or self.user.national_id})"

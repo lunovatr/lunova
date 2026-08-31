@@ -69,6 +69,26 @@ export default function NotificationDropdown() {
       // Belge onay/red kararı her zaman kullanıcının KENDİ belgesiyle ilgili -
       // ek bir id taşımaz, hedef sabit olarak profil sayfasındaki "Dosyalarım" kartı.
       navigate("/profile");
+    } else if (
+      (notification.notification_type === "payment_required" ||
+        notification.notification_type === "free_trial_ready") &&
+      notification.appointment_id
+    ) {
+      // Ödeme bekleyen randevu (ya da ücretsiz ilk seans "devam et" onayı
+      // bekleyen randevu) - randevu detayına değil, doğrudan ödeme ekranına
+      // (ilgili randevu ön-seçili olarak) gider.
+      navigate(`/payments?appointmentId=${notification.appointment_id}`);
+    } else if (notification.notification_type === "group_payment_required") {
+      // Grup seansı için ödeme gerekiyor - aynı "Ödemeler" sayfası (Faz 5'te
+      // genelleşti, bekleyen grup katılımları da orada listeleniyor).
+      navigate("/payments");
+    } else if (
+      notification.notification_type === "group_join_rejected" ||
+      notification.notification_type === "group_waitlist_spot_available" ||
+      notification.notification_type === "group_session_cancelled" ||
+      notification.notification_type === "group_participant_reassigned"
+    ) {
+      navigate("/group-sessions");
     } else if (notification.appointment_id) {
       navigate(`/appointments/${notification.appointment_id}`);
     }

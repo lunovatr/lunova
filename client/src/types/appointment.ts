@@ -14,6 +14,13 @@ export type AppointmentStatus =
   | "cancelled"
   | "completed";
 
+// 'not_applicable' (henüz confirmed/completed değil), 'unpaid' (ödeme
+// bekleniyor - ücretsiz ilk seans onayı bekleyenler de 'unpaid' sayılır,
+// ayırt etmek için is_free_trial'a bakın) ya da 'paid' (ücretsiz ilk seans
+// dahil) - backend appointments/serializers.py::AppointmentSerializer.
+// get_payment_status()'ten.
+export type PaymentStatus = "not_applicable" | "unpaid" | "paid";
+
 export interface Appointment {
   id: number;
   expert: number;
@@ -27,6 +34,19 @@ export interface Appointment {
   notes?: string;
   zoom_join_url?: string | null;
   zoom_meeting_id?: string | null;
+  payment_status?: PaymentStatus;
+  session_price?: string | number | null;
+  session_currency?: string | null;
+  // Danışanın ömür boyu bir kez hakkı olan ücretsiz ilk seansıyla mı
+  // ilerlediği - true iken payment_status='unpaid' "Devam Et" (ücretsiz
+  // onay) anlamına gelir, 'paid' ise onay tamamlanmış demektir (30. tur).
+  is_free_trial?: boolean;
+  // Faz 2 (Frontend Yapılandırması planı) - "hangi hizmet"/"hangi teslimat
+  // şekli" artık serialize ediliyor.
+  session_type?: number | null;
+  session_type_name?: string | null;
+  session_offering?: number | null;
+  session_offering_name?: string | null;
 }
 
 export default Appointment;

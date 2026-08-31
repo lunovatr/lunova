@@ -53,7 +53,9 @@ class ClientProfileSerializer(serializers.ModelSerializer):
             "emergency_contacts",
             "expert",
             "documents",
+            "recovery_status",
         ]
+        read_only_fields = ["recovery_status"]
 
     def get_expert(self, obj):
         if not obj.expert:
@@ -77,7 +79,6 @@ class ExpertProfileSerializer(serializers.ModelSerializer):
     languages = serializers.StringRelatedField(many=True)
     approach_methods = serializers.StringRelatedField(many=True)
     target_groups = serializers.StringRelatedField(many=True)
-    session_types = serializers.StringRelatedField(many=True)
 
     # Bkz. ClientProfileSerializer.documents - aynı gerekçe (Prefetch zaten filtreliyor).
     documents = DocumentSerializer(source="user.documents", many=True, read_only=True)
@@ -109,7 +110,6 @@ class ExpertProfileSerializer(serializers.ModelSerializer):
             "languages",
             "approach_methods",
             "target_groups",
-            "session_types",
 
             # Seans bilgileri
             "session_price",

@@ -48,7 +48,17 @@ class IsAppointmentClientPermission(permissions.BasePermission):
     """
     Sadece randevunun danışanının erişimine izin verir.
     """
-    
+
     def has_object_permission(self, request, view, obj):
         # Sadece randevunun danışanı
         return obj.client == request.user
+
+
+class IsGroupSessionOwnerPermission(permissions.BasePermission):
+    """
+    Sadece grup seansını açan uzmanın erişimine izin verir (Faz 1, Frontend
+    Yapılandırması planı) - IsAppointmentExpertPermission ile aynı desen.
+    """
+
+    def has_object_permission(self, request, view, obj):
+        return obj.expert == request.user

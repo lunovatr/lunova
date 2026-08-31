@@ -729,12 +729,17 @@ class AvailableExpertsByCategoryView(generics.ListAPIView):
                 current_date += timedelta(days=1)
 
             if has_any_available_day:
+                from payments.services import get_effective_price
+                pricing = get_effective_price(expert)
                 results.append({
                     "expert_user_id": expert.user.id,
                     "name": expert.user.get_full_name(),
                     "photo": expert.photo.url if getattr(expert, 'photo', None) else None,
                     "about": expert.about or "",
                     "category": category_slug,  # basit referans, frontend için yeterli
+                    "session_price": pricing["amount"],
+                    "session_currency": pricing["currency"],
+                    "appointment_duration": expert.appointment_duration,
                 })
 
         return Response(results, status=status.HTTP_200_OK)

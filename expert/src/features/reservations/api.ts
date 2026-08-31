@@ -23,6 +23,25 @@ export interface Appointment {
   zoom_start_url: string
   zoom_join_url: string
   zoom_meeting_id: string
+  // 'not_applicable' (henüz confirmed/completed değil), 'unpaid' (ödeme
+  // bekleniyor) ya da 'paid' (ücretsiz ilk seans dahil) - backend
+  // appointments/serializers.py::AppointmentSerializer.get_payment_status()'ten (28. tur).
+  payment_status?: 'not_applicable' | 'unpaid' | 'paid'
+  session_price?: string | number | null
+  session_currency?: string | null
+  // Danışanın ömür boyu bir kez hakkı olan ücretsiz ilk seansıyla mı
+  // ilerlediği - true iken payment_status='unpaid' "ücretsiz seans onayı
+  // bekleniyor" anlamına gelir, 'paid' ise onaylanmış/tamamlanmış demektir
+  // (bkz. backend appointments/serializers.py::AppointmentSerializer, 30. tur).
+  is_free_trial?: boolean
+  // Faz 2/4/6 (Frontend Yapılandırması planı) - "hangi hizmet"/"hangi
+  // teslimat şekli" artık serialize ediliyor; expert_earning SADECE ilgili
+  // uzman kendi randevusuna baktığında dolar (backend tarafında gated).
+  session_type?: number | null
+  session_type_name?: string | null
+  session_offering?: number | null
+  session_offering_name?: string | null
+  expert_earning?: string | number | null
   created_at: string
   updated_at: string
 }

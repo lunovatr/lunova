@@ -251,6 +251,7 @@ class ClientListSerializer(serializers.ModelSerializer):
             'received_service_before',
             'onboarding_complete',
             'is_active_in_treatment',
+            'recovery_status',
         ]
 
     def get_substances_used(self, obj):

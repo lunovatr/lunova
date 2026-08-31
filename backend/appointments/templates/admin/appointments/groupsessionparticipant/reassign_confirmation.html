@@ -1,0 +1,64 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<p>
+  Seçilen <strong>{{ participants|length }}</strong> katılımcıyı aşağıdan seçeceğiniz bir grup
+  seansına aktaracaksınız. Aktarım, danışanın <strong>ödemesini korur</strong> (tekrar ödeme
+  istenmez) ve kapasite/ex-user uygunluğu otomatik kontrol edilir.
+</p>
+
+<h2>Seçilen katılımcılar</h2>
+<ul>
+  {% for participant in participants %}
+    <li>
+      <strong>{{ participant.client.get_full_name }}</strong>
+      — şu anki grup: {{ participant.group_session }}
+      ({{ participant.group_session.date }} {{ participant.group_session.time }})
+      — durum: {{ participant.get_status_display }}
+    </li>
+  {% endfor %}
+</ul>
+
+{% if targets %}
+<form method="post">
+  {% csrf_token %}
+  {% for participant in participants %}
+    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ participant.pk }}">
+  {% endfor %}
+  <input type="hidden" name="action" value="reassign_to_group_session">
+  <input type="hidden" name="apply" value="1">
+
+  <fieldset class="module aligned">
+    <div class="form-row">
+      <label for="target_group_session"><strong>Hedef grup seansı:</strong></label>
+      <select name="target_group_session" id="target_group_session" required>
+        <option value="">---------</option>
+        {% for target in targets %}
+          <option value="{{ target.pk }}">
+            {{ target.session_offering.name }} — {{ target.date }} {{ target.time }}
+            ({{ target.expert.get_full_name }}, uzman) — kapasite {{ target.capacity }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+  </fieldset>
+
+  <p class="help">
+    Liste sadece: aynı seans tipine (hizmete) ait, planlanmış (iptal edilmemiş) ve gelecek
+    tarihli grup seansları içerir. Kapasite/ex-user uygunluğu aktarım anında ayrıca kontrol
+    edilir — uygun olmayan bir satır için hata mesajı gösterilir, o katılımcı aktarılmaz.
+  </p>
+
+  <div class="submit-row">
+    <input type="submit" value="Seçilenleri aktar" class="default">
+  </div>
+</form>
+{% else %}
+<p class="errornote">
+  Seçilen katılımcı(lar)ın seans tipiyle eşleşen, planlanmış ve gelecek tarihli başka bir grup
+  seansı bulunamadı. Önce uygun bir hedef grup seansı oluşturun (Grup Seansları ekranından),
+  sonra bu aktarımı tekrar deneyin.
+</p>
+{% endif %}
+{% endblock %}

@@ -275,11 +275,9 @@ def seed_expert_profiles(count=20):
     languages = list(Language.objects.all())
     approach_methods = list(ApproachMethod.objects.all())
     target_groups = list(TargetGroup.objects.all())
-    session_types = list(SessionType.objects.all())
 
     # Eğer ilişkisel veri yoksa, besleme hatası olmaması için kontrol et
-    if not all([universities, degree_levels, majors, specializations, languages, approach_methods, target_groups,
-                session_types]):
+    if not all([universities, degree_levels, majors, specializations, languages, approach_methods, target_groups]):
         print("  ⚠️ Uzman profilleri için gerekli ilişkisel veriler eksik. Devam ediliyor...")
         if not services:
             print("  ❌ Hata: 'Service' modeli boş. Lütfen önce 'Service' modelini besleyin.")
@@ -353,7 +351,6 @@ def seed_expert_profiles(count=20):
             set_random_m2m(expert_profile.languages, languages)
             set_random_m2m(expert_profile.approach_methods, approach_methods)
             set_random_m2m(expert_profile.target_groups, target_groups)
-            set_random_m2m(expert_profile.session_types, session_types)
 
             print(f"\r\033[K  ✓ Uzman oluşturuldu: {user.get_full_name()} ({email}) - {expert_profile.title}", end='', flush=True)
 
@@ -451,7 +448,6 @@ def seed_named_team_accounts():
     languages = list(Language.objects.all())
     approach_methods = list(ApproachMethod.objects.all())
     target_groups = list(TargetGroup.objects.all())
-    session_types = list(SessionType.objects.all())
     addiction_types = list(AddictionType.objects.all())
 
     def set_random_m2m(manager, items, k=3):
@@ -507,7 +503,6 @@ def seed_named_team_accounts():
             set_random_m2m(expert_profile.languages, languages)
             set_random_m2m(expert_profile.approach_methods, approach_methods)
             set_random_m2m(expert_profile.target_groups, target_groups)
-            set_random_m2m(expert_profile.session_types, session_types)
             print(f"  ✓ Ekip uzmanı oluşturuldu: {expert_email} ({expert_first_name} {expert_last_name})")
 
         # --- Danışan tarafı (yukarıdaki uzmana ATANMIŞ) --- (role="client" ise gerçek bilgiyi kullan)

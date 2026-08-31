@@ -18,6 +18,10 @@ import FormsList from "./pages/Forms/FormsList";
 import FormFill from "./pages/Forms/FormFill";
 import FormResponseDetail from "./pages/Forms/FormResponseDetail";
 import Messages from "./pages/Messages/Messages";
+import Payments from "./pages/Payments/Payments";
+import PaymentResult from "./pages/Payments/PaymentResult";
+import GroupSessions from "./pages/GroupSessions/GroupSessions";
+import Packages from "./pages/Packages/Packages";
 import AppLayout from "./layout/AppLayout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
 import Home from "./pages/Dashboard/Home";
@@ -90,6 +94,10 @@ export default function App() {
             <Route path="/forms/:id" element={<FormFill />} />
             <Route path="/forms/responses/:id" element={<FormResponseDetail />} />
             <Route path="/messages" element={<Messages />} />
+            <Route path="/payments" element={<Payments />} />
+            <Route path="/payments/result" element={<PaymentResult />} />
+            <Route path="/group-sessions" element={<GroupSessions />} />
+            <Route path="/packages" element={<Packages />} />
           </Route>
 
           {/* Fallback Route */}

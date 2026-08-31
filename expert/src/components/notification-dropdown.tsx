@@ -72,6 +72,11 @@ export function NotificationDropdown() {
       // Belge onay/red kararı her zaman uzmanın KENDİ belgesiyle ilgili -
       // ek bir id taşımaz, hedef sabit olarak kendi profil sayfası.
       navigate({ to: '/profile' })
+    } else if (notification.notification_type === 'group_join_requested' && notification.group_session_id) {
+      navigate({
+        to: '/groups',
+        search: { groupSessionId: notification.group_session_id },
+      })
     } else if (notification.appointment_id) {
       navigate({
         to: '/reservations',

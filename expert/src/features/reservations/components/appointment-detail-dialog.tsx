@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { format, parse, addMinutes } from 'date-fns'
 import { tr } from 'date-fns/locale'
-import { Check, Clock, CalendarClock, StickyNote, User, Video, X } from 'lucide-react'
+import { Check, Clock, CalendarClock, CreditCard, StickyNote, User, Video, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -42,6 +42,18 @@ function statusVariant(s: Appointment['status']): BadgeVariant {
   if (s === 'cancelled') return 'destructive'
   if (s === 'cancel_requested') return 'outline'
   return 'secondary'
+}
+
+function paymentStatusVariant(s: 'unpaid' | 'paid'): BadgeVariant {
+  return s === 'paid' ? 'default' : 'secondary'
+}
+
+// is_free_trial (30. tur, YENİ) ile metin ayırt ediliyor - appointments-table.tsx'teki
+// AYNI yardımcı, proje konvansiyonu gereği bu iki dosya arasında kopyalanıyor.
+function paymentBadgeLabel(app: Pick<Appointment, 'payment_status' | 'is_free_trial'>): string | null {
+  if (app.payment_status === 'paid') return app.is_free_trial ? 'Ücretsiz İlk Seans' : 'Ödendi'
+  if (app.payment_status === 'unpaid') return app.is_free_trial ? 'Ücretsiz Seans Onayı Bekleniyor' : 'Ödeme Bekleniyor'
+  return null
 }
 
 export function AppointmentDetailDialog({
@@ -138,13 +150,41 @@ export function AppointmentDetailDialog({
 
             <div className='flex items-center gap-2'>
               <CalendarClock className='h-4 w-4 shrink-0 text-muted-foreground' />
-              <div className='flex items-center gap-2 text-sm'>
+              <div className='flex flex-wrap items-center gap-2 text-sm'>
                 <span className='text-muted-foreground'>Durum:</span>
                 <Badge variant={statusVariant(detail.status)}>
                   {STATUS_LABELS[detail.status]}
                 </Badge>
+                {detail.session_offering_name && (
+                  <Badge variant='outline'>{detail.session_offering_name}</Badge>
+                )}
+                {detail.session_type_name && (
+                  <Badge variant='outline'>{detail.session_type_name}</Badge>
+                )}
               </div>
             </div>
+
+            {(detail.payment_status === 'paid' || detail.payment_status === 'unpaid') && (
+              <div className='flex items-center gap-2'>
+                <CreditCard className='h-4 w-4 shrink-0 text-muted-foreground' />
+                <div className='flex items-center gap-2 text-sm'>
+                  <span className='text-muted-foreground'>Ödeme:</span>
+                  <Badge variant={paymentStatusVariant(detail.payment_status)}>
+                    {paymentBadgeLabel(detail)}
+                  </Badge>
+                  {detail.payment_status === 'unpaid' && !detail.is_free_trial && detail.session_price != null && (
+                    <span className='text-xs text-muted-foreground'>
+                      ({detail.session_price} {detail.session_currency ?? 'TRY'})
+                    </span>
+                  )}
+                  {detail.payment_status === 'paid' && detail.expert_earning != null && (
+                    <span className='text-xs text-muted-foreground'>
+                      (net kazancınız: {detail.expert_earning} {detail.session_currency ?? 'TRY'})
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
 
             {detail.notes && (
               <div className='flex items-start gap-2'>

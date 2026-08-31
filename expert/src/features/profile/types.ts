@@ -46,7 +46,6 @@ export interface ExpertProfile {
   languages: string[];
   approach_methods: string[];
   target_groups: string[];
-  session_types: string[];
   session_price: string;
   currency: string;
   appointment_duration: number;
@@ -73,7 +72,6 @@ export interface ExpertProfileUpdatePayload {
   languages?: (string | undefined)[]
   approach_methods?: number[]
   target_groups?: number[]
-  session_types?: number[]
   session_price?: string
   currency?: string
   appointment_duration?: number

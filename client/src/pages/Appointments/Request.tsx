@@ -6,6 +6,7 @@ import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import PageMeta from "../../components/common/PageMeta";
 import ComponentCard from '../../components/common/ComponentCard';
 import ToastContainer from "../../components/common/ToastContainer";
+import FreeTrialBanner from "../../components/common/FreeTrialBanner";
 import { useToast } from "../../hooks/useToast";
 import ExpertAvailability, { ActiveSlotSelection } from "./ExpertAvailability";
 
@@ -91,8 +92,10 @@ export default function Request() {
     <>
       <PageMeta title="Randevu Talebi" description="Uzman seçimi ve randevu talebi sayfası" />
       <PageBreadcrumb pageTitle="Randevu Talebi" />
-      
+
       <ToastContainer toasts={toasts} removeToast={removeToast} />
+
+      <FreeTrialBanner className="mb-6" />
 
       <div className="space-y-6">
         {/* Kategori ve Tarih Seçimi */}
@@ -166,10 +169,15 @@ export default function Request() {
                   key={expert.expert_user_id}
                   className="border border-gray-200 rounded-lg"
                 >
-                  <div className="p-4">
+                  <div className="p-4 flex items-center justify-between gap-4">
                     <h4 className="font-semibold text-lg text-gray-800 dark:text-white">
                       {expert.name}
                     </h4>
+                    {expert.session_price != null && (
+                      <span className="shrink-0 rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                        {expert.session_price} {expert.session_currency || "TRY"} / {expert.appointment_duration || 45} dk
+                      </span>
+                    )}
                   </div>
 
                   <div className="px-4 pb-4">

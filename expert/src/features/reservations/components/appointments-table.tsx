@@ -46,6 +46,18 @@ function statusVariant(s: Appointment['status']): BadgeVariant {
   return 'secondary'
 }
 
+function paymentStatusVariant(s: 'unpaid' | 'paid'): BadgeVariant {
+  return s === 'paid' ? 'default' : 'secondary'
+}
+
+// is_free_trial (30. tur, YENİ) ile metin ayırt ediliyor - renk (paymentStatusVariant)
+// aynı kalıyor, sadece danışanın ücretsiz ilk seans hakkıyla mı ilerlediği belirtiliyor.
+function paymentBadgeLabel(app: Pick<Appointment, 'payment_status' | 'is_free_trial'>): string | null {
+  if (app.payment_status === 'paid') return app.is_free_trial ? 'Ücretsiz İlk Seans' : 'Ödendi'
+  if (app.payment_status === 'unpaid') return app.is_free_trial ? 'Ücretsiz Seans Onayı Bekleniyor' : 'Ödeme Bekliyor'
+  return null
+}
+
 export function AppointmentsTable({ appointments, onUpdate, onAppointmentClick }: AppointmentsTableProps) {
   const [statusFilter, setStatusFilter] = useState<string>('all')
 
@@ -106,6 +118,7 @@ export function AppointmentsTable({ appointments, onUpdate, onAppointmentClick }
               <TableHead>Tarih & Saat</TableHead>
               <TableHead className='w-20'>Süre</TableHead>
               <TableHead>Durum</TableHead>
+              <TableHead>Ödeme</TableHead>
               <TableHead className='text-right'>İşlemler</TableHead>
             </TableRow>
           </TableHeader>
@@ -113,7 +126,7 @@ export function AppointmentsTable({ appointments, onUpdate, onAppointmentClick }
             {filtered.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={7}
                   className='py-10 text-center text-muted-foreground'
                 >
                   Randevu bulunamadı.
@@ -153,9 +166,21 @@ export function AppointmentsTable({ appointments, onUpdate, onAppointmentClick }
                     </TableCell>
                     <TableCell className='text-sm'>{app.duration} dk</TableCell>
                     <TableCell>
-                      <Badge variant={statusVariant(app.status)}>
-                        {STATUS_LABELS[app.status]}
-                      </Badge>
+                      <div className='flex flex-wrap items-center gap-1'>
+                        <Badge variant={statusVariant(app.status)}>
+                          {STATUS_LABELS[app.status]}
+                        </Badge>
+                        {app.session_offering_name && (
+                          <Badge variant='outline'>{app.session_offering_name}</Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {(app.payment_status === 'paid' || app.payment_status === 'unpaid') && (
+                        <Badge variant={paymentStatusVariant(app.payment_status)}>
+                          {paymentBadgeLabel(app)}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className='text-right'>
                       <div

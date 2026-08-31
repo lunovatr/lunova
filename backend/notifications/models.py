@@ -20,6 +20,15 @@ class Notification(models.Model):
         ('appointment_reminder', 'Randevu Hatırlatması'),
         ('message', 'Yeni Not'),
         ('document_status', 'Belge Durumu'),
+        ('payment_required', 'Ödeme Gerekiyor'),
+        ('payment_succeeded', 'Ödeme Alındı'),
+        ('free_trial_ready', 'Ücretsiz Seans Onayı Bekleniyor'),
+        ('group_waitlist_spot_available', 'Grup Seansında Yer Açıldı'),
+        ('group_join_requested', 'Grup Seansı Katılım Talebi'),
+        ('group_payment_required', 'Grup Seansı İçin Ödeme Gerekiyor'),
+        ('group_join_rejected', 'Grup Seansı Talebi Reddedildi'),
+        ('group_session_cancelled', 'Grup Seansı İptal Edildi'),
+        ('group_participant_reassigned', 'Başka Bir Grup Seansına Aktarıldınız'),
     ]
 
     user = models.ForeignKey(
@@ -50,6 +59,16 @@ class Notification(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name='+',
+    )
+    # group_* türleri için: appointment FK'sinin grup seanslarına hiç uymaması
+    # nedeniyle (Faz 2, Frontend Yapılandırması planı) - tıklanınca hangi
+    # GroupSession'a deep-link verileceğini belirtir.
+    group_session = models.ForeignKey(
+        'appointments.GroupSession',
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name='notifications',
     )
     is_read = models.BooleanField(default=False)
     read_at = models.DateTimeField(null=True, blank=True)
