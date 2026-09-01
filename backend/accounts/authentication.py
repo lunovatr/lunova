@@ -3,11 +3,14 @@ from rest_framework.authentication import CSRFCheck
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
 
+from .auth_cookies import resolve_frontend_type, get_access_cookie_name
+
 class CookieJWTAuthentication(JWTAuthentication):
     def authenticate(self, request):
         header = self.get_header(request)
         if header is None:
-            raw_token = request.COOKIES.get('access_token')
+            frontend_type = resolve_frontend_type(request)
+            raw_token = request.COOKIES.get(get_access_cookie_name(frontend_type))
         else:
             raw_token = self.get_raw_token(header)
 

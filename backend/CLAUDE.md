@@ -2,6 +2,18 @@
 
 > Bu dosya kaynak koddan (settings.py, models.py, views.py, urls.py) doğrudan doğrulanmıştır — bir önceki AI taslağındaki model alanları, endpoint listesi ve token ömrü gibi bilgilerin çoğu hatalıydı ve burada düzeltildi. Kök dizindeki [claude.md](../claude.md) genel sistem/haberleşme sorunlarını, bu dosya backend'in iç detaylarını anlatır (dokümantasyon bakım kuralları da orada — kısaca: `backend/` içinde yaptığın HER değişiklikten sonra hem bu dosya hem kök `claude.md` güncellenmeli, token maliyeti gerekçesiyle atlanmaz).
 
+> ## 🔧 Son Değişiklikler (2026-09-01, 30. tur) — 🟠 Aynı Tarayıcıda Uzman+Danışan Paneli Token Çakışması Düzeltildi
+
+> Kullanıcı, aynı tarayıcıda hem uzman hem danışan paneline giriş yaptığında oturumların birbirini ezdiğini bildirdi. Bu konuda CLAUDE.md'de hiçbir not olmadığı (kök `claude.md` + bu dosya + git geçmişi tarandı, sıfır eşleşme) doğrulandıktan sonra kök neden kodla kesin olarak tespit edildi: `set_auth_cookies()` her iki frontend için de sabit `access_token`/`refresh_token` cookie adlarını kullanıyordu; dev'de cookie'ye `domain` verilmediği için host-only (`localhost`) oluyor ve RFC 6265 gereği port bazlı izole olmuyordu (`5173`/`5174` aynı jar'ı paylaşıyordu); prod'da `domain='lunova.tr'` ile `uzman.lunova.tr`/`danisan.lunova.tr` aynı registrable domain'in subdomain'leri olarak yine paylaşıyordu. Plan-mode'da bir Explore+Plan agent zinciriyle kök neden doğrulanıp bir implementasyon planı tasarlandı, kullanıcı onayladı.
+>
+> - **🟠 [DÜZELTİLDİ] Cookie'ler artık frontend tipine göre isimlendiriliyor**: Yeni `accounts/auth_cookies.py` modülü (`resolve_frontend_type()`/`get_access_cookie_name()`/`get_refresh_cookie_name()`/`set_auth_cookies()`/`delete_auth_cookies()`) — `CookieJWTAuthentication.authenticate()`, `LoginView`, `TokenRefreshView`, `LogoutView` hepsi artık `{frontend_type}_access_token`/`{frontend_type}_refresh_token` (`expert_*`/`client_*`) okuyup yazıyor. `MeView`'a dokunulmadı (cookie'yi hiç doğrudan okumuyor). Fallback YOK - geriye dönük uyumluluk bilinçli olarak "deploy sonrası bir kez daha login" ile çözüldü (ek kod karmaşıklığı yaratmayan, kabul edilen bir tasarım kararı). Detay, ilişkili bir Referer-domain bug düzeltmesi ve doğrulama adımları için yukarıdaki "🔐 Authentication" bölümündeki "🍪 [YENİ, 30. tur]" alt başlığına bakın (tekrar burada içerik çoğaltılmadı - proje kuralı gereği tek yere indirgendi).
+> - **Doğrulama**: gerçek dev `db.sqlite3`'e karşı ephemeral bir script (`APIRequestFactory`) ile 30/30 kontrol + gerçek dev sunucusuna karşı gerçek bir `curl` cookie-jar zinciriyle (iki panelin birleşik tek bir jar'da birbirini EZMEDİĞİ, expert logout'un client oturumunu HİÇ etkilemediği) uçtan uca doğrulandı - bu turun en güçlü doğrulama katmanı, sadece backend simülasyonu değil gerçek bir HTTP sunucusuna karşı. `manage.py check` temiz (model/migration değişikliği yok, sadece 3 dosya). Test verisi + `db.sqlite3`'teki geçici token audit kayıtları script sonunda temizlenip orijinal committed hale geri döndürüldü. **Frontend'lere HİÇ dokunulmadı** (zaten `X-Frontend-Type`'ı her istekte gönderiyorlardı) - ama gerçek iki-sekme tarayıcı testi (dev'de `localhost:5173`+`localhost:5174`, prod'da `uzman.lunova.tr`+`danisan.lunova.tr`) hâlâ bu ortamda hiç yapılmadı, bkz. kök `claude.md`'nin "🟠 En öncelikli açık madde" listesi.
+> - **Bilinçli olarak bu turda YAPILMADI**: eski (unprefixed) `access_token`/`refresh_token` cookie'si için bir authentication fallback'i eklenmedi (yukarıda gerekçelendirildi) - deploy sonrası aktif oturumlu kullanıcılar bir kez daha login olacak, ekibe önceden haber verilmeli.
+
+> ## 📜 29. tur — arşivlendi (özet)
+>
+> Grup seansı iptalinde açıkta kalan danışanların admin panelinden manuel başka bir gruba aktarılabilmesi (GEÇİCİ çözüm) + admin panelinin genel dokümantasyon/güvenlik güncellemesi (Tier 1/Tier 2 `admin_note()` banner'ları, `GroupSessionParticipantAdmin`, zoom-link-gating bug düzeltmesi). Net sonuç yukarıdaki "📊 Sistem Durumu Özeti"nde duruyor (kök claude.md), tam ayrıntı `git log -p -- backend/CLAUDE.md` ile geri getirilebilir.
+
 > ## 🔧 Son Değişiklikler (2026-08-29, 29. tur) — Grup Seansı İptali: "Açıkta Kalan Danışan" Yönetimi (Admin) + Admin Panelinin Genel Dokümantasyon/Güvenlik Güncellemesi
 >
 > Kök `claude.md`'nin 34. tur işi - 28. turda bilinçli olarak İZOLE düzeltilmeyip "🧭 Geliştirme Fikirleri" madde 13'e taşınan bulgu (grup iptalinde onaylı+ödemiş katılımcıların açıkta kalması) bu turda ele alındı. Kullanıcının isteği iki parçalıydı: (1) admin panelinden açıkta kalan danışanların listelenip başka bir gruba aktarılabilmesi (kullanıcının kendi tabiriyle **GEÇİCİ bir çözüm** - operasyon ekibine ayrı bir panel teslim edilene kadar), (2) admin panelinin genelinde, yazılım bilmeyen bir operatörün "bunu değiştirirsem ne olur" sorusuna panelin İÇİNDEN cevap bulabileceği, önem dereceli (proje genelindeki 🔴🟠🟡🟢 ölçeğiyle tutarlı) notlar. Plan-mode'da hazırlanan dokümana kullanıcı 6 soruya yanıt verdi - en kritikleri: aktarım için bir audit/izleme alanı istendi (danışan psikolojisi/geçmiş trafiği önemli), bireysel randevu iptali için de AYNI mail-atlama bug'ı düzeltilsin, önerilen dokümantasyon kademelendirmesi/aktarım kuralları aynen onaylandı.
@@ -211,7 +223,12 @@ backend/
 │   │                          belgesi APPROVED olunca ClientProfile.recovery_status'u otomatik set
 │   │                          eder, review_document() VE DocumentAdmin.save_model()'in ikisinden de
 │   │                          çağrılır (reviewed_by=request.user)
-│   ├── authentication.py   → CookieJWTAuthentication (cookie veya header'dan token okur)
+│   ├── authentication.py   → CookieJWTAuthentication (cookie veya header'dan token okur;
+│   │                          30. tur, YENİ: hangi cookie'nin okunacağını auth_cookies.py'den gelir)
+│   ├── auth_cookies.py       (30. tur, YENİ) → resolve_frontend_type()/get_access_cookie_name()/
+│   │                          get_refresh_cookie_name()/set_auth_cookies()/delete_auth_cookies() -
+│   │                          cookie adları artık frontend'e göre ayrışıyor (expert_*/client_*),
+│   │                          authentication.py + views/views.py arasında paylaşılan tek modül
 │   ├── permissions.py, storage/{base,supabase,mock,factory}.py
 │   ├── migrations/           → 0001_initial, 0002_document_status (17. tur - Document.status alanı +
 │   │                          verified=True→status=approved backfill), 0004_remove_expertprofile_
@@ -393,11 +410,15 @@ backend/
 ## 🔐 Authentication (doğrulanmış davranış)
 
 ```python
-# accounts/authentication.py — gerçek kod
+# accounts/authentication.py — gerçek kod (30. tur, YENİ: cookie adı auth_cookies.py'den)
 class CookieJWTAuthentication(JWTAuthentication):
     def authenticate(self, request):
         header = self.get_header(request)
-        raw_token = self.get_raw_token(header) if header else request.COOKIES.get('access_token')
+        if header is None:
+            frontend_type = resolve_frontend_type(request)
+            raw_token = request.COOKIES.get(get_access_cookie_name(frontend_type))
+        else:
+            raw_token = self.get_raw_token(header)
         if raw_token is None:
             return None
         try:
@@ -418,26 +439,35 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
 }
 ```
-✅ **`accounts/urls.py` içinde artık `token/refresh/` endpoint'i VAR** (`TokenRefreshView`, `accounts/views/views.py`). `ROTATE_REFRESH_TOKENS=True` ayarı artık gerçekten tetikleniyor: her başarılı refresh çağrısı `rest_framework_simplejwt.serializers.TokenRefreshSerializer` üzerinden eski refresh token'ı blacklist'e alıp (jti/exp/iat rotasyonuyla) yenisini üretiyor. Cookie set etme mantığı `set_auth_cookies(response, access_token, refresh_token)` adlı ortak bir helper'a taşındı (`LoginView` de artık bunu kullanıyor) — süreler `settings.SIMPLE_JWT`'den okunuyor, tek doğruluk kaynağı.
+✅ **`accounts/urls.py` içinde artık `token/refresh/` endpoint'i VAR** (`TokenRefreshView`, `accounts/views/views.py`). `ROTATE_REFRESH_TOKENS=True` ayarı artık gerçekten tetikleniyor: her başarılı refresh çağrısı `rest_framework_simplejwt.serializers.TokenRefreshSerializer` üzerinden eski refresh token'ı blacklist'e alıp (jti/exp/iat rotasyonuyla) yenisini üretiyor. Cookie set etme mantığı (30. tur'da `accounts/auth_cookies.py`'ye taşınan) `set_auth_cookies(response, access_token, refresh_token, frontend_type)` adlı ortak bir helper'a taşındı (`LoginView`/`TokenRefreshView` ikisi de kullanıyor) — süreler `settings.SIMPLE_JWT`'den okunuyor, tek doğruluk kaynağı.
 
 `REFRESH_TOKEN_LIFETIME`'ın 1 saat olması bilinçli bir tasarım kararı (kullanıcı talimatı): reaktif (sadece bir istek 401 aldığında tetiklenen, proaktif zamanlayıcı OLMAYAN) bir refresh stratejisiyle birleşince, bu doğal bir "1 saatlik idle timeout" oluşturuyor — kullanıcı aktifse (en az saatte bir istek atıyorsa) oturum kayan pencereyle uzar; tamamen hareketsiz kalırsa 1 saat sonra bir sonraki istekte refresh de başarısız olur, tekrar login gerekir. 1 saat spesifik olarak seçildi çünkü seanslar Zoom üzerinden yapılıyor (`appointment_duration` üst sınırı 50 dk) ve bir görüşme boyunca kullanıcı Lunova sekmesinde hiçbir istek atmıyor olabilir — 30 dk gibi daha kısa bir pencere, görüşme ortasında oturumu düşürüp kullanıcıyı tam görüşme biterken tekrar login'e zorlardı.
 
-`POST /accounts/token/refresh/` görüntüsü: body gerekmez (cookie'den okur), başarılı yanıt `{"detail": "Oturum yenilendi."}` + yeni `access_token`/`refresh_token` cookie'leri. Refresh token eksik/geçersiz/süresi dolmuş/blacklist'teyse temiz `401 {"detail": "...", "code": "token_not_valid"}` döner (500 riski yok — `curl` ile hem eksik cookie hem "garbage" token hem rotasyonlanmış-eski-token senaryoları test edildi, hepsi doğru 401 verdi).
+`POST /accounts/token/refresh/` görüntüsü: body gerekmez (cookie'den okur), başarılı yanıt `{"detail": "Oturum yenilendi."}` + yeni `{frontend_type}_access_token`/`{frontend_type}_refresh_token` cookie'leri. Refresh token eksik/geçersiz/süresi dolmuş/blacklist'teyse temiz `401 {"detail": "...", "code": "token_not_valid"}` döner (500 riski yok — `curl` ile hem eksik cookie hem "garbage" token hem rotasyonlanmış-eski-token senaryoları test edildi, hepsi doğru 401 verdi).
 
 **Login/Logout response gerçek şekli:**
 ```python
 # LoginView.post() — response body:
-{"name": ..., "surname": ..., "email": ..., "profile_photo": ..., "gender": ...}
+{"id": ..., "role": ..., "name": ..., "surname": ..., "email": ..., "profile_photo": ..., "gender": ...}
 # access/refresh JSON'da YOK, sadece httpOnly cookie olarak set ediliyor.
-# role/id de YOK.
 
 # Cookie parametreleri (login):
-access_token:  httponly=True, samesite='None', secure=True, max_age=900      (15 dk)
-refresh_token: httponly=True, samesite='None', secure=True, max_age=604800   (7 gün)
+{frontend_type}_access_token:  httponly=True, samesite='Lax', secure=True, max_age=900      (15 dk)
+{frontend_type}_refresh_token: httponly=True, samesite='Lax', secure=True, max_age=3600     (1 saat)
 # Production'da (ENVIRONMENT=Production) domain='lunova.tr' eklenir.
 ```
 
-**Logout**: `POST /accounts/logout/` — cookie'deki refresh_token'ı `RefreshToken(...).blacklist()` ile blacklist'e ekler, cookie'leri siler. `IsAuthenticated` permission'ı var (yani access_token geçerli olmalı — süresi dolmuşsa logout çağrısı da 401 alabilir, bir edge-case).
+### 🍪 [YENİ, 30. tur] Cookie'ler frontend tipine göre isimlendiriliyor — aynı tarayıcıda uzman+danışan paneli çakışması düzeltildi
+
+**Bulunan sorun**: Aynı tarayıcıda hem uzman hem danışan paneli açıkken (dev: `localhost:5173`/`localhost:5174`, prod: `uzman.lunova.tr`/`danisan.lunova.tr`) biri diğerinin oturumunu eziyordu. Kök neden: `set_auth_cookies()` HER İKİ frontend için de sabit `access_token`/`refresh_token` cookie adlarını kullanıyordu; dev'de cookie'ye `domain` verilmediği için host-only (`localhost`) oluyor — RFC 6265 gereği cookie'ler port bazlı izole DEĞİL, `5173`/`5174` aynı cookie jar'ını paylaşıyordu. Prod'da `domain='lunova.tr'` verildiği için `uzman.lunova.tr`/`danisan.lunova.tr` aynı registrable domain'in subdomain'leri olarak yine paylaşıyordu.
+
+**Düzeltme**: Yeni `accounts/auth_cookies.py` modülü — `resolve_frontend_type(request)` (`X-Frontend-Type` header → Referer fallback, LoginView'ın önceki tek-yerdeki mantığının taşınmış hali; sonuç HER ZAMAN `'expert'`/`'client'`/`''`) + `get_access_cookie_name()`/`get_refresh_cookie_name()` (`{frontend_type}_access_token`/`{frontend_type}_refresh_token`, frontend_type çözülemezse legacy `access_token`/`refresh_token`'a düşer) + `set_auth_cookies()`/`delete_auth_cookies()`. `CookieJWTAuthentication.authenticate()`, `LoginView`, `TokenRefreshView`, `LogoutView` hepsi artık `resolve_frontend_type(request)`'e göre doğru cookie adını okuyor/yazıyor. `MeView`'a DOKUNULMADI (cookie'yi hiç doğrudan okumuyor, authentication katmanının çözdüğü `request.user`'a bakıyor). **Ayrıca düzeltilen ilişkili bug**: `resolve_frontend_type()`'daki `expert_domains` listesi gerçek prod domain'i `uzman.lunova.tr`'yi içermiyordu (sadece `expert.lunova.tr` vardı), `client_domains`'teki `'lunova.tr'` substring'i yüzünden Referer fallback'i tetiklenirse `uzman.lunova.tr` yanlışlıkla `client` sanılabilirdi — düzeltildi (pratikte dormant bir bug'dı, her iki resmi frontend her zaman `X-Frontend-Type` header'ını gönderiyor).
+
+**Geriye dönük uyumluluk kararı**: Fallback YOK — deploy anında tarayıcısında açık oturumu olan kullanıcılar bir sonraki istekte 401 alıp bir kez daha login olur (access 15dk/refresh 1 saat ömürlü olduğu için etki süresi doğal olarak sınırlı). Bilinçli kabul edildi, ek kod karmaşıklığı yaratmayan bir tasarım kararı. `delete_auth_cookies()` her zaman legacy `access_token`/`refresh_token`'ı da sildiği için normal login/logout döngüsüyle eski cookie artıkları kendiliğinden temizleniyor.
+
+**Doğrulama**: gerçek dev `db.sqlite3`'e karşı ephemeral bir script (`APIRequestFactory`, script sonunda ürettiği veri silinip sıfır kaldığı doğrulandı) ile 30/30 kontrol — iki ayrı login'in farklı cookie adı ürettiği, birleşik bir cookie jar'da (aynı tarayıcı simülasyonu) expert login'in client login'den SONRA bile ezilmediği, `/token/refresh/`'in sadece kendi frontend'inin cookie'sini güncellediği, `/logout/`'un sadece kendi frontend'inin cookie'sini sildiği, header'sız (legacy) akışın hâlâ çalıştığı, garbage `X-Frontend-Type` değerinin hata fırlatmadan legacy'e düştüğü. AYRICA gerçek dev sunucusuna karşı gerçek bir `curl` zinciriyle (`-c`/`-b` cookie jar dosyaları, 5. turdaki CSRF doğrulama deseniyle tutarlı) uçtan uca doğrulandı: iki ayrı jar'da cookie adlarının gözle farklı olduğu, iki jar'ı TEK bir jar'da birleştirip (gerçek "aynı tarayıcıda iki panel açık" senaryosu) her iki panelin de kendi doğru kullanıcısını gördüğü, expert logout'un client oturumunu HİÇ etkilemediği (`/me/` hâlâ 200) canlı sunucu üzerinden kanıtlandı. `manage.py check` temiz (model/migration değişikliği yok). **Frontend'lere HİÇ dokunulmadı** — `client/src/lib/api.ts`/`expert/src/lib/api.ts` zaten `X-Frontend-Type`'ı her istekte otomatik gönderiyor, cookie adını hiçbir yerde hardcode etmiyorlar (tarayıcı yönetiyor) — bu yüzden gerçek tarayıcıda iki sekmeyle manuel doğrulama da güvenle önerilir ama backend tarafı zaten hem ephemeral script hem gerçek `curl` zinciriyle güçlü şekilde doğrulanmış durumda.
+
+**Logout**: `POST /accounts/logout/` — cookie'deki refresh_token'ı `RefreshToken(...).blacklist()` ile blacklist'e ekler, `delete_auth_cookies()` ile cookie'leri siler. `IsAuthenticated` permission'ı var (yani access_token geçerli olmalı — süresi dolmuşsa logout çağrısı da 401 alabilir, bir edge-case).
 
 ### Permission sınıfları (gerçek, dağınık — tek dosyada değil)
 ```
@@ -536,8 +566,9 @@ Kullanıcı ekibin dokümantasyonu incelemesini istediği için, her app README'
 23. ✅ **[DÜZELTİLDİ — 2026-08-29, 28. tur, 🟡]** ~~Grup seansı `capacity=0` ile oluşturulabiliyordu, ilk talep bile otomatik bekleme listesine düşüyordu~~ — `GroupSessionCreateSerializer.validate_capacity()` (min 2).
 24. 🟡 **[28. turda bulundu, kullanıcı kararıyla İZOLE düzeltilmedi]** Grup seansı iptalinde approved+ödemiş katılımcıların/waitlist kayıtlarının durumu güncellenmiyor, `get_zoom_join_url()` grubun `status`'üne bakmıyor, bildirim üretilmiyor. Bkz. kök `claude.md` "🧭 Geliştirme Fikirleri" madde 13 - ayrı bir plan-mode oturumu bekliyor.
 25. 🟢 **[28. turda bulundu, düşük öncelik, düzeltilmedi]** `has_appointment_been_paid()` sadece SUCCEEDED'a bakıyor - sandbox/production modda çift-tıklama iki ayrı PENDING Payment üretebilir (mock modda görünmez, mock anında SUCCEEDED oluyor). Frontend `submitting` state'i pratikte koruduğu için ertelendi.
+26. ✅ **[DÜZELTİLDİ — 2026-09-01, 30. tur, 🟠]** ~~Aynı tarayıcıda hem uzman hem danışan paneline giriş yapınca cookie/token çakışması oluyordu - `set_auth_cookies()` her iki frontend için de sabit `access_token`/`refresh_token` cookie adlarını kullanıyordu, dev'de port bazlı/prod'da subdomain bazlı paylaşılıyordu~~ — cookie'ler artık frontend tipine göre isimlendiriliyor (`expert_*`/`client_*`, yeni `accounts/auth_cookies.py`). Detay için yukarıdaki "30. tur" changelog girişine ve "🔐 Authentication" bölümündeki "🍪 [YENİ, 30. tur]" alt başlığına bakın.
 
 ---
-**Son Güncelleme**: 2026-08-29, 28. tur (Ödeme/grup seansı zincirinin sağlık kontrolü - 5 ephemeral script + gerçek `threading.Thread` ile 53 kontrol. 4 bug düzeltildi [ücretsiz ilk seans hakkının grup/paket ödemesiyle tükenmesi, paket indirim kodunun yok sayılması, indirim kodu yarış durumu, grup kapasite=0], uzman paneline bekleme listesi eklendi, grup iptali senaryosu kullanıcı kararıyla İZOLE düzeltilmeyip bulgu olarak kaydedildi. `manage.py check`+`makemigrations --check --dry-run` temiz. Detay için yukarıdaki "28. tur" changelog girişine ve "⚠️ Bilinen Gerçek Sorunlar" madde 20-25'e bakın.)
+**Son Güncelleme**: 2026-09-01, 30. tur (🟠 Aynı tarayıcıda uzman+danışan paneli token çakışması düzeltildi - cookie'ler artık `{frontend_type}_access_token`/`{frontend_type}_refresh_token` olarak ayrışıyor [yeni `accounts/auth_cookies.py`], `CookieJWTAuthentication`/`LoginView`/`TokenRefreshView`/`LogoutView` güncellendi, `MeView`'a dokunulmadı. Fallback yok - geriye dönük uyumluluk bilinçli olarak "deploy sonrası bir kez daha login" ile çözüldü. Ephemeral script ile 30/30 kontrol + gerçek dev sunucusuna karşı gerçek `curl` cookie-jar zinciriyle uçtan uca doğrulandı. `manage.py check` temiz. Detay için yukarıdaki "30. tur" changelog girişine, "🔐 Authentication" bölümüne ve "⚠️ Bilinen Gerçek Sorunlar" madde 26'ya bakın.)
 
 **Önceki Güncelleme**: 2026-08-28, 27. tur (Seans Tipi Kataloğu & Fiyatlandırma Motoru'nun [26. turda kurulan backend mimarisi, bkz. kök claude.md] frontend yapılandırması - backend tarafı: `GroupSessionParticipant`'a durum makinesi [`status`: pending_approval/approved/rejected] eklenip `join_group_session()`'ın "anında öde+katıl" akışı `request_join_group_session()`/`approve_group_join_request()`/`reject_group_join_request()`/`initiate_group_participant_checkout()` ile "talep→onay→ödeme"ye çevrildi [kapasite artık SADECE approved sayısına göre hesaplanıyor], `appointments/group_views.py` [YENİ] 5 uç ekledi, `catalog`/`accounts` app'lerine ilk kez gerçek REST uçları [`session-offerings/`, `session-types/`] açıldı, `payments`'a paket uçları eklendi, kıdem bazlı fiyatlandırma [26. turda yazılmış ama hiç çağrılmayan ölü kod] gerçek ödeme akışına bağlandı [sıfır davranış değişikliği garantili], `AppointmentSerializer`'a `session_type`/`session_offering`/gated `expert_earning` eklendi. 79 kontrol [60 yeni + 19 regresyon] gerçek dev DB'ye karşı doğrulandı, `manage.py check`+`makemigrations --check --dry-run` temiz, iki frontend `tsc -b`+`vite build` temiz. Son adım olarak `feed_catalog.py`/yeni `feed_payments.py`/yeni `feed_group_sessions.py` `feed_db.py`'ye eklendi. Frontend tarafı için client/expert claude.md'ye bakın. **Hiçbir yeni ekran/uç gerçek tarayıcıda test edilmedi**)

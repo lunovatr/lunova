@@ -25,36 +25,14 @@ from django.db.models import Q
 from ..models import UserRole, ExpertProfile, ClientProfile, Document, DocumentType, SessionType
 from accounts.serializers.document_serializers import DocumentSerializer
 from mailer.services import send_password_reset_email
+from ..auth_cookies import (
+    set_auth_cookies,
+    delete_auth_cookies,
+    resolve_frontend_type,
+    get_refresh_cookie_name,
+)
 
 User = get_user_model()
-
-
-def set_auth_cookies(response, access_token, refresh_token):
-    """
-    access_token/refresh_token'ı httpOnly cookie olarak set eder. Süreler
-    settings.SIMPLE_JWT'den okunur (tek doğruluk kaynağı) — böylece
-    ACCESS_TOKEN_LIFETIME/REFRESH_TOKEN_LIFETIME değiştiğinde cookie'nin
-    tarayıcı tarafındaki max_age'i otomatik senkron kalır. LoginView ve
-    TokenRefreshView tarafından ortak kullanılır.
-    """
-    access_max_age = int(settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds())
-    refresh_max_age = int(settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'].total_seconds())
-
-    cookie_params = {
-        'httponly': True,
-        # [2026-08-17'de None'dan değiştirildi] Tüm frontend'ler backend ile aynı
-        # "site" (lunova.tr / dev'de localhost) olduğu için Lax yeterli ve daha
-        # güvenli — gerçek cross-site (başka bir domain'den) CSRF isteklerinde
-        # tarayıcı bu cookie'yi artık göndermiyor. Detay: kök claude.md, CSRF bölümü.
-        'samesite': 'Lax',
-        'secure': True,
-        'path': '/',
-    }
-    if getattr(settings, 'ENVIRONMENT', '').lower() == 'production':
-        cookie_params['domain'] = 'lunova.tr'
-
-    response.set_cookie(key="access_token", value=access_token, max_age=access_max_age, **cookie_params)
-    response.set_cookie(key="refresh_token", value=refresh_token, max_age=refresh_max_age, **cookie_params)
 
 
 class ExpertRegisterView(generics.CreateAPIView):
@@ -79,33 +57,12 @@ class LoginView(APIView):
     }
     """
     def post(self, request):
-        # Önce frontend tipini belirle
-        frontend_type = request.META.get('HTTP_X_FRONTEND_TYPE', '')
-        
-        # Eğer header yoksa, referer header'ından kontrol et
-        if not frontend_type:
-            referer = request.META.get('HTTP_REFERER', '')
-            
-            # Expert frontend domain'lerini kontrol et
-            expert_domains = [
-                'expert.lunova.tr',
-                'localhost:5173',  # Expert frontend dev port (Vite default)
-                '127.0.0.1:5173',  # Localhost alternatif
-            ]
-            
-            # Client frontend domain'lerini kontrol et
-            client_domains = [
-                'client.lunova.tr',
-                'lunova.tr',  # Ana domain
-                'localhost:5174',  # Client frontend dev port (farklı port)
-                '127.0.0.1:5174',  # Localhost alternatif
-            ]
-            
-            if any(domain in referer for domain in expert_domains):
-                frontend_type = 'expert'
-            elif any(domain in referer for domain in client_domains):
-                frontend_type = 'client'
-        
+        # Frontend tipini belirle (X-Frontend-Type header -> Referer fallback,
+        # bkz. accounts/auth_cookies.py::resolve_frontend_type). Bu değer hem
+        # aşağıdaki rol kontrolü hem de set_auth_cookies()'in hangi cookie
+        # adını (expert_*/client_*) üreteceği için kullanılıyor.
+        frontend_type = resolve_frontend_type(request)
+
         is_expert_frontend = frontend_type == 'expert'
         is_client_frontend = frontend_type == 'client'
         
@@ -163,7 +120,7 @@ class LoginView(APIView):
             # profil fotoğrafı yoksa front ona gender'a göre pp atasın.
         }, status=status.HTTP_200_OK)
         # JWT'yi httpOnly cookie olarak ekle (süreler settings.SIMPLE_JWT'den okunur)
-        set_auth_cookies(response, access_token, refresh_token)
+        set_auth_cookies(response, access_token, refresh_token, frontend_type)
         # CSRF cookie'sini burada mint ediyoruz (get_token httpOnly OLMAYAN bir
         # 'csrftoken' cookie'si set eder) — frontend bunu okuyup sonraki
         # state-değiştiren isteklerde X-CSRFToken header'ı olarak geri gönderecek
@@ -192,7 +149,8 @@ class TokenRefreshView(APIView):
     """
 
     def post(self, request):
-        raw_refresh = request.COOKIES.get("refresh_token")
+        frontend_type = resolve_frontend_type(request)
+        raw_refresh = request.COOKIES.get(get_refresh_cookie_name(frontend_type))
         if not raw_refresh:
             raise InvalidToken("Refresh token bulunamadı. Lütfen tekrar giriş yapın.")
 
@@ -208,7 +166,7 @@ class TokenRefreshView(APIView):
         refresh_token = serializer.validated_data.get("refresh", raw_refresh)
 
         response = Response({"detail": "Oturum yenilendi."}, status=status.HTTP_200_OK)
-        set_auth_cookies(response, access_token, refresh_token)
+        set_auth_cookies(response, access_token, refresh_token, frontend_type)
         return response
 
 
@@ -217,29 +175,22 @@ class LogoutView(APIView):
 
     def post(self, request):
         try:
+            frontend_type = resolve_frontend_type(request)
             # Cookie'den refresh token al
-            refresh_token = request.COOKIES.get("refresh_token")
+            refresh_token = request.COOKIES.get(get_refresh_cookie_name(frontend_type))
             if not refresh_token:
                 return Response({"error": "Refresh token bulunamadı."}, status=status.HTTP_400_BAD_REQUEST)
 
             # Refresh token'ı blacklist'e ekle
             token = RefreshToken(refresh_token)
             token.blacklist()
-                        
+
             response = Response({"detail": "Başarıyla çıkış yapıldı."}, status=status.HTTP_205_RESET_CONTENT)
 
-            # Cookie parametreleri
-            cookie_params = {'path': '/'}
-            if getattr(settings, 'ENVIRONMENT', '').lower() == 'production':
-                cookie_params['domain'] = 'lunova.tr'
-
-            # Cookie'leri sil
-            response.delete_cookie("access_token", **cookie_params)
-            response.delete_cookie("refresh_token", **cookie_params)
-
-            # Alternatif olarak expire tarihi ile de sıfırlayabilirsin (bazı tarayıcılarda daha uyumlu olabilir)
-            response.set_cookie("access_token", value="", expires="Thu, 01 Jan 1970 00:00:00 GMT", **cookie_params)
-            response.set_cookie("refresh_token", value="", expires="Thu, 01 Jan 1970 00:00:00 GMT", **cookie_params)
+            # Cookie'leri sil (hem bu frontend'in expert_*/client_* cookie'lerini
+            # hem de bu değişiklikten önce set edilmiş olabilecek legacy
+            # access_token/refresh_token'ı - bkz. accounts/auth_cookies.py)
+            delete_auth_cookies(response, frontend_type)
 
             return response
 
