@@ -1,19 +1,77 @@
-# Render Blueprint - backend servisi
-#
-# ÖNEMLİ: `name` alanı Render dashboard'unda ZATEN VAR OLAN backend servisinin
-# adıyla BİREBİR aynı olmalı - aksi halde Render bunu mevcut servisi yönetmek
-# yerine YENİ, ayrı bir servis olarak oluşturur. Sync etmeden önce Render
-# dashboard'unda gerçek servis adını kontrol edip aşağıdaki placeholder'ı onunla
-# değiştir.
-#
-# Ortam değişkenleri BİLİNÇLİ OLARAK burada tanımlanmadı - mevcut servisin
-# Render dashboard'unda zaten kayıtlı olan env var'ları bu dosyada hiç
-# geçmedikleri için Blueprint sync'inden etkilenmeyip olduğu gibi kalır.
+# Render'ın "Generate Blueprint" özelliğiyle mevcut dashboard yapılandırmasından
+# dışa aktarıldı, tek elle yapılan değişiklik: buildCommand'a `collectstatic`
+# eklendi (static dosyaların [admin/DRF CSS-JS] prod'da servis edilebilmesi için,
+# bkz. backend/lunova_backend/settings.py'deki WhiteNoise kurulumu). envVars
+# hepsi sync:false - bu dosyada değer taşımıyorlar, mevcut dashboard değerleri
+# korunuyor.
 
-services:
-  - type: web
-    name: lunova_backend # <-- Render'daki gerçek servis adıyla değiştir
-    runtime: python
-    rootDir: backend
-    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput"
-    startCommand: "python manage.py migrate && gunicorn lunova_backend.wsgi:application --bind 0.0.0.0:$PORT"
+# Exported from Render on 2026-09-01T06:25:58Z
+version: "1"
+projects:
+  - name: Lunova
+    environments:
+      - name: Production
+        services:
+          - type: web
+            name: lunova_backend
+            runtime: python
+            repo: https://github.com/ksyusuf/lunova
+            plan: free
+            envVars:
+              - key: ZOOM_CLIENT_SECRET
+                sync: false
+              - key: ZOOM_CLIENT_ID
+                sync: false
+              - key: ZOOM_ACCOUNT_ID
+                sync: false
+              - key: SESSION_COOKIE_DOMAIN
+                sync: false
+              - key: SECRET_KEY
+                sync: false
+              - key: MEDIA_URL
+                sync: false
+              - key: MEDIA_ROOT
+                sync: false
+              - key: FRONTEND_URLS
+                sync: false
+              - key: ENVIRONMENT
+                sync: false
+              - key: EMAIL_USE_TLS
+                sync: false
+              - key: EMAIL_USE_SSL
+                sync: false
+              - key: EMAIL_PORT
+                sync: false
+              - key: EMAIL_HOST_USER
+                sync: false
+              - key: EMAIL_HOST_PASSWORD
+                sync: false
+              - key: EMAIL_HOST
+                sync: false
+              - key: EMAIL_BACKEND
+                sync: false
+              - key: DEFAULT_FROM_EMAIL
+                sync: false
+              - key: DEBUG
+                sync: false
+              - key: SUPABASE_SERVICE_ROLE_KEY
+                sync: false
+              - key: SUPABASE_URL
+                sync: false
+              - key: SUPABASE_BUCKET
+                sync: false
+              - key: STORAGE_PROVIDER
+                sync: false
+              - key: DB_URI
+                sync: false
+              - key: ALLOWED_HOSTS
+                sync: false
+            region: frankfurt
+            buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+            startCommand:
+              python manage.py migrate && gunicorn lunova_backend.wsgi:application
+              --bind 0.0.0.0:$PORT
+            domains:
+              - api.lunova.tr
+            autoDeployTrigger: commit
+            rootDir: backend/
