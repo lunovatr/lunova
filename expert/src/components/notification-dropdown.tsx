@@ -13,6 +13,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   getNotifications,
+  markAllNotificationsRead,
   markNotificationRead,
   type NotificationItem,
 } from '@/features/notifications/api'
@@ -51,6 +52,17 @@ export function NotificationDropdown() {
 
   const unreadCount = notifications.filter((n) => !n.is_read).length
 
+  const handleMarkAllAsRead = async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })))
+    try {
+      await markAllNotificationsRead()
+    } catch {
+      // Başarısız olsa da UI zaten iyimser şekilde güncellendi - bir
+      // sonraki fetchNotifications() (polling ya da dropdown açılışı)
+      // gerçek durumu senkronlar.
+    }
+  }
+
   const handleNotificationClick = async (notification: NotificationItem) => {
     if (!notification.is_read) {
       setNotifications((prev) =>
@@ -77,6 +89,12 @@ export function NotificationDropdown() {
         to: '/groups',
         search: { groupSessionId: notification.group_session_id },
       })
+    } else if (notification.notification_type === 'form_submitted') {
+      // Danışan bazlı bir deep-link yok (client-forms route'u henüz bir
+      // clientId arama parametresi kabul etmiyor) - genel matris sayfasına
+      // yönlendiriyoruz, document_status'un /profile'a gitmesiyle aynı
+      // "sabit hedef" deseni.
+      navigate({ to: '/client-forms' })
     } else if (notification.appointment_id) {
       navigate({
         to: '/reservations',
@@ -101,7 +119,22 @@ export function NotificationDropdown() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className='w-80' align='end' forceMount>
-        <DropdownMenuLabel>Bildirimler</DropdownMenuLabel>
+        <div className='flex items-center justify-between px-2 py-1.5'>
+          <DropdownMenuLabel className='p-0'>Bildirimler</DropdownMenuLabel>
+          {unreadCount > 0 && (
+            <Button
+              variant='ghost'
+              size='sm'
+              className='h-auto p-0 text-xs font-normal'
+              onClick={(e) => {
+                e.preventDefault()
+                handleMarkAllAsRead()
+              }}
+            >
+              Tümünü okundu işaretle
+            </Button>
+          )}
+        </div>
         <DropdownMenuSeparator />
         <ScrollArea className='h-80'>
           {notifications.length === 0 ? (

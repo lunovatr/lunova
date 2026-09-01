@@ -42,3 +42,21 @@ class NotificationMarkReadView(APIView):
             notification.read_at = timezone.now()
             notification.save(update_fields=['is_read', 'read_at'])
         return Response(NotificationSerializer(notification).data, status=status.HTTP_200_OK)
+
+
+class NotificationMarkAllReadView(APIView):
+    """
+    PATCH /api/v1/notifications/mark-all-read/
+
+    Kullanıcının TÜM okunmamış bildirimlerini tek seferde okunmuş işaretler.
+    Toplu bir `update()` - tekil PATCH .../<id>/read/'in aksine her satırı
+    tek tek yüklemez/save() etmez, idempotent (zaten okunmuş satırlara
+    dokunmaz, read_at'lerini ezmez).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request):
+        Notification.objects.filter(user=request.user, is_read=False).update(
+            is_read=True, read_at=timezone.now()
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)

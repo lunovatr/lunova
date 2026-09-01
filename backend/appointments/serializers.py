@@ -5,7 +5,11 @@ from .models import (
 )
 from .services import grant_appointment_access_if_paid
 from mailer.services import send_appointment_created_email, send_payment_required_email, send_free_trial_ready_email
-from notifications.services import create_payment_required_notification, create_free_trial_ready_notification
+from notifications.services import (
+    create_payment_required_notification,
+    create_free_trial_ready_notification,
+    create_appointment_created_notification,
+)
 from availability.models import WeeklyAvailability, AvailabilityException
 from accounts.models import ExpertProfile, User
 
@@ -176,6 +180,7 @@ class CreateAppointmentWithZoomSerializer(serializers.ModelSerializer):
 
         if grant_appointment_access_if_paid(appointment):
             send_appointment_created_email(appointment)
+            create_appointment_created_notification(appointment)
         elif appointment.is_free_trial:
             send_free_trial_ready_email(appointment)
             create_free_trial_ready_notification(appointment)
@@ -330,6 +335,7 @@ class ClientCreateAppointmentSerializer(serializers.ModelSerializer):
         appointment = Appointment.objects.create(**validated_data)
 
         send_appointment_created_email(appointment)
+        create_appointment_created_notification(appointment)
 
         return appointment
 

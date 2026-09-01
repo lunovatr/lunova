@@ -93,11 +93,13 @@ def cancel_appointment(appointment, *, actor) -> None:
     bu turda genişletilmedi (kapsam sadece mark_as_cancelled'ın mail'i hiç
     atlamaması, kime gittiği ayrı bir konu)."""
     from mailer.services import send_appointment_cancellation_email
+    from notifications.services import create_appointment_cancellation_notification
 
     appointment.status = 'cancelled'
     appointment.is_confirmed = False
     appointment.save(update_fields=['status', 'is_confirmed', 'updated_at'])
     send_appointment_cancellation_email(appointment, actor=actor)
+    create_appointment_cancellation_notification(appointment, actor=actor)
 
 
 def grant_appointment_access_if_paid(appointment) -> bool:

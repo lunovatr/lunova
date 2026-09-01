@@ -22,7 +22,13 @@ from mailer.services import (
     send_appointment_confirmed_email, send_appointment_cancellation_email, send_payment_required_email,
     send_free_trial_ready_email,
 )
-from notifications.services import create_payment_required_notification, create_free_trial_ready_notification
+from notifications.services import (
+    create_payment_required_notification,
+    create_free_trial_ready_notification,
+    create_appointment_confirmed_notification,
+    create_new_client_matched_notification,
+    create_appointment_cancellation_notification,
+)
 from datetime import datetime
 from django.utils import timezone
 from dateutil.relativedelta import relativedelta
@@ -267,6 +273,19 @@ class AppointmentDetailView(generics.RetrieveUpdateDestroyAPIView):
 
         # Zoom erişimi + mail/bildirim (asenkron, hata olursa sistemi bloklamaz/bozmaz - bkz. mailer/services.py)
         if new_status == 'confirmed':
+            # "İlk eşleşme" - bu danışan-uzman çiftinin DAHA ÖNCE hiç
+            # onaylanmış (confirmed) bir randevusu yoksa bu ilk eşleşmedir.
+            # ClientProfile.expert alanı hiçbir yerde otomatik set edilmediği
+            # için (sadece admin panelinden elle) "atanma" sinyali BURADAN,
+            # randevu geçmişinden türetiliyor (35. tur - bkz. kök claude.md).
+            # Ödeme dalından BAĞIMSIZ, hangi alt-dala düşerse düşsün uzman
+            # "yeni danışan" bildirimini alsın diye branching'den ÖNCE hesaplanır.
+            is_first_match = not Appointment.objects.filter(
+                client_id=instance.client_id, expert_id=instance.expert_id, status='confirmed'
+            ).exclude(pk=instance.pk).exists()
+            if is_first_match:
+                create_new_client_matched_notification(instance)
+
             # Ödeme (ya da kullanılmamış ücretsiz ilk seans hakkı) yoksa Zoom
             # burada oluşturulmaz - bkz. appointments/services.py::grant_appointment_access_if_paid.
             # Ödeme gerekiyorsa genel "onaylandı" maili yerine ödeme talebi
@@ -276,6 +295,7 @@ class AppointmentDetailView(generics.RetrieveUpdateDestroyAPIView):
             # danışan Payments sayfasında onaylayana kadar Zoom açılmaz (30. tur).
             if grant_appointment_access_if_paid(instance):
                 send_appointment_confirmed_email(instance)
+                create_appointment_confirmed_notification(instance, is_first_match=is_first_match)
             elif instance.is_free_trial:
                 send_free_trial_ready_email(instance)
                 create_free_trial_ready_notification(instance)
@@ -284,6 +304,7 @@ class AppointmentDetailView(generics.RetrieveUpdateDestroyAPIView):
                 create_payment_required_notification(instance)
         elif new_status in ('cancel_requested', 'cancelled'):
             send_appointment_cancellation_email(instance, actor=user)
+            create_appointment_cancellation_notification(instance, actor=user)
 
         # Response serializer ile döndür
         response_serializer = AppointmentSerializer(instance, context={'request': request})

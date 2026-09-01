@@ -29,6 +29,12 @@ class Notification(models.Model):
         ('group_join_rejected', 'Grup Seansı Talebi Reddedildi'),
         ('group_session_cancelled', 'Grup Seansı İptal Edildi'),
         ('group_participant_reassigned', 'Başka Bir Grup Seansına Aktarıldınız'),
+        ('appointment_requested', 'Yeni Randevu Talebi'),
+        ('appointment_created', 'Randevu Oluşturuldu'),
+        ('appointment_confirmed', 'Randevu Onaylandı'),
+        ('appointment_cancel_requested', 'Randevu İptal Talebi'),
+        ('appointment_cancelled', 'Randevu İptal Edildi'),
+        ('form_submitted', 'Yeni Form Gönderimi'),
     ]
 
     user = models.ForeignKey(

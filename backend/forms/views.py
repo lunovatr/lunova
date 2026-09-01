@@ -5,6 +5,8 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 
 from accounts.models import UserRole, ClientProfile, ExpertProfile
+from mailer.services import send_high_risk_form_alert_email
+from notifications.services import create_form_submitted_notification
 from .models import Form, FormResponse, Answer, Question, QuestionOption
 from .serializers import (
     FormSerializer,
@@ -134,6 +136,15 @@ class FormSubmitView(APIView):
         # SONRA gerçek toplamla tekrar save() çağırmak zorunlu.
         response_obj.total_score = total_score
         response_obj.save()
+
+        # Uzmana bildirim (35. tur) - HER gönderimde in-app, risk seviyesi
+        # yüksekse EK olarak mail (kullanıcı kararı: risk_level serbest metin
+        # bir alan olduğu için "yüksek" substring kontrolüyle tespit ediliyor,
+        # bkz. notifications/services.py::create_form_submitted_notification
+        # docstring'i - atanmış uzman yoksa ikisi de sessizce hiçbir şey yapmaz).
+        create_form_submitted_notification(response_obj)
+        if response_obj.risk_level and 'yüksek' in response_obj.risk_level.lower():
+            send_high_risk_form_alert_email(response_obj)
 
         return Response(
             {"response_id": response_obj.id},

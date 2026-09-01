@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.models import ClientProfile, ExpertProfile, UserRole
+from mailer.services import send_new_client_message_email
 from notifications.services import create_message_notification
 from .models import Conversation, Message
 from .serializers import MessageCreateSerializer, MessageSerializer
@@ -130,6 +131,10 @@ class ConversationMessagesView(APIView):
         conversation.last_message_at = message.created_at
         conversation.save(update_fields=["last_message_at"])
         create_message_notification(message)
+        if is_client:
+            # SADECE danışan -> uzman yönünde mail (35. tur, kullanıcı kararı) -
+            # uzmandan danışana mesajda mail YOK, in-app bildirim zaten yeterli.
+            send_new_client_message_email(message)
 
         response_data = MessageSerializer(message, context={"request": request}).data
         response_data["client_quota"] = _quota_payload(expert_id, client_id)

@@ -333,6 +333,174 @@ def create_free_trial_ready_notification(appointment):
     )
 
 
+def create_appointment_created_notification(appointment):
+    """Bir randevu ilk oluşturulduğunda çağrılır - mailer.services.
+    send_appointment_created_email()'in aynı durum-bazlı dallanmasını mirror
+    eder (appointments/serializers.py -> ClientCreateAppointmentSerializer.
+    create() ve CreateAppointmentWithZoomSerializer.create() tarafından,
+    mail çağrısının hemen yanında çağrılır):
+
+    - status == 'waiting_approval' (danışan talep etti) -> UZMANA
+      ('appointment_requested' - incelemesi gereken yeni bir talep var).
+    - diğer her durum (uzman doğrudan oluşturdu, model varsayılanı 'pending')
+      -> DANIŞANA ('appointment_created' - kendisi için yeni bir randevu var).
+    """
+    date_str = appointment.date.strftime('%d.%m.%Y')
+    time_str = appointment.time.strftime('%H:%M')
+
+    if appointment.status == 'waiting_approval':
+        client_name = appointment.client.get_full_name()
+        Notification.objects.get_or_create(
+            user_id=appointment.expert_id,
+            dedupe_key=f"appointment_created:{appointment.id}",
+            defaults={
+                'notification_type': 'appointment_requested',
+                'title': "Yeni bir randevu talebiniz var",
+                'body': f"{client_name}, {date_str} {time_str} için bir randevu talep etti.",
+                'appointment': appointment,
+            },
+        )
+    else:
+        expert_name = appointment.expert.get_full_name()
+        Notification.objects.get_or_create(
+            user_id=appointment.client_id,
+            dedupe_key=f"appointment_created:{appointment.id}",
+            defaults={
+                'notification_type': 'appointment_created',
+                'title': "Sizin için yeni bir randevu oluşturuldu",
+                'body': f"{expert_name} ile {date_str} {time_str} tarihli bir randevunuz oluşturuldu.",
+                'appointment': appointment,
+            },
+        )
+
+
+def create_appointment_confirmed_notification(appointment, *, is_first_match=False):
+    """Bir randevu status='confirmed' olduğunda (ödeme zaten yapılmış/gerekmiyor
+    dalı - is_free_trial/payment_required dalları KENDİ bildirimlerini üretiyor,
+    bkz. create_free_trial_ready_notification/create_payment_required_notification)
+    DANIŞANA bildirim üretir - mailer.services.send_appointment_confirmed_email()'in
+    in-app karşılığı. `is_first_match=True` ise (bu danışan-uzman çiftinin İLK
+    onaylanan randevusu - bkz. appointments/views.py::status_update() içindeki
+    hesaplama) body'e uzmanın artık atandığını belirten bir cümle eklenir."""
+    date_str = appointment.date.strftime('%d.%m.%Y')
+    time_str = appointment.time.strftime('%H:%M')
+    expert_name = appointment.expert.get_full_name()
+
+    body = f"{expert_name} ile {date_str} {time_str} tarihli randevunuz onaylandı."
+    if is_first_match:
+        body += f" {expert_name} artık uzmanınız olarak atandı."
+
+    Notification.objects.get_or_create(
+        user_id=appointment.client_id,
+        dedupe_key=f"appointment_confirmed:{appointment.id}",
+        defaults={
+            'notification_type': 'appointment_confirmed',
+            'title': "Randevunuz onaylandı",
+            'body': body,
+            'appointment': appointment,
+        },
+    )
+
+
+def create_new_client_matched_notification(appointment):
+    """SADECE bir danışan-uzman çiftinin İLK onaylanan randevusunda UZMANA
+    bildirim üretir ("yeni bir danışanla eşleştiniz") - appointments/views.py::
+    status_update()'teki is_first_match hesaplamasıyla gated, tekrarlanan
+    (mevcut bir danışanın yeni bir randevusu onaylanan) durumlarda hiç
+    çağrılmaz. dedupe_key randevuya değil DANIŞAN-UZMAN ÇİFTİNE bağlı - aynı
+    çift için birden fazla randevu bu fonksiyonu tetiklemeye çalışsa bile
+    (teorik olarak, is_first_match zaten bunu engelliyor) idempotent kalır."""
+    client_name = appointment.client.get_full_name()
+    Notification.objects.get_or_create(
+        user_id=appointment.expert_id,
+        dedupe_key=f"new_client_matched:{appointment.client_id}:{appointment.expert_id}",
+        defaults={
+            'notification_type': 'appointment_confirmed',
+            'title': "Yeni bir danışanla eşleştiniz",
+            'body': f"{client_name} ile ilk randevunuz onaylandı - artık danışanınız.",
+            'appointment': appointment,
+        },
+    )
+
+
+def create_appointment_cancellation_notification(appointment, *, actor):
+    """Bir randevu status='cancel_requested' ya da 'cancelled' olduğunda
+    çağrılır - mailer.services.send_appointment_cancellation_email()'in aynı
+    dallanmasını mirror eder (appointments/views.py::status_update() ve
+    appointments/services.py::cancel_appointment()'ın ikisinden de, mail
+    çağrısının hemen yanında çağrılır):
+
+    - status == 'cancel_requested' (sadece danışan tetikleyebilir) -> UZMANA.
+    - status == 'cancelled' -> `actor` OLMAYAN tarafa (işlemi yapmayan taraf).
+
+    dedupe_key appointment.status'ü de içeriyor - aynı randevuda önce
+    cancel_requested sonra cancelled aşamalarının İKİSİ de ayrı birer
+    bildirim olarak birikebilsin diye (appointment.id tek başına yetseydi
+    ikinci durum ilkinin üzerine yazardı ya da get_or_create'te sessizce
+    atlanırdı)."""
+    date_str = appointment.date.strftime('%d.%m.%Y')
+    time_str = appointment.time.strftime('%H:%M')
+
+    if appointment.status == 'cancel_requested':
+        client_name = appointment.client.get_full_name()
+        Notification.objects.get_or_create(
+            user_id=appointment.expert_id,
+            dedupe_key=f"appointment_cancellation:{appointment.id}:cancel_requested",
+            defaults={
+                'notification_type': 'appointment_cancel_requested',
+                'title': "Bir danışanınız randevusunu iptal etmek istiyor",
+                'body': f"{client_name}, {date_str} {time_str} tarihli randevusu için iptal talebinde bulundu.",
+                'appointment': appointment,
+            },
+        )
+        return
+
+    # status == 'cancelled' -> işlemi yapmayan taraf bilgilendirilir
+    if actor.id == appointment.client_id:
+        recipient_id, other_name = appointment.expert_id, appointment.client.get_full_name()
+    else:
+        recipient_id, other_name = appointment.client_id, appointment.expert.get_full_name()
+
+    Notification.objects.get_or_create(
+        user_id=recipient_id,
+        dedupe_key=f"appointment_cancellation:{appointment.id}:cancelled",
+        defaults={
+            'notification_type': 'appointment_cancelled',
+            'title': "Randevunuz iptal edildi",
+            'body': f"{other_name} ile {date_str} {time_str} tarihli randevunuz iptal edildi.",
+            'appointment': appointment,
+        },
+    )
+
+
+def create_form_submitted_notification(response):
+    """Bir danışan bir form gönderdiğinde (forms/views.py::FormSubmitView.post())
+    HER ZAMAN (risk seviyesinden bağımsız) danışanın atanmış uzmanına bildirim
+    üretir - atanmış uzman yoksa (ClientProfile.expert boş) sessizce hiçbir
+    şey yapmaz, bildirilecek belirli bir kişi yok (kullanıcı kararı).
+
+    `response` parametresi diğer create_*_notification fonksiyonlarıyla aynı
+    "duck-typed, ilgili app'i import etmeyen leaf-app" deseninde değil bu
+    kez - forms zaten notifications'tan önce yükleniyor, döngü riski yok,
+    ama yine de sadece .id/.user/.risk_level okunuyor."""
+    from accounts.models import ClientProfile
+
+    client_profile = ClientProfile.objects.filter(user_id=response.user_id).select_related('expert__user').first()
+    if not client_profile or not client_profile.expert_id:
+        return
+
+    client_name = response.user.get_full_name()
+    Notification.objects.get_or_create(
+        user_id=client_profile.expert.user_id,
+        dedupe_key=f"form_submitted:{response.id}",
+        defaults={
+            'notification_type': 'form_submitted',
+            'title': "Yeni bir form gönderimi var",
+            'body': f"{client_name}, {response.form.title} formunu doldurdu.",
+        },
+    )
+
+
 def create_payment_succeeded_notification(payment):
     """Bir ödeme başarıyla tamamlandığında (Payment.status=SUCCEEDED) hem
     danışana hem uzmana ayrı birer bildirim üretir - payments/services.py'nin

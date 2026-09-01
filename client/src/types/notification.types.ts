@@ -24,6 +24,16 @@
 // listesindekilere gider; 'group_participant_reassigned' - admin panelinden
 // başka bir gruba aktarıldığında - ikisi de group_session_id taşır, aynı
 // "Grup Seanslarım" sayfasına yönlendirir.
+// (35. tur, YENİ) Randevu yaşam döngüsü türleri - hepsi appointment_id
+// taşır, özel bir routing dalı gerekmez (aşağıdaki genel appointment_id
+// fallback'i zaten randevu detayına yönlendirir): 'appointment_created'
+// (uzman doğrudan bir randevu oluşturdu), 'appointment_confirmed' (uzman
+// onayladı - ilk eşleşmedeyse metin uzman atandığını da belirtir),
+// 'appointment_cancel_requested'/'appointment_cancelled' - bu ikisi client
+// tarafında NORMALDE görünmez (cancel_requested uzmana, cancelled genelde
+// karşı tarafa gider) ama tip güvenliği için tanımlı. 'form_submitted'
+// SADECE uzman tarafında görünür (danışan kendi form gönderimi için
+// bildirim almıyor).
 export type NotificationType =
   | "appointment_reminder"
   | "message"
@@ -36,7 +46,13 @@ export type NotificationType =
   | "group_join_rejected"
   | "group_waitlist_spot_available"
   | "group_session_cancelled"
-  | "group_participant_reassigned";
+  | "group_participant_reassigned"
+  | "appointment_requested"
+  | "appointment_created"
+  | "appointment_confirmed"
+  | "appointment_cancel_requested"
+  | "appointment_cancelled"
+  | "form_submitted";
 
 export interface NotificationItem {
   id: number;

@@ -40,6 +40,17 @@ export default function NotificationDropdown() {
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
+  const markAllAsRead = async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    try {
+      await api.patch("/api/v1/notifications/mark-all-read/");
+    } catch {
+      // Başarısız olsa da UI zaten iyimser şekilde güncellendi - bir
+      // sonraki fetchNotifications() (polling ya da dropdown açılışı)
+      // gerçek durumu senkronlar.
+    }
+  };
+
   function toggleDropdown() {
     setIsOpen((prev) => !prev);
   }
@@ -131,10 +142,19 @@ export default function NotificationDropdown() {
           <h5 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
             Bildirimler
           </h5>
-          <button
-            onClick={toggleDropdown}
-            className="text-gray-500 transition dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-          >
+          <div className="flex items-center gap-3">
+            {unreadCount > 0 && (
+              <button
+                onClick={markAllAsRead}
+                className="text-theme-xs font-medium text-brand-500 transition hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300"
+              >
+                Tümünü okundu işaretle
+              </button>
+            )}
+            <button
+              onClick={toggleDropdown}
+              className="text-gray-500 transition dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+            >
             <svg
               className="fill-current"
               width="24"
@@ -149,7 +169,8 @@ export default function NotificationDropdown() {
                 fill="currentColor"
               />
             </svg>
-          </button>
+            </button>
+          </div>
         </div>
         <ul className="flex flex-col h-auto overflow-y-auto custom-scrollbar">
           {notifications.length === 0 ? (

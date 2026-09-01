@@ -527,3 +527,69 @@ def send_appointment_cancellation_email(appointment, *, actor) -> None:
         cta_text="Randevularımı Görüntüle",
         cta_url=cta_url,
     )
+
+
+def send_high_risk_form_alert_email(response) -> None:
+    """Bir danışanın gönderdiği formun risk_level'i "yüksek" içeriyorsa
+    (notifications/services.py::create_form_submitted_notification() HER
+    gönderimde çalışan in-app bildirime EK olarak) uzmana ASENKRON bir uyarı
+    maili gönderir - forms/views.py::FormSubmitView.post() tarafından çağrılır.
+
+    `response` (FormResponse) duck-typed - sadece .user/.form/.risk_level
+    okunuyor. Alıcı uzman, notifications/services.py::
+    create_form_submitted_notification()'daki AYNI ClientProfile.expert
+    sorgusuyla ayrıca (bağımsız olarak) çözülüyor - atanmış uzman yoksa
+    sessizce hiçbir şey yapmaz (o fonksiyonla aynı kural)."""
+    from accounts.models import ClientProfile
+
+    client_profile = ClientProfile.objects.filter(user_id=response.user_id).select_related('expert__user').first()
+    if not client_profile or not client_profile.expert_id:
+        return
+
+    client_name = response.user.get_full_name()
+    base_url = settings.FRONTEND_URLS.get('expert')
+    cta_url = f"{base_url}/client-forms" if base_url else None
+    send_template_email_async(
+        client_profile.expert.user.email,
+        subject="Yüksek Risk Seviyeli Form Gönderimi",
+        heading="Bir danışanınızın form sonucu yüksek risk gösteriyor",
+        intro_paragraphs=[
+            "Merhaba,",
+            f"{client_name}, {response.form.title} formunu doldurdu ve sonuç "
+            f"\"{response.risk_level}\" olarak değerlendirildi.",
+            "Danışanınızla iletişime geçmeniz önerilir.",
+        ],
+        details=[
+            {'label': 'Danışan', 'value': client_name},
+            {'label': 'Form', 'value': response.form.title},
+            {'label': 'Risk Seviyesi', 'value': response.risk_level},
+        ],
+        cta_text="Formu Görüntüle",
+        cta_url=cta_url,
+    )
+
+
+def send_new_client_message_email(message) -> None:
+    """Bir danışan uzmanına yeni bir not/mesaj gönderdiğinde ASENKRON bir
+    bilgilendirme maili gönderir - messaging/views.py'den, SADECE gönderen
+    danışansa çağrılır (uzmandan danışana mesajda mail YOK, kullanıcı kararı).
+
+    `message` parametresi notifications/services.py::create_message_notification()
+    ile aynı duck-typed desende (.body/.sender/.conversation okunuyor)."""
+    expert = message.conversation.expert
+    client_name = message.sender.get_full_name()
+    preview = message.body if len(message.body) <= 200 else message.body[:197] + "..."
+    base_url = settings.FRONTEND_URLS.get('expert')
+    cta_url = f"{base_url}/messages?clientId={message.sender_id}" if base_url else None
+    send_template_email_async(
+        expert.email,
+        subject="Yeni Bir Notunuz Var",
+        heading="Bir danışanınızdan yeni bir not geldi",
+        intro_paragraphs=[
+            f"Merhaba {expert.first_name},",
+            f"{client_name} size bir not gönderdi:",
+            f"\"{preview}\"",
+        ],
+        cta_text="Notu Görüntüle",
+        cta_url=cta_url,
+    )
