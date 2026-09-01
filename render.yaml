@@ -1,0 +1,19 @@
+# Render Blueprint - backend servisi
+#
+# ÖNEMLİ: `name` alanı Render dashboard'unda ZATEN VAR OLAN backend servisinin
+# adıyla BİREBİR aynı olmalı - aksi halde Render bunu mevcut servisi yönetmek
+# yerine YENİ, ayrı bir servis olarak oluşturur. Sync etmeden önce Render
+# dashboard'unda gerçek servis adını kontrol edip aşağıdaki placeholder'ı onunla
+# değiştir.
+#
+# Ortam değişkenleri BİLİNÇLİ OLARAK burada tanımlanmadı - mevcut servisin
+# Render dashboard'unda zaten kayıtlı olan env var'ları bu dosyada hiç
+# geçmedikleri için Blueprint sync'inden etkilenmeyip olduğu gibi kalır.
+
+services:
+  - type: web
+    name: lunova_backend # <-- Render'daki gerçek servis adıyla değiştir
+    runtime: python
+    rootDir: backend
+    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput"
+    startCommand: "python manage.py migrate && gunicorn lunova_backend.wsgi:application --bind 0.0.0.0:$PORT"
